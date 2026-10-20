@@ -2,7 +2,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: var(--viewport-h);
   overflow: hidden;
   background: #0d3a2f;
 }
@@ -14,7 +14,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: var(--s-2);
-  padding: max(var(--s-2), env(safe-area-inset-top)) var(--s-3) var(--s-1);
+  padding: max(var(--s-2), var(--inset-top)) var(--s-3) var(--s-1);
   background: linear-gradient(180deg, var(--navy-900), var(--navy-800));
 }
 

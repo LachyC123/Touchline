@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "icons": "node scripts/render-icons.mjs",
-    "simulate:balance": "tsx scripts/simulate-balance.ts"
+    "simulate:balance": "tsx scripts/simulate-balance.ts",
+    "build:artifact": "tsc -b && ARTIFACT=1 vite build && node scripts/make-artifact-page.mjs"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

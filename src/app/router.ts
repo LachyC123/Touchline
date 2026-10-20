@@ -47,38 +47,55 @@ export function routeToHash(route: Route): string {
   return route.name === 'title' ? '#/' : `#/${route.name}`;
 }
 
-function subscribe(cb: () => void): () => void {
-  window.addEventListener('hashchange', cb);
-  return () => window.removeEventListener('hashchange', cb);
+/*
+ * Route state lives in memory and is mirrored to location.hash when the host allows it.
+ * Some embedding frames (e.g. the claude.ai Artifact viewer) don't keep hash changes, so the
+ * app must never depend on reading the hash back.
+ */
+let current: string = typeof window !== 'undefined' ? window.location.hash : '';
+const listeners = new Set<() => void>();
+const emit = () => listeners.forEach((l) => l());
+
+if (typeof window !== 'undefined') {
+  const sync = () => {
+    // Browser back/forward or a typed URL.
+    if (window.location.hash !== current) {
+      current = window.location.hash;
+      emit();
+    }
+  };
+  window.addEventListener('hashchange', sync);
+  window.addEventListener('popstate', sync);
 }
 
-/** Hash routing keeps deep links working offline and across refreshes with no server config. */
+function subscribe(cb: () => void): () => void {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
 export function useRoute(): Route {
-  const hash = useSyncExternalStore(subscribe, () => window.location.hash, () => '');
+  const hash = useSyncExternalStore(subscribe, () => current, () => '');
   return parseHash(hash);
 }
 
 export function navigate(route: Route, opts: { replace?: boolean } = {}): void {
   const hash = routeToHash(route);
-  if (opts.replace) window.history.replaceState(null, '', hash);
-  else window.location.hash = hash;
-  if (opts.replace) window.dispatchEvent(new HashChangeEvent('hashchange'));
+  current = hash;
+  try {
+    if (opts.replace) window.history.replaceState(null, '', hash);
+    else if (window.location.hash !== hash) window.history.pushState(null, '', hash);
+  } catch {
+    /* the host frame may refuse URL changes; in-memory routing still works */
+  }
+  emit();
 }
 
-/** In-app back: return to the screen's parent if we came from it, otherwise go there directly. */
-let lastRoute: string | null = null;
-let currentRoute: string | null = null;
-if (typeof window !== 'undefined') {
-  currentRoute = window.location.hash;
-  window.addEventListener('hashchange', () => {
-    lastRoute = currentRoute;
-    currentRoute = window.location.hash;
-  });
-}
-
+/**
+ * In-app back goes to the screen's parent. It never calls history.back(): inside an embedding
+ * frame that could navigate the host page instead of the game.
+ */
 export function goBack(parent: Route): void {
-  if (lastRoute === routeToHash(parent)) window.history.back();
-  else navigate(parent);
+  navigate(parent);
 }
 
 export const DEV_TOOLS_ENABLED = import.meta.env.DEV || import.meta.env.VITE_DEV_DEBUG === 'true';

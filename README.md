@@ -27,6 +27,7 @@ The full specification lives in this repo:
 | `npm run dev -- --host 0.0.0.0` | Dev server (includes the developer Card Lab at `#/lab`) |
 | `npm run build` | Typecheck (`tsc -b`) and production build with service worker |
 | `npm run preview` | Serve the production build |
+| `npm run build:artifact` | Build for the claude.ai Artifact viewer (relative paths, fonts inlined, no service worker) → `dist-artifact/touchline.html` + `assets/`; used for phone playtests |
 | `npm run test` | Unit tests (Vitest): RNG, generator incl. 10k diversity + 100k odds checks, match engine (determinism, replay, invariants, fairness, tactics), lineup rules, settlement exactly-once, save/persistence, export/import |
 | `npm run test:e2e` | Playwright E2E at 390×844, 360×740 and 320×680 against a production build |
 | `npm run lint` | ESLint (also forbids UI/framework imports in pure domain code) |

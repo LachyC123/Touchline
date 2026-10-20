@@ -9,7 +9,7 @@ export function PwaPrompt() {
   const [update, setUpdate] = useState<null | (() => Promise<void>)>(null);
 
   useEffect(() => {
-    if (import.meta.env.DEV || !('serviceWorker' in navigator)) return;
+    if (import.meta.env.DEV || import.meta.env.VITE_ARTIFACT || !('serviceWorker' in navigator)) return;
     let cancelled = false;
     void import('virtual:pwa-register').then(({ registerSW }) => {
       if (cancelled) return;

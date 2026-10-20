@@ -29,8 +29,8 @@ export class TouchlineDB extends Dexie {
   backups!: EntityTable<BackupRow, 'id'>;
   meta!: EntityTable<MetaRow, 'key'>;
 
-  constructor(name = 'touchline') {
-    super(name);
+  constructor(name = 'touchline', options?: ConstructorParameters<typeof Dexie>[1]) {
+    super(name, options);
     // Dexie schema v1. Bump with an explicit upgrade() when indexes change; save-document
     // migrations (ClubSave.schemaVersion) are handled separately in migrations.ts.
     this.version(1).stores({
@@ -48,9 +48,28 @@ export function getDb(): TouchlineDB {
   return instance;
 }
 
-/** Tests use isolated databases. */
+/** Tests use isolated databases; the in-memory fallback swaps in a non-persistent one. */
 export function setDbForTests(db: TouchlineDB | null): void {
   instance = db;
+}
+
+let memoryOnly = false;
+
+export function isMemoryOnly(): boolean {
+  return memoryOnly;
+}
+
+/**
+ * When the browser refuses IndexedDB (private mode, blocked site data, some embedded
+ * previews) the game still runs on an in-memory database. Progress lasts until the page closes.
+ */
+export async function switchToMemoryDb(): Promise<TouchlineDB> {
+  const { IDBFactory, IDBKeyRange } = await import('fake-indexeddb');
+  const db = new TouchlineDB('touchline-memory', { indexedDB: new IDBFactory(), IDBKeyRange });
+  await db.open();
+  instance = db;
+  memoryOnly = true;
+  return db;
 }
 
 export const MAX_BACKUPS = 5;

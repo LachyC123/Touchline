@@ -10,7 +10,7 @@
   position: relative;
   width: 100%;
   max-width: var(--shell-max);
-  min-height: 100dvh;
+  min-height: var(--viewport-h);
   margin: 0 auto;
   background:
     radial-gradient(ellipse 90% 30% at 50% 0%, rgb(255 255 255 / 0.05), transparent 70%),
@@ -27,7 +27,7 @@
 }
 
 .screen {
-  padding: max(var(--s-3), env(safe-area-inset-top)) var(--gutter) calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-5));
+  padding: max(var(--s-3), var(--inset-top)) var(--gutter) calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-5));
   animation: screen-in var(--dur-tab) var(--ease-out);
 }
 
@@ -137,7 +137,7 @@
 .boot {
   display: grid;
   place-items: center;
-  min-height: 100dvh;
+  min-height: var(--viewport-h);
   padding: var(--s-5);
   text-align: center;
 }
@@ -157,4 +157,16 @@
 .boot__panel p {
   margin: var(--s-3) 0 var(--s-5);
   color: var(--text-muted);
+}
+
+.memory-banner {
+  position: relative;
+  z-index: 45;
+  margin: 0;
+  padding: 6px var(--gutter);
+  background: var(--gold);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: center;
 }

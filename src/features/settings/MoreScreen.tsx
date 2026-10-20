@@ -6,6 +6,8 @@ import { Button, Switch } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { useToast } from '../../components/ui/Toast';
 import type { ClubSave } from '../../domain/save/types';
+import { parseSaveFile } from '../../storage/exportImport';
+import { exportCurrentSave } from '../../storage/saveRepo';
 import { playSfx } from '../../audio/sfx';
 import './more.css';
 
@@ -30,6 +32,42 @@ export function MoreScreen() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<ClubSave | null>(null);
   const [resetStep, setResetStep] = useState<0 | 1 | 2>(0);
+  const [codeDialog, setCodeDialog] = useState<null | 'copy' | 'paste'>(null);
+  const [code, setCode] = useState('');
+  const codeRef = useRef<HTMLTextAreaElement>(null);
+  // File downloads are blocked inside the claude.ai Artifact viewer; copy/paste works there.
+  const canDownload = !import.meta.env.VITE_ARTIFACT;
+
+  const openCopy = async () => {
+    try {
+      const { json } = await exportCurrentSave();
+      setCode(json);
+      setCodeDialog('copy');
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : 'Export failed', 'error');
+    }
+  };
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      await updateSettings({ lastExportAt: new Date().toISOString() });
+      toast.show('Save code copied — paste it into a note to keep it safe');
+    } catch {
+      codeRef.current?.focus();
+      codeRef.current?.select();
+      toast.show('Copy is blocked here — the code is selected, use your device’s Copy', 'error');
+    }
+  };
+
+  const importCode = async () => {
+    try {
+      setPendingImport(await parseSaveFile(code.trim()));
+      setCodeDialog(null);
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : 'That save code could not be read.', 'error');
+    }
+  };
   const save = saveState.status === 'ready' ? saveState.save : null;
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -122,25 +160,39 @@ export function MoreScreen() {
           </span>
         </p>
         <div className="more__buttons">
-          <Button
-            variant="blue"
-            icon="download"
-            disabled={!save}
-            onClick={async () => {
-              try {
-                await exportSave();
-                toast.show('Save exported — keep the file somewhere safe');
-              } catch (err) {
-                toast.show(err instanceof Error ? err.message : 'Export failed', 'error');
-              }
-            }}
-          >
-            Export
-          </Button>
+          {canDownload && (
+            <Button
+              variant="blue"
+              icon="download"
+              disabled={!save}
+              onClick={async () => {
+                try {
+                  await exportSave();
+                  toast.show('Save exported — keep the file somewhere safe');
+                } catch (err) {
+                  toast.show(err instanceof Error ? err.message : 'Export failed', 'error');
+                }
+              }}
+            >
+              Export
+            </Button>
+          )}
           <Button icon="upload" onClick={() => fileRef.current?.click()}>
-            Import
+            Import file
           </Button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onFile} data-testid="import-input" />
+          <Button variant={canDownload ? 'secondary' : 'blue'} icon="download" disabled={!save} onClick={openCopy}>
+            Copy save code
+          </Button>
+          <Button
+            icon="upload"
+            onClick={() => {
+              setCode('');
+              setCodeDialog('paste');
+            }}
+          >
+            Paste save code
+          </Button>
         </div>
         <Button variant="ghost" icon="trash" block disabled={!save} onClick={() => setResetStep(1)} className="more__reset">
           Reset career
@@ -193,6 +245,45 @@ export function MoreScreen() {
           <b>{pendingImport?.club.name}</b> · {pendingImport?.squadIds.length} players · season {pendingImport?.season}.
         </p>
         {save && <p>This replaces {save.club.name} on this device. A backup of the current career is kept automatically.</p>}
+      </Dialog>
+
+      <Dialog
+        open={codeDialog !== null}
+        title={codeDialog === 'copy' ? 'Your save code' : 'Paste a save code'}
+        onClose={() => setCodeDialog(null)}
+        actions={
+          codeDialog === 'copy' ? (
+            <>
+              <Button variant="primary" block onClick={copyCode}>
+                Copy code
+              </Button>
+              <Button variant="ghost" block onClick={() => setCodeDialog(null)}>
+                Done
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="primary" block disabled={!code.trim()} onClick={importCode}>
+                Check and load
+              </Button>
+              <Button variant="ghost" block onClick={() => setCodeDialog(null)}>
+                Cancel
+              </Button>
+            </>
+          )
+        }
+      >
+        <p>{codeDialog === 'copy' ? 'This is your whole career. Keep it in a note or message to yourself; paste it back here to restore.' : 'Paste a code you copied from TOUCHLINE!. It is checked before anything changes.'}</p>
+        <textarea
+          id="save-code"
+          ref={codeRef}
+          className="more__code"
+          value={code}
+          readOnly={codeDialog === 'copy'}
+          onChange={(e) => setCode(e.target.value)}
+          spellCheck={false}
+          aria-label="Save code"
+        />
       </Dialog>
 
       <Dialog

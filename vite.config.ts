@@ -3,10 +3,18 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// ARTIFACT=1 builds a variant for the claude.ai Artifact viewer: relative paths, no service
+// worker (the viewer has none), and fonts inlined because the frame only loads fonts it embeds.
+const artifact = process.env.ARTIFACT === '1';
+
 export default defineConfig({
+  base: artifact ? './' : '/',
+  define: artifact ? { 'import.meta.env.VITE_ARTIFACT': JSON.stringify('1') } : {},
+  build: artifact ? { outDir: 'dist-artifact', assetsInlineLimit: 200_000, chunkSizeWarningLimit: 2000 } : {},
   plugins: [
     react(),
     VitePWA({
+      disable: artifact,
       registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['icons/*.png', 'icons/*.svg'],

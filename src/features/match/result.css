@@ -1,6 +1,6 @@
 .result__hero {
-  margin: calc(-1 * max(var(--s-3), env(safe-area-inset-top))) calc(-1 * var(--gutter)) 0;
-  padding: max(var(--s-5), calc(env(safe-area-inset-top) + var(--s-4))) var(--gutter) var(--s-5);
+  margin: calc(-1 * max(var(--s-3), var(--inset-top))) calc(-1 * var(--gutter)) 0;
+  padding: max(var(--s-5), calc(var(--inset-top) + var(--s-4))) var(--gutter) var(--s-5);
   background:
     radial-gradient(ellipse 70% 60% at 50% 0%, rgb(255 255 255 / 0.18), transparent 70%),
     linear-gradient(180deg, var(--navy-600), var(--bg));

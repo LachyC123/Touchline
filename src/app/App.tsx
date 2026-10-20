@@ -14,6 +14,7 @@ import { MoreScreen } from '../features/settings/MoreScreen';
 import { PlayerScreen } from '../features/squad/PlayerScreen';
 import { SquadScreen } from '../features/squad/SquadScreen';
 import { TitleScreen } from '../features/title/TitleScreen';
+import { isMemoryOnly, switchToMemoryDb } from '../storage/db';
 import { openStorage } from '../storage/saveRepo';
 import { GameProvider, useGame } from './GameContext';
 import { PwaPrompt } from './PwaPrompt';
@@ -30,7 +31,14 @@ export function App() {
   useEffect(() => {
     openStorage()
       .then(() => setBoot({ status: 'ok' }))
-      .catch((err: unknown) => setBoot({ status: 'failed', message: err instanceof Error ? err.message : String(err) }));
+      .catch(async (err: unknown) => {
+        try {
+          await switchToMemoryDb();
+          setBoot({ status: 'ok' });
+        } catch {
+          setBoot({ status: 'failed', message: err instanceof Error ? err.message : String(err) });
+        }
+      });
     // Browsers only allow audio after a gesture; unlock on the first touch/click.
     const unlock = () => unlockAudio();
     window.addEventListener('pointerdown', unlock, { passive: true });
@@ -63,6 +71,11 @@ export function App() {
       <GameProvider>
         <div className="app-bg">
           <div className="shell">
+            {isMemoryOnly() && (
+              <p className="memory-banner" role="status">
+                This browser is blocking saved data, so progress lasts only until you close the page.
+              </p>
+            )}
             <Screens />
           </div>
         </div>
