@@ -1,0 +1,50 @@
+.stadium {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.stadium__bulb {
+  animation: bulb 4.5s ease-in-out infinite;
+}
+
+.stadium__beams {
+  animation: beams 6s ease-in-out infinite;
+  transform-origin: 50% 0;
+}
+
+.stadium__flag-cloth {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: flag 2.4s ease-in-out infinite;
+}
+
+@keyframes bulb {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.82;
+  }
+}
+
+@keyframes beams {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes flag {
+  0%,
+  100% {
+    transform: skewY(0deg) scaleX(1);
+  }
+  50% {
+    transform: skewY(-6deg) scaleX(0.92);
+  }
+}

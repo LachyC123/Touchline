@@ -1,0 +1,96 @@
+.more__section {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.more__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 52px;
+}
+
+.more__row-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: rgb(255 247 233 / 0.08);
+  color: var(--lime);
+}
+
+.more__row-text {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.more__row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.more__row-hint {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
+.more__stacked {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.more__slider {
+  display: grid;
+  grid-template-columns: auto 1fr 3ch;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap-min);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.more__slider input {
+  width: 100%;
+  min-height: var(--tap-min);
+  accent-color: var(--lime);
+}
+
+.more__slider output {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-align: right;
+}
+
+.more__note {
+  display: flex;
+  gap: var(--s-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.more__note svg {
+  flex: none;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+.more__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+
+.more__reset {
+  margin-top: var(--s-2);
+}
+
+.more__about p {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

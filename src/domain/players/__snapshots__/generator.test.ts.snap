@@ -1,0 +1,24 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`player generator — determinism > is pinned for a known seed (catches unversioned generator changes) 1`] = `
+{
+  "appearance": {
+    "accessoryIds": [],
+    "browId": "thick",
+    "build": "average",
+    "eyeColour": "brown",
+    "eyeId": "sleepy",
+    "faceId": "oval",
+    "facialHairId": "none",
+    "hairColour": "darkBrown",
+    "hairId": "crew",
+    "mouthId": "small",
+    "noseId": "snub",
+    "skinId": "s2",
+  },
+  "name": "Koki Matsuda",
+  "ovr": 57,
+  "position": "MID",
+  "tier": "street",
+}
+`;

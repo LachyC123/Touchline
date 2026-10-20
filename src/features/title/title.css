@@ -1,0 +1,133 @@
+.title {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--navy-900);
+}
+
+.title__scene {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: clamp(190px, 25%, 280px);
+  height: clamp(220px, 34vh, 320px);
+}
+
+.title__scene::before {
+  /* night sky continues above the illustration */
+  content: '';
+  position: absolute;
+  inset: -400px 0 100%;
+  background: linear-gradient(180deg, var(--navy-900), #0b1526);
+}
+
+.title__scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, var(--navy-900));
+}
+
+.title__logo {
+  position: relative;
+  margin-top: max(48px, calc(env(safe-area-inset-top) + 32px));
+  text-align: center;
+  animation: logo-in 700ms var(--ease-spring) both;
+}
+
+.title__eyebrow {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--lime);
+  text-shadow: 0 2px 0 rgb(0 0 0 / 0.5);
+}
+
+.title__word {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: clamp(56px, 19vw, 92px);
+  line-height: 0.85;
+  letter-spacing: -0.01em;
+  color: var(--cream);
+  text-shadow:
+    0 5px 0 var(--ink),
+    3px 0 0 var(--ink),
+    -3px 0 0 var(--ink),
+    0 -3px 0 var(--ink),
+    0 12px 24px rgb(0 0 0 / 0.5);
+}
+
+.title__word span {
+  color: var(--lime);
+}
+
+.title__word em {
+  display: inline-block;
+  color: var(--orange);
+  font-style: italic;
+  animation: bang 2.8s ease-in-out 900ms infinite;
+  transform-origin: 50% 90%;
+}
+
+.title__tagline {
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xl);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cream);
+  text-shadow: 0 3px 0 var(--ink);
+}
+
+.title__actions {
+  position: relative;
+  display: grid;
+  gap: var(--s-3);
+  margin-top: auto;
+  padding: var(--s-5) var(--gutter) max(var(--s-5), env(safe-area-inset-bottom));
+  animation: actions-in 500ms var(--ease-out) 250ms both;
+}
+
+.title__note {
+  margin-top: var(--s-1);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
+@keyframes logo-in {
+  from {
+    opacity: 0;
+    scale: 0.8;
+    translate: 0 -20px;
+  }
+}
+
+@keyframes actions-in {
+  from {
+    opacity: 0;
+    translate: 0 20px;
+  }
+}
+
+@keyframes bang {
+  0%,
+  86%,
+  100% {
+    rotate: 0deg;
+  }
+  90% {
+    rotate: 10deg;
+  }
+  95% {
+    rotate: -6deg;
+  }
+}
