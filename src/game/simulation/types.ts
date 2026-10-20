@@ -1,0 +1,190 @@
+/**
+ * Match engine contract types (see MATCH_ENGINE_CONTRACT.md).
+ * Pure data: no React, Phaser, DOM or wall-clock time.
+ */
+import type { FormationId } from '../../domain/formations';
+import type { Appearance, Position } from '../../domain/players/types';
+
+export type TeamSide = 'home' | 'away';
+export interface SimPos {
+  x: number;
+  y: number;
+}
+
+/** Attributes the engine reads, already normalised 1–99. */
+export interface SimAttributes {
+  pace: number;
+  acceleration: number;
+  shooting: number;
+  finishing: number;
+  passing: number;
+  vision: number;
+  dribbling: number;
+  ballControl: number;
+  tackling: number;
+  marking: number;
+  strength: number;
+  stamina: number;
+  composure: number;
+  reflexes: number;
+  positioning: number;
+  handling: number;
+  distribution: number;
+  reach: number;
+}
+
+export interface LineupPlayer {
+  id: string;
+  name: string;
+  shortName: string;
+  slotId: string;
+  /** Role the player fills in this match (slot position, not necessarily his natural one). */
+  role: Position;
+  naturalPosition: Position;
+  /** Positional rating at `role` (includes the out-of-position penalty). */
+  rating: number;
+  attributes: SimAttributes;
+  traitIds: string[];
+  strongFoot: 'left' | 'right' | 'both';
+  /** For the renderer only — never read by the simulation. */
+  appearance: Appearance;
+}
+
+export type AiStyle = 'balanced' | 'press' | 'passing' | 'counter' | 'direct';
+
+export interface TeamLineup {
+  clubId: string;
+  /** How the AI manages this team when no human controls it. */
+  aiStyle: AiStyle;
+  name: string;
+  shortName: string;
+  kit: { primary: string; secondary: string };
+  formation: FormationId;
+  players: LineupPlayer[];
+}
+
+export type TacticCommand = 'PRESS' | 'QUICK_PASS';
+
+export interface MatchCommand {
+  type: TacticCommand;
+  side: TeamSide;
+  /** Tick at which the command takes effect (recorded for replay). */
+  tick: number;
+}
+
+export type CommandResult = { ok: true; command: MatchCommand } | { ok: false; reason: string };
+
+export type RestartKind = 'goalKick' | 'corner' | 'throwIn' | 'kickoff';
+export type ShotOutcome = 'goal' | 'saved' | 'blocked' | 'wide' | 'woodwork';
+
+interface EventBase {
+  id: number;
+  tick: number;
+  minute: number;
+}
+
+export type FootballEvent =
+  | (EventBase & { type: 'KICKOFF'; team: TeamSide; half: 1 | 2 })
+  | (EventBase & { type: 'PASS'; fromId: string; toId: string; start: SimPos; end: SimPos; outcome: 'complete' | 'intercepted' | 'loose'; interceptedBy?: string })
+  | (EventBase & { type: 'DRIBBLE'; playerId: string; from: SimPos; to: SimPos })
+  | (EventBase & { type: 'TACKLE'; challengerId: string; carrierId: string; won: boolean; at: SimPos })
+  | (EventBase & { type: 'SHOT'; shooterId: string; team: TeamSide; from: SimPos; target: SimPos; xg: number; outcome: ShotOutcome; blockerId?: string })
+  | (EventBase & { type: 'GOAL'; scorerId: string; assistId?: string; team: TeamSide; shotEventId: number })
+  | (EventBase & { type: 'SAVE'; keeperId: string; shotEventId: number; at: SimPos; held: boolean })
+  | (EventBase & { type: 'RESTART'; kind: RestartKind; team: TeamSide; at: SimPos })
+  | (EventBase & { type: 'TACTIC_APPLIED'; team: TeamSide; command: TacticCommand; expiresMinute: number })
+  | (EventBase & { type: 'HALFTIME' })
+  | (EventBase & { type: 'FULLTIME'; home: number; away: number });
+
+export type FootballEventType = FootballEvent['type'];
+
+export type MatchPhase = 'play' | 'restart' | 'goal' | 'halftime' | 'fulltime';
+
+export type PlayerAction = 'run' | 'kick' | 'tackle' | 'dive' | 'celebrate' | 'stumble' | 'idle';
+
+export interface PlayerSnapshot {
+  id: string;
+  side: TeamSide;
+  x: number;
+  y: number;
+  /** -1 facing left, 1 facing right (renderer flips sprites). */
+  facing: -1 | 1;
+  speed: number;
+  action: PlayerAction;
+  stamina: number;
+}
+
+export interface BallSnapshot {
+  x: number;
+  y: number;
+  z: number;
+  ownerId: string | null;
+  state: 'owned' | 'pass' | 'shot' | 'loose' | 'dead';
+}
+
+export interface TacticState {
+  /** Tick until which each tactic is active (exclusive); 0 = never activated. */
+  activeUntil: Record<TacticCommand, number>;
+  /** Tick from which each tactic may be used again. */
+  readyAt: Record<TacticCommand, number>;
+}
+
+export interface MatchSnapshot {
+  tick: number;
+  minute: number;
+  half: 1 | 2;
+  phase: MatchPhase;
+  score: { home: number; away: number };
+  possession: TeamSide | null;
+  players: PlayerSnapshot[];
+  ball: BallSnapshot;
+  tactics: Record<TeamSide, TacticState>;
+  /** Side attacking towards y = 0 this half. */
+  attackingUp: TeamSide;
+}
+
+export interface MatchStats {
+  possessionTicks: Record<TeamSide, number>;
+  shots: Record<TeamSide, number>;
+  onTarget: Record<TeamSide, number>;
+  xg: Record<TeamSide, number>;
+  passes: Record<TeamSide, number>;
+  passesCompleted: Record<TeamSide, number>;
+  tacklesWon: Record<TeamSide, number>;
+  saves: Record<TeamSide, number>;
+  turnovers: Record<TeamSide, number>;
+  /** Mean stamina at full time (0..1). */
+  fatigue: Record<TeamSide, number>;
+}
+
+export interface PlayerMatchLine {
+  playerId: string;
+  side: TeamSide;
+  goals: number;
+  assists: number;
+  shots: number;
+  saves: number;
+  tacklesWon: number;
+  passesCompleted: number;
+  rating: number;
+}
+
+export interface MatchResult {
+  matchId: string;
+  seed: string;
+  engineVersion: string;
+  score: { home: number; away: number };
+  events: FootballEvent[];
+  stats: MatchStats;
+  players: PlayerMatchLine[];
+  playerOfMatchId: string;
+  commands: MatchCommand[];
+}
+
+export interface MatchCheckpoint {
+  matchId: string;
+  seed: string;
+  engineVersion: string;
+  tick: number;
+  commands: MatchCommand[];
+}

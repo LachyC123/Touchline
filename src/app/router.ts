@@ -6,7 +6,12 @@ export type Route =
   | { name: 'squad' }
   | { name: 'player'; id: string }
   | { name: 'more' }
-  | { name: 'lab' };
+  | { name: 'lab' }
+  | { name: 'match' }
+  | { name: 'lineup' }
+  | { name: 'live' }
+  | { name: 'result'; id: string }
+  | { name: 'replay'; id: string; goal: number };
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -21,13 +26,25 @@ export function parseHash(hash: string): Route {
       return { name: 'more' };
     case 'lab':
       return { name: 'lab' };
+    case 'match':
+      return { name: 'match' };
+    case 'lineup':
+      return { name: 'lineup' };
+    case 'live':
+      return { name: 'live' };
+    case 'replay':
+      return parts[1] ? { name: 'replay', id: decodeURIComponent(parts[1]), goal: Math.max(0, Number(parts[2] ?? 0) || 0) } : { name: 'match' };
+    case 'result':
+      return parts[1] ? { name: 'result', id: decodeURIComponent(parts[1]) } : { name: 'match' };
     default:
       return { name: 'title' };
   }
 }
 
 export function routeToHash(route: Route): string {
-  return route.name === 'player' ? `#/player/${encodeURIComponent(route.id)}` : route.name === 'title' ? '#/' : `#/${route.name}`;
+  if (route.name === 'player' || route.name === 'result') return `#/${route.name}/${encodeURIComponent(route.id)}`;
+  if (route.name === 'replay') return `#/replay/${encodeURIComponent(route.id)}/${route.goal}`;
+  return route.name === 'title' ? '#/' : `#/${route.name}`;
 }
 
 function subscribe(cb: () => void): () => void {

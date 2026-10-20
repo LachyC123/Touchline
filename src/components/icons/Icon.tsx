@@ -27,7 +27,10 @@ export type IconName =
   | 'check'
   | 'close'
   | 'sort'
-  | 'bug';
+  | 'bug'
+  | 'pause'
+  | 'play'
+  | 'coin';
 
 const PATHS: Record<IconName, ReactNode> = {
   bolt: <path d="M13 2 5 13h6l-1 9 8-11h-6l1-9Z" />,
@@ -187,6 +190,19 @@ const PATHS: Record<IconName, ReactNode> = {
   check: <path d="m5 12 5 5 9-10" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
   sort: <path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4" />,
+  pause: (
+    <>
+      <rect x="6" y="5" width="4" height="14" rx="1.2" />
+      <rect x="14" y="5" width="4" height="14" rx="1.2" />
+    </>
+  ),
+  play: <path d="M7 5v14l11-7L7 5Z" />,
+  coin: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4" />
+    </>
+  ),
   bug: (
     <>
       <rect x="7" y="7" width="10" height="13" rx="5" />

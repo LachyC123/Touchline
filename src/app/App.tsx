@@ -5,6 +5,11 @@ import '../components/layout/layout.css';
 import { Button } from '../components/ui/Button';
 import { ToastProvider } from '../components/ui/Toast';
 import { ClubScreen } from '../features/club/ClubScreen';
+import { LineupScreen } from '../features/lineup/LineupScreen';
+import { LiveMatch } from '../features/match/LiveMatch';
+import { MatchLobby } from '../features/match/MatchLobby';
+import { ReplayScreen } from '../features/match/ReplayScreen';
+import { ResultScreen } from '../features/match/ResultScreen';
 import { MoreScreen } from '../features/settings/MoreScreen';
 import { PlayerScreen } from '../features/squad/PlayerScreen';
 import { SquadScreen } from '../features/squad/SquadScreen';
@@ -101,12 +106,17 @@ function Screens() {
       {route.name === 'squad' && <SquadScreen />}
       {route.name === 'player' && <PlayerScreen key={route.id} id={route.id} />}
       {route.name === 'more' && <MoreScreen />}
+      {route.name === 'match' && <MatchLobby />}
+      {route.name === 'lineup' && <LineupScreen />}
+      {route.name === 'live' && <LiveMatch />}
+      {route.name === 'result' && <ResultScreen key={route.id} id={route.id} />}
+      {route.name === 'replay' && <ReplayScreen key={`${route.id}-${route.goal}`} id={route.id} goal={route.goal} />}
       {route.name === 'lab' && (
         <Suspense fallback={null}>
           <CardLab />
         </Suspense>
       )}
-      {(hasSave || route.name === 'more') && <BottomNav current={route} />}
+      {(hasSave || route.name === 'more') && route.name !== 'live' && route.name !== 'replay' && <BottomNav current={route} />}
     </>
   );
 }

@@ -431,3 +431,7 @@
   gap: var(--s-3);
   justify-items: start;
 }
+
+.player__upgrade {
+  margin-top: var(--s-3);
+}

@@ -82,6 +82,17 @@ export function SquadScreen() {
         ))}
       </div>
 
+      <button type="button" className="squad__lineup" onClick={() => navigate({ name: 'lineup' })}>
+        <Icon name="shirt" size={20} />
+        <span>
+          <b>Lineup &amp; formation</b>
+          <small>
+            {save.formationId} · power {squadPower(save).toFixed(1)}
+          </small>
+        </span>
+        <Icon name="back" size={18} className="squad__chev" />
+      </button>
+
       <div className="squad__sort">
         <Icon name="sort" size={18} />
         <div className="segmented" role="group" aria-label="Sort players">

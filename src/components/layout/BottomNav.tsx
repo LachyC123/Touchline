@@ -5,12 +5,13 @@ import { Icon, type IconName } from '../icons/Icon';
 const TABS: { route: Route; label: string; icon: IconName; match: Route['name'][] }[] = [
   { route: { name: 'club' }, label: 'Club', icon: 'club', match: ['club'] },
   { route: { name: 'squad' }, label: 'Squad', icon: 'squad', match: ['squad', 'player'] },
+  { route: { name: 'match' }, label: 'Match', icon: 'whistle', match: ['match', 'lineup', 'result'] },
   { route: { name: 'more' }, label: 'More', icon: 'more', match: ['more', 'lab'] },
 ];
 
 /**
- * Only tabs whose features genuinely work are shown. MATCH and SCOUT arrive with M1/M2 —
- * no "coming soon" placeholders.
+ * Only tabs whose features genuinely work are shown. SCOUT arrives with M2 — no
+ * "coming soon" placeholders.
  */
 export function BottomNav({ current }: { current: Route }) {
   return (

@@ -5,9 +5,14 @@
  *  - pop:   bright pluck             (toggle on, favourite)
  *  - thud:  soft low knock           (toggle off, back)
  *  - chime: two-note rise            (success / save secured)
+ *  - whistle: referee trill          (kick-off, half-time, full time)
+ *  - kick: short leather thud        (shots)
+ *  - goal: crowd swell + rising triad
+ *  - save: low glove thump
+ *  - coin: bright tick               (reward count-up)
  * Audio only starts after a user gesture (browser policy) and respects the SFX setting.
  */
-export type SfxName = 'tap' | 'flip' | 'pop' | 'thud' | 'chime';
+export type SfxName = 'tap' | 'flip' | 'pop' | 'thud' | 'chime' | 'whistle' | 'kick' | 'goal' | 'save' | 'coin';
 
 let ctx: AudioContext | null = null;
 let enabled = true;
@@ -84,6 +89,27 @@ export function playSfx(name: SfxName): void {
       break;
     case 'thud':
       tone(c, 'sine', 220, 120, 0.22, 0.005, 0.1);
+      break;
+    case 'whistle':
+      for (let i = 0; i < 3; i++) tone(c, 'square', 2300, 2250, 0.05, 0.005, 0.07, i * 0.09);
+      tone(c, 'square', 2300, 2200, 0.06, 0.005, 0.28, 0.3);
+      break;
+    case 'kick':
+      tone(c, 'sine', 180, 60, 0.35, 0.003, 0.09);
+      noise(c, 0.05, 1800, 900, 0.12);
+      break;
+    case 'goal':
+      noise(c, 1.4, 500, 1400, 0.22);
+      tone(c, 'triangle', 523, 523, 0.14, 0.02, 0.4, 0.05);
+      tone(c, 'triangle', 659, 659, 0.14, 0.02, 0.4, 0.2);
+      tone(c, 'triangle', 784, 784, 0.16, 0.02, 0.6, 0.35);
+      break;
+    case 'save':
+      tone(c, 'sine', 140, 90, 0.3, 0.004, 0.12);
+      noise(c, 0.08, 900, 400, 0.12);
+      break;
+    case 'coin':
+      tone(c, 'sine', 1320, 1760, 0.08, 0.003, 0.06);
       break;
     case 'chime':
       tone(c, 'sine', 784, 784, 0.16, 0.01, 0.22);

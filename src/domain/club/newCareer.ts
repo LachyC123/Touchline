@@ -1,8 +1,10 @@
 import { generateFootballer } from '../players/generator';
-import { overall, overallAt } from '../players/rating';
+import { FORMATION_DEFS } from '../formations';
+import { overallAt } from '../players/rating';
+import { autoLineup } from './lineup';
 import type { Footballer, Position, Tier } from '../players/types';
 import { seededUuid } from '../rng';
-import { CONTENT_VERSION, ENGINE_VERSION, FORMATIONS, SCHEMA_VERSION, type ClubSave } from '../save/types';
+import { CONTENT_VERSION, ENGINE_VERSION, SCHEMA_VERSION, type ClubSave } from '../save/types';
 import { DEFAULT_CLUB, type ClubIdentity } from './types';
 
 interface StarterSpec {
@@ -69,7 +71,7 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     if (spec.anchor) anchorPlayerId = p.id;
   });
 
-  const lineup = autoLineup(Object.values(footballers));
+  const lineup = autoLineup(Object.values(footballers), '2-2-2');
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -93,40 +95,20 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     nextSeq: STARTERS.length,
     season: 1,
     tutorialStep: 'start',
+    matchNumber: 0,
+    pendingMatch: null,
+    matchRecords: [],
+    pendingUpgrades: [],
   };
 }
 
-/**
- * Auto-pick: fill every slot with the best natural-position player first, then cover any
- * gaps with the best positional Overall. Each player starts at most once.
- */
-export function autoLineup(players: readonly Footballer[]): Record<string, string> {
-  const used = new Set<string>();
-  const lineup: Record<string, string> = {};
-  const pick = (natural: boolean) => {
-    for (const slot of FORMATIONS['2-2-2']) {
-      if (lineup[slot.id]) continue;
-      const best = players
-        .filter((p) => !used.has(p.id) && (!natural || p.primaryPosition === slot.position))
-        .map((p) => ({ p, score: overallAt(p, slot.position) }))
-        .sort((a, b) => b.score - a.score || a.p.id.localeCompare(b.p.id))[0];
-      if (best) {
-        used.add(best.p.id);
-        lineup[slot.id] = best.p.id;
-      }
-    }
-  };
-  pick(true);
-  pick(false);
-  return lineup;
-}
-
-export function squadPower(save: Pick<ClubSave, 'lineup' | 'footballers'>): number {
-  const ids = Object.values(save.lineup);
-  if (ids.length === 0) return 0;
-  const total = ids.reduce((sum, id) => {
-    const p = save.footballers[id];
-    return sum + (p ? overall(p) : 0);
-  }, 0);
-  return Math.round((total / ids.length) * 10) / 10;
+/** Average positional rating of the starting seven in the current formation. */
+export function squadPower(save: Pick<ClubSave, 'lineup' | 'footballers' | 'formationId'>): number {
+  const slots = FORMATION_DEFS[save.formationId].slots;
+  let total = 0;
+  for (const slot of slots) {
+    const p = save.footballers[save.lineup[slot.id] ?? ''];
+    total += p ? overallAt(p, slot.position) : 0;
+  }
+  return Math.round((total / slots.length) * 10) / 10;
 }

@@ -11,6 +11,7 @@ import { ATTRIBUTE_INFO, overallAt } from '../../domain/players/rating';
 import { xpToNext } from '../../domain/players/progression';
 import type { AttributeKey, Footballer } from '../../domain/players/types';
 import { playSfx } from '../../audio/sfx';
+import { UpgradePicker } from '../match/UpgradePicker';
 import './player.css';
 
 type Tab = 'overview' | 'stats' | 'story';
@@ -30,6 +31,7 @@ export function PlayerScreen({ id }: { id: string }) {
   const player = save.footballers[id];
   const [flipped, setFlipped] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
+  const [openUpgrades] = useState(() => save.pendingUpgrades);
 
   useEffect(() => {
     if (player?.isNew) void markInspected(player.id);
@@ -100,6 +102,15 @@ export function PlayerScreen({ id }: { id: string }) {
           <p className="player__xp-note">Earn XP by playing matches. Each level lets you choose a training focus.</p>
         </div>
       </section>
+
+      {openUpgrades
+        .filter((u) => u.playerId === player.id)
+        .slice(0, 1)
+        .map((u) => (
+          <div key={u.level} className="player__upgrade">
+            <UpgradePicker upgrade={u} player={player} kit={save.club.kit} />
+          </div>
+        ))}
 
       <div className="player__tabs segmented" role="tablist" aria-label="Player details">
         {(['overview', 'stats', 'story'] as const).map((t) => (

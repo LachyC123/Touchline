@@ -21,6 +21,7 @@ import {
   TIERS,
   type AttributeKey,
 } from '../domain/players/types';
+import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
 import { SCHEMA_VERSION } from '../domain/save/types';
 
 /**
@@ -105,6 +106,83 @@ export const footballerSchema = z.object({
   favourite: z.boolean(),
 });
 
+const pair = <T extends z.ZodType>(t: T) => z.object({ home: t, away: t });
+const side = z.enum(['home', 'away']);
+const commandSchema = z.object({ type: z.enum(['PRESS', 'QUICK_PASS']), side, tick: z.number().int().min(0).max(100_000) });
+
+const simAttributesSchema = z.object(
+  Object.fromEntries(
+    ['pace', 'acceleration', 'shooting', 'finishing', 'passing', 'vision', 'dribbling', 'ballControl', 'tackling', 'marking', 'strength', 'stamina', 'composure', 'reflexes', 'positioning', 'handling', 'distribution', 'reach'].map((k) => [k, rating]),
+  ) as Record<string, typeof rating>,
+);
+
+const teamLineupSchema = z.object({
+  clubId: z.string().min(1).max(64),
+  aiStyle: z.enum(['balanced', 'press', 'passing', 'counter', 'direct']),
+  name: z.string().min(1).max(60),
+  shortName: z.string().min(1).max(6),
+  kit: z.object({ primary: hex, secondary: hex }),
+  formation: z.enum(FORMATION_IDS),
+  players: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(80),
+        name: z.string().min(1).max(90),
+        shortName: z.string().min(1).max(45),
+        slotId: z.string().min(1).max(16),
+        role: z.enum(POSITIONS),
+        naturalPosition: z.enum(POSITIONS),
+        rating,
+        attributes: simAttributesSchema,
+        traitIds: z.array(z.string().max(40)).max(4),
+        strongFoot: z.enum(['left', 'right', 'both']),
+        appearance: appearanceSchema,
+      }),
+    )
+    .length(7),
+});
+
+const pendingMatchSchema = z.object({
+  matchId: z.string().min(1).max(40),
+  number: z.number().int().min(1),
+  seed: z.string().min(1).max(120),
+  engineVersion: z.string().max(32),
+  opponentId: z.string().min(1).max(40),
+  userSide: side,
+  home: teamLineupSchema,
+  away: teamLineupSchema,
+  commands: z.array(commandSchema).max(200),
+  checkpointTick: z.number().int().min(0).max(100_000),
+});
+
+const matchRecordSchema = z.object({
+  matchId: z.string().min(1).max(40),
+  number: z.number().int().min(1),
+  seed: z.string().min(1).max(120),
+  engineVersion: z.string().max(32),
+  opponentId: z.string().max(40),
+  opponentName: z.string().max(60),
+  userSide: side,
+  score: pair(z.number().int().min(0).max(99)),
+  scorers: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), side, minute: z.number().int().min(0).max(130), tick: z.number().int().min(0).max(100_000), assistName: z.string().max(90).optional() })).max(60),
+  playerOfMatchId: z.string().max(80),
+  playerOfMatchName: z.string().max(90),
+  playerOfMatchRating: z.number().min(0).max(10),
+  stats: z.object({
+    possession: pair(z.number().min(0).max(100)),
+    shots: pair(safeCount),
+    onTarget: pair(safeCount),
+    xg: pair(z.number().min(0).max(99)),
+    saves: pair(safeCount),
+    passes: pair(safeCount),
+  }),
+  commands: z.array(commandSchema).max(200),
+  rewards: z.object({ coins: safeCount, clubXp: safeCount, lines: z.array(z.object({ label: z.string().max(60), coins: safeCount })).max(10) }),
+  gains: z.array(z.object({ playerId: z.string().max(80), xp: safeCount, levelBefore: z.number().int().min(1).max(99), levelAfter: z.number().int().min(1).max(99), rating: z.number().min(0).max(10).optional() })).max(200),
+  storyHeadline: z.string().max(200),
+  replay: z.object({ home: teamLineupSchema, away: teamLineupSchema }).optional(),
+});
+
 export const clubSaveSchema = z
   .object({
     schemaVersion: z.literal(SCHEMA_VERSION),
@@ -126,7 +204,7 @@ export const clubSaveSchema = z
     coins: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
     clubXp: safeCount,
     squadIds: z.array(z.string().uuid()).max(200),
-    formationId: z.literal('2-2-2'),
+    formationId: z.enum(FORMATION_IDS),
     lineup: z.record(z.string().max(16), z.string().uuid()),
     footballers: z.record(z.string().uuid(), footballerSchema),
     anchorPlayerId: z.string().uuid(),
@@ -136,6 +214,10 @@ export const clubSaveSchema = z
     nextSeq: z.number().int().min(0),
     season: z.number().int().min(1).max(999),
     tutorialStep: z.string().max(40),
+    matchNumber: z.number().int().min(0).max(100_000),
+    pendingMatch: pendingMatchSchema.nullable(),
+    matchRecords: z.array(matchRecordSchema).max(100),
+    pendingUpgrades: z.array(z.object({ playerId: z.string().uuid(), level: z.number().int().min(2).max(99), options: z.array(z.string().max(40)).min(1).max(3) })).max(200),
   })
   .superRefine((save, ctx) => {
     for (const id of save.squadIds) {
@@ -150,6 +232,13 @@ export const clubSaveSchema = z
       if (key !== p.id) ctx.addIssue({ code: 'custom', message: `footballer key ${key} != id ${p.id}` });
     }
     if (!save.footballers[save.anchorPlayerId]) ctx.addIssue({ code: 'custom', message: 'anchor player missing' });
+    const slots = FORMATION_DEFS[save.formationId].slots.map((s) => s.id);
+    for (const key of Object.keys(save.lineup)) {
+      if (!slots.includes(key)) ctx.addIssue({ code: 'custom', message: `lineup slot ${key} is not in formation ${save.formationId}` });
+    }
+    for (const u of save.pendingUpgrades) {
+      if (!save.footballers[u.playerId]) ctx.addIssue({ code: 'custom', message: 'upgrade for unknown player' });
+    }
   });
 
 export const settingsSchema = z.object({

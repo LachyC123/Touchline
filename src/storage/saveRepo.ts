@@ -1,5 +1,12 @@
 import { createCareer } from '../domain/club/newCareer';
-import type { ClubSave } from '../domain/save/types';
+import { assignToSlot, autoLineup, changeFormation } from '../domain/club/lineup';
+import type { FormationId } from '../domain/formations';
+import { matchArgs, prepareMatch, settleMatch } from '../domain/match/settle';
+import { applyFocus, FOCUSES } from '../domain/players/upgrades';
+import { seededUuid } from '../domain/rng';
+import type { ClubSave, MatchRecord, PendingMatch } from '../domain/save/types';
+import { replayMatch } from '../game/simulation/replay';
+import type { MatchCommand } from '../game/simulation/types';
 import { getDb, MAIN_SLOT, MAX_BACKUPS, type BackupRow, type TouchlineDB } from './db';
 import { migrateSave } from './migrations';
 import { DEFAULT_SETTINGS, settingsSchema, type Settings } from './schema';
@@ -142,4 +149,107 @@ export async function loadSettings(db: TouchlineDB = getDb()): Promise<Settings>
 
 export async function saveSettings(settings: Settings, db: TouchlineDB = getDb()): Promise<void> {
   await db.meta.put({ key: 'settings', value: settingsSchema.parse(settings) });
+}
+
+// ---------------------------------------------------------------------------- M1: lineup, matches, upgrades
+
+function assertNoMatchInProgress(s: ClubSave): void {
+  if (s.pendingMatch) throw new Error('Finish the current match before changing the lineup.');
+}
+
+export function setFormation(formation: FormationId, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    assertNoMatchInProgress(s);
+    s.lineup = changeFormation(s.lineup, formation, s.footballers, s.squadIds);
+    s.formationId = formation;
+  }, {}, db);
+}
+
+export function assignPlayer(slotId: string, playerId: string, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    assertNoMatchInProgress(s);
+    s.lineup = assignToSlot(s.lineup, s.formationId, slotId, playerId, s.footballers);
+  }, {}, db);
+}
+
+export function autoPickLineup(db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    assertNoMatchInProgress(s);
+    const players = s.squadIds.map((id) => s.footballers[id]).filter((p): p is NonNullable<typeof p> => Boolean(p));
+    s.lineup = autoLineup(players, s.formationId);
+  }, {}, db);
+}
+
+/** Freezes lineups + seed and persists the pending match before a ball is kicked. */
+export async function kickOff(db?: TouchlineDB): Promise<PendingMatch> {
+  const { save } = await mutateSave((s) => {
+    if (!s.pendingMatch) s.pendingMatch = prepareMatch(s);
+  }, {}, db);
+  if (!save.pendingMatch) throw new Error('Could not start the match.');
+  return save.pendingMatch;
+}
+
+export function recordCommand(matchId: string, command: MatchCommand, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    const pm = s.pendingMatch;
+    if (!pm || pm.matchId !== matchId) throw new Error('That match is no longer in progress.');
+    if (!pm.commands.some((c) => c.tick === command.tick && c.type === command.type && c.side === command.side)) {
+      pm.commands.push({ ...command });
+      pm.commands.sort((a, b) => a.tick - b.tick);
+    }
+    pm.checkpointTick = Math.max(pm.checkpointTick, command.tick);
+  }, {}, db);
+}
+
+export function saveCheckpoint(matchId: string, tick: number, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    const pm = s.pendingMatch;
+    if (pm && pm.matchId === matchId && Number.isInteger(tick) && tick > pm.checkpointTick) pm.checkpointTick = tick;
+  }, {}, db);
+}
+
+/**
+ * Settles the pending match exactly once. The result is re-derived from seed + recorded
+ * commands inside the transaction — the UI's copy is never trusted for rewards.
+ */
+export async function settleMatchOnce(matchId: string, db?: TouchlineDB): Promise<{ record: MatchRecord; applied: boolean }> {
+  let record: MatchRecord | undefined;
+  const r = await mutateSave(
+    (s) => {
+      const pm = s.pendingMatch;
+      if (!pm || pm.matchId !== matchId) throw new Error('That match is no longer in progress.');
+      const result = replayMatch(matchArgs(pm), pm.commands);
+      record = settleMatch(s, pm, result);
+    },
+    { claimId: `match:${matchId}` },
+    db,
+  );
+  record ??= r.save.matchRecords.find((m) => m.matchId === matchId);
+  if (!record) throw new Error('Match record missing.');
+  return { record, applied: r.applied };
+}
+
+export function chooseUpgrade(playerId: string, level: number, focusId: string, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave(
+    (s) => {
+      const idx = s.pendingUpgrades.findIndex((u) => u.playerId === playerId && u.level === level);
+      const pending = s.pendingUpgrades[idx];
+      if (!pending) throw new Error('That upgrade has already been used.');
+      if (!pending.options.includes(focusId)) throw new Error('That training focus is not available.');
+      const p = s.footballers[playerId];
+      if (!p) throw new Error('Unknown player.');
+      const { before, after } = applyFocus(p, focusId);
+      p.history.push({
+        id: seededUuid(`${s.careerSeed}:history:${s.nextSeq}`),
+        kind: 'upgrade',
+        season: s.season,
+        order: s.nextSeq,
+        headline: `RISING STAR: level ${level} — ${FOCUSES[focusId]?.name ?? focusId} training${after > before ? ` (OVR ${before} → ${after})` : ''}.`,
+      });
+      s.nextSeq++;
+      s.pendingUpgrades.splice(idx, 1);
+    },
+    { claimId: `upgrade:${playerId}:${level}` },
+    db,
+  );
 }

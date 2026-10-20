@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createCareer } from '../domain/club/newCareer';
 import { overall } from '../domain/players/rating';
-import { FORMATIONS } from '../domain/save/types';
+import { FORMATION_DEFS } from '../domain/formations';
 import { TouchlineDB, setDbForTests } from './db';
 import { parseSaveFile, serialiseSave, stableStringify } from './exportImport';
 import { migrateSave, SaveFormatError } from './migrations';
@@ -28,7 +28,7 @@ describe('new career', () => {
     const starters = Object.values(save.lineup);
     expect(starters).toHaveLength(7);
     expect(new Set(starters).size).toBe(7);
-    for (const slot of FORMATIONS['2-2-2']) {
+    for (const slot of FORMATION_DEFS['2-2-2'].slots) {
       const p = save.footballers[save.lineup[slot.id]!]!;
       expect(p.primaryPosition).toBe(slot.position);
     }

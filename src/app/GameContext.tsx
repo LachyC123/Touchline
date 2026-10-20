@@ -2,11 +2,17 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { setSfxEnabled, setSfxVolume } from '../audio/sfx';
 import { freshSeed } from '../domain/rng';
-import type { ClubSave } from '../domain/save/types';
+import type { FormationId } from '../domain/formations';
+import type { ClubSave, PendingMatch } from '../domain/save/types';
 import { getDb, MAIN_SLOT } from '../storage/db';
 import { parseSaveFile } from '../storage/exportImport';
 import { migrateSave } from '../storage/migrations';
 import {
+  assignPlayer as repoAssignPlayer,
+  autoPickLineup,
+  chooseUpgrade as repoChooseUpgrade,
+  kickOff as repoKickOff,
+  setFormation as repoSetFormation,
   deleteCareer,
   exportCurrentSave,
   loadSettings,
@@ -31,6 +37,11 @@ interface GameApi {
   readImportFile: (file: File) => Promise<ClubSave>;
   confirmImport: (save: ClubSave) => Promise<void>;
   resetCareer: () => Promise<void>;
+  setFormation: (f: FormationId) => Promise<void>;
+  assignPlayer: (slotId: string, playerId: string) => Promise<void>;
+  autoPick: () => Promise<void>;
+  kickOff: () => Promise<PendingMatch>;
+  chooseUpgrade: (playerId: string, level: number, focusId: string) => Promise<void>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -92,6 +103,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       readImportFile: async (file) => parseSaveFile(await file.text()),
       confirmImport: (save) => replaceSave(save),
       resetCareer: () => deleteCareer(),
+      setFormation: async (f) => void (await repoSetFormation(f)),
+      assignPlayer: async (slot, id) => void (await repoAssignPlayer(slot, id)),
+      autoPick: async () => void (await autoPickLineup()),
+      kickOff: () => repoKickOff(),
+      chooseUpgrade: async (id, level, focus) => void (await repoChooseUpgrade(id, level, focus)),
     }),
     [saveState, settings, updateSettings, exportSave],
   );

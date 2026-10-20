@@ -7,6 +7,7 @@ import { StadiumScene } from '../../components/club/StadiumScene';
 import { Icon } from '../../components/icons/Icon';
 import { Button } from '../../components/ui/Button';
 import { squadPower } from '../../domain/club/newCareer';
+import { fixtureFor } from '../../domain/club/opponents';
 import './club.css';
 
 export function ClubScreen() {
@@ -15,6 +16,8 @@ export function ClubScreen() {
   const power = squadPower(save);
   const anchorModel = anchor ? toCardModel(anchor) : null;
   const starters = Object.keys(save.lineup).length;
+  const fixture = fixtureFor(save.matchNumber);
+  const last = save.matchRecords[0];
 
   return (
     <main className="screen club">
@@ -36,6 +39,25 @@ export function ClubScreen() {
           Ground level {save.club.stadiumLevel} · {save.club.stadiumLevel === 1 ? 'Seen better days' : 'On the up'}
         </span>
       </section>
+
+      <button type="button" className="club__next" onClick={() => navigate({ name: save.pendingMatch ? 'live' : 'match' })}>
+        <span className="club__next-kicker">{save.pendingMatch ? 'Match in progress' : 'Next match'}</span>
+        <span className="club__next-vs">
+          vs {save.pendingMatch ? (save.pendingMatch.userSide === 'home' ? save.pendingMatch.away.name : save.pendingMatch.home.name) : fixture.club.name}
+        </span>
+        <span className="club__next-meta">
+          {save.pendingMatch ? 'Tap to resume where you left off' : `${fixture.home ? 'Home' : 'Away'} · ${fixture.club.rival ? 'Local rivals · ' : ''}${fixture.club.styleLine}`}
+        </span>
+        <span className="club__next-go" aria-hidden="true">
+          <Icon name="whistle" size={26} />
+        </span>
+      </button>
+      {last && <p className="club__latest">Latest: {last.storyHeadline}</p>}
+      {save.pendingUpgrades.length > 0 && (
+        <button type="button" className="club__levelup" onClick={() => navigate({ name: 'match' })}>
+          <Icon name="star" size={18} /> {save.pendingUpgrades.length} level-up{save.pendingUpgrades.length > 1 ? 's' : ''} ready — choose training focus
+        </button>
+      )}
 
       {anchor && anchorModel && (
         <section className="club__spotlight paper" aria-labelledby="spotlight-title">

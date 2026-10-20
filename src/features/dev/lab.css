@@ -73,3 +73,10 @@
   background: linear-gradient(180deg, #23395d, #182a47);
   overflow: hidden;
 }
+
+.lab__match {
+  display: grid;
+  gap: var(--s-2);
+  justify-items: start;
+  margin-top: var(--s-5);
+}

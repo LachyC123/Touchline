@@ -22,17 +22,26 @@ Tick checkboxes only when the feature works on a **real narrow viewport** and pa
 - Main JS bundle is ~164 KB gzip (React + Dexie + Zod); code-split further when match assets arrive.
 
 ## M1. First football match — functionality before content
-- [ ] Footballer stats, trait definitions, position weighted OVR, initial roster factory.
-- [ ] 7 starter slot validation and two formation shapes; tap and drag placement with accessible alternative.
-- [ ] Pure seeded fixed-tick 7v7 match engine with player positions, ball, passes, dribbles, tackles, shots, saves and kickoff/restarts.
-- [ ] Tactical action input: Quick Pass and Press with valid activation/cooldowns and actual simulation effects.
-- [ ] Game scene displays pitch, each team's 7 footballers, their kits, a moving ball and event-dependent actions.
-- [ ] Scoreboard, clock, key commentary ticker, one goal camera, fulltime flow.
-- [ ] Match completes in normal time, can pause/skip, restores from pause/background.
-- [ ] Match result carries identical score/event log to renderer; seed replays match identically.
-- [ ] Real rewards/XP and upgrade choice applied atomically.
-- [ ] Save restored after full reload; no duplicate match rewards.
+- [x] Footballer stats, trait definitions, position weighted OVR, initial roster factory. *(M0 generator + `src/domain/players/`.)*
+- [x] 7 starter slot validation and two formation shapes; tap and drag placement with accessible alternative. *(`src/domain/club/lineup.ts`, `src/features/lineup/`; 2-2-2 and 3-2-1; GK slot enforced; out-of-position penalty shown.)*
+- [x] Pure seeded fixed-tick 7v7 match engine with player positions, ball, passes, dribbles, tackles, shots, saves and kickoff/restarts. *(`src/game/simulation/`; 10 Hz; throw-ins, corners, goal kicks, kick-offs, half-time.)*
+- [x] Tactical action input: Quick Pass and Press with valid activation/cooldowns and actual simulation effects. *(12' active / 18' cooldown on the sim clock; effects measured in `reports/balance-latest.md`.)*
+- [x] Game scene displays pitch, each team's 7 footballers, their kits, a moving ball and event-dependent actions. *(`src/game/renderer/MatchScene.ts` — Phaser 4; figures use each player's stored skin/hair; kick, tackle, dive, stumble, celebrate.)*
+- [x] Scoreboard, clock, key commentary ticker, one goal camera, fulltime flow.
+- [x] Match completes in normal time, can pause/skip, restores from pause/background. *(Checkpoints every 3 s of play, on goals and on pagehide; resume replays seed + commands.)*
+- [x] Match result carries identical score/event log to renderer; seed replays match identically. *(Unit tests; rewards are computed from a replay inside the save transaction.)*
+- [x] Real rewards/XP and upgrade choice applied atomically. *(`src/domain/match/settle.ts`, `chooseUpgrade` with idempotency keys.)*
+- [x] Save restored after full reload; no duplicate match rewards. *(Unit + E2E.)*
+- [x] Goal replays from seed/log. *(`#/replay/:match/:goal`, last five matches.)*
 **M1 demonstration:** tap Play, watch a complete credible match, affect it, view replay, level a player, refresh and see changes persist.
+
+**M1 known gaps (carried forward):**
+- No substitutions, fatigue-driven subs or formation changes mid-match (M3 per roadmap).
+- Set pieces are simple: corners/throw-ins are a taker plus a normal pass decision; no free kicks or penalties yet.
+- One opponent list of 7 fictional clubs rotating with +2 strength per lap — no league table yet (M3).
+- PRESS used whenever ready gives a measurable edge (≈44% W / 22% L vs a non-pressing mirror); flagged for tuning.
+- Rendering only tested in headless Chromium (SwiftShader WebGL); not yet on a physical phone or Safari.
+- Audio is a minimal synthesised set (whistle, kick, save, goal, coin); the full audio pass is M2.
 
 ## M2. Onboarding and delight
 - [ ] Opening stadium comic sequence and free pack.

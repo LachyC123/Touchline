@@ -12,7 +12,7 @@ The full specification lives in this repo:
 
 ## Status
 
-**Milestone M0 (technical foundation)** is implemented: new career → 10 generated footballers → squad grid → player profile with a flippable hero card, all persisted in IndexedDB with export/import. See the M0 section of `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred. Matches (M1) are not built yet, so there is no Match tab.
+**M0 (foundation) and M1 (first football match)** are implemented: new career → 10 generated footballers → lineup & formation → an animated, deterministic 7v7 match you can influence with PRESS and QUICK PASS → full time with real rewards and XP → choose a training focus on level-up → goal replays → everything persists across reloads (including mid-match). See `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred.
 
 ## Requirements
 
@@ -27,14 +27,13 @@ The full specification lives in this repo:
 | `npm run dev -- --host 0.0.0.0` | Dev server (includes the developer Card Lab at `#/lab`) |
 | `npm run build` | Typecheck (`tsc -b`) and production build with service worker |
 | `npm run preview` | Serve the production build |
-| `npm run test` | Unit tests (Vitest): RNG, generator incl. 10k diversity + 100k odds checks, save/persistence, export/import |
+| `npm run test` | Unit tests (Vitest): RNG, generator incl. 10k diversity + 100k odds checks, match engine (determinism, replay, invariants, fairness, tactics), lineup rules, settlement exactly-once, save/persistence, export/import |
 | `npm run test:e2e` | Playwright E2E at 390×844, 360×740 and 320×680 against a production build |
 | `npm run lint` | ESLint (also forbids UI/framework imports in pure domain code) |
 | `npm run typecheck` | TypeScript only |
 | `npm run icons` | Re-render PWA PNG icons from `public/icons/icon.svg` |
-| `node scripts/capture.mjs <url> <dir>` | Capture the review storyboard screenshots |
-
-`npm run simulate:balance` arrives with the match engine in M1.
+| `npm run simulate:balance -- --n 1000` | Batch match sims → `reports/balance-latest.md` / `.json` (fairness, power gaps, formations, tactics) |
+| `node scripts/capture.mjs <url> <dir>` / `capture-m1.mjs` | Capture the review storyboard screenshots (M0 screens / M1 match flow) |
 
 To include the developer Card Lab in a production-style build: `VITE_DEV_DEBUG=true npx vite build`.
 
@@ -42,6 +41,9 @@ To include the developer Card Lab in a production-style build: `VITE_DEV_DEBUG=t
 
 ```
 src/
+  game/
+    simulation/  pure seeded 7v7 engine (engine.ts, ai.ts, shotModel.ts, replay.ts) — no DOM/Phaser
+    renderer/    MatchController (fixed-step clock, interpolation, event reveal) + Phaser MatchScene
   domain/        pure TypeScript — no React/Phaser/Dexie (enforced by lint)
     rng.ts         cyrb128 hash + mulberry32, named independent streams, seeded UUIDs
     players/       generator (GENERATOR_VERSION), position-weighted Overall, card stats, XP curve
@@ -51,7 +53,7 @@ src/
   storage/       Dexie DB, Zod runtime schema, migrations, atomic mutateSave (with idempotency
                  claim ids), rolling backups, checksummed JSON export/import
   components/    portrait kit (procedural SVG), FootballerCard (mini/standard/hero), icons, UI kit
-  features/      title, club hub, squad, player profile, settings (More), dev Card Lab
+  features/      title, club hub, squad, lineup, matchday lobby, live match, result, replay, player profile, settings, dev Card Lab
   app/           boot, hash router, GameContext (live queries), PWA update prompt
   audio/         procedural Web Audio sound grammar (no sample files)
 ```
@@ -60,6 +62,7 @@ Key contracts:
 
 - **Same seed + generator version ⇒ identical player** (pinned by a snapshot test). Identity is generated once and persisted; every card and the profile render from that one stored record.
 - **Every state change goes through `mutateSave`**: read → mutate a clone → validate with Zod (including squad/lineup invariants) → write, inside one IndexedDB transaction. A `claimId` makes a mutation apply at most once (tested with concurrent calls).
+- **Matches are deterministic**: `createMatch(seed, lineups)` + recorded commands (with their tick) always produce the same events. Kick-off freezes both lineups into the save; rewards are re-derived by replaying seed + commands inside the settlement transaction (`claimId = match:<id>`), so reloads and double taps can never pay twice.
 - **Imports** are size-limited, checksum-verified (SHA-256 over canonical JSON), migrated and schema-validated before a confirm dialog; the replaced career is kept as a local backup.
 
 ## Art & licences

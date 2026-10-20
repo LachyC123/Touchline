@@ -16,9 +16,18 @@ type RawSave = Record<string, unknown> & { schemaVersion?: unknown };
 /**
  * Ordered save-document migrations: MIGRATIONS[n] upgrades a version-n document to n+1.
  * Each step must be pure and must not drop player identity fields.
- * (None yet — v1 is the first shipped schema. M1 adds fixtures/match records as v2.)
  */
-const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {};
+const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
+  // v1 → v2 (M1): matches, records and level-up choices. Existing players are untouched.
+  1: (raw) => ({
+    ...raw,
+    contentVersion: 'content-2',
+    matchNumber: 0,
+    pendingMatch: null,
+    matchRecords: [],
+    pendingUpgrades: [],
+  }),
+};
 
 export function migrateSave(input: unknown): ClubSave {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {

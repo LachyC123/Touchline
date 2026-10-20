@@ -1,0 +1,211 @@
+.lobby__resume {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.lobby__kicker {
+  justify-self: start;
+  padding: 2px 8px 1px;
+  border-radius: var(--r-xs);
+  background: var(--orange);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lobby__upgrades {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+}
+
+.lobby__more {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.fixture {
+  position: relative;
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgb(255 255 255 / 0.12), transparent 70%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.03) 0 12px, transparent 12px 24px),
+    linear-gradient(180deg, var(--pitch), var(--pitch-dark));
+  box-shadow:
+    inset 0 0 0 3px rgb(255 247 233 / 0.18),
+    0 5px 0 rgb(0 0 0 / 0.35);
+  text-align: center;
+}
+
+.fixture__ticket {
+  display: flex;
+  justify-content: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.fixture__venue,
+.fixture__rival {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 2px;
+  border-radius: var(--r-pill);
+  background: rgb(11 21 38 / 0.6);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.fixture__rival {
+  background: var(--orange);
+  color: var(--ink);
+}
+
+.fixture__teams {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  margin: var(--s-3) 0 var(--s-2);
+}
+
+.fixture__team {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  letter-spacing: 0.06em;
+}
+
+.fixture__vs {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: var(--text-2xl);
+  color: var(--lime);
+  text-shadow: 0 3px 0 var(--ink);
+}
+
+.fixture__name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-2xl);
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-shadow: 0 3px 0 rgb(0 0 0 / 0.35);
+}
+
+.fixture__style {
+  margin-top: 6px;
+  font-weight: 600;
+  color: rgb(255 247 233 / 0.88);
+}
+
+.fixture__bars {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--s-4);
+}
+
+.fixture__bar {
+  display: grid;
+  grid-template-columns: 4ch 1fr 4ch;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-display);
+  font-weight: 900;
+}
+
+.fixture__track {
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: rgb(0 0 0 / 0.3);
+  overflow: hidden;
+}
+
+.fixture__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cream);
+}
+
+.fixture__track span.is-ours {
+  background: var(--lime);
+}
+
+.fixture__note {
+  margin-top: var(--s-3);
+  font-size: var(--text-sm);
+  color: rgb(255 247 233 / 0.85);
+}
+
+.lobby__team {
+  margin-top: var(--s-4);
+}
+
+.lobby__team-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.lobby__inform {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.lobby__minis {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: var(--s-3);
+}
+
+.lobby__cta {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+}
+
+.lobby__note {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
+.lobby__last {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  margin-top: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--cream);
+  text-align: left;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.3);
+}
+
+.lobby__last-score {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+}
+
+.lobby__last-head {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
