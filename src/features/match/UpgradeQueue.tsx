@@ -9,11 +9,15 @@ import './upgrade.css';
 
 const key = (u: PendingUpgrade) => `${u.playerId}-${u.level}`;
 
-/** Favourites first, then the newest signings, so the player you care about is never buried. */
-function priority(p: Footballer | undefined): number {
+/**
+ * A new signing's debut level-up first (that's his moment), then favourites, then the newest
+ * signings, so the player you care about is never buried.
+ */
+function priority(p: Footballer | undefined, recruited: ReadonlySet<string>): number {
   if (!p) return -1;
   const signed = Math.max(0, ...p.history.filter((h) => h.kind === 'signed').map((h) => h.order));
-  return (p.favourite ? 1_000_000 : 0) + signed;
+  const debut = p.stats.matches <= 1 && recruited.has(p.id) ? 2_000_000 : 0;
+  return debut + (p.favourite ? 1_000_000 : 0) + signed;
 }
 
 /**
@@ -22,7 +26,10 @@ function priority(p: Footballer | undefined): number {
  */
 export function UpgradeQueue({ heading, children }: { heading?: string; children?: React.ReactNode }) {
   const save = useSave();
-  const [queue] = useState(() => [...save.pendingUpgrades].sort((a, b) => priority(save.footballers[b.playerId]) - priority(save.footballers[a.playerId])));
+  const [queue] = useState(() => {
+    const recruited = new Set(save.packs.flatMap((p) => (p.playerId ? [p.playerId] : [])));
+    return [...save.pendingUpgrades].sort((a, b) => priority(save.footballers[b.playerId], recruited) - priority(save.footballers[a.playerId], recruited));
+  });
   const stillPending = (u: PendingUpgrade) => save.pendingUpgrades.some((p) => key(p) === key(u));
   const [current, setCurrent] = useState(() => queue.find(stillPending) ?? null);
   const [chosen, setChosen] = useState(false);
