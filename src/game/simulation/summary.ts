@@ -10,9 +10,19 @@ export function playerLines(events: readonly FootballEvent[], home: TeamLineup, 
     lines.set(lp.id, { playerId: lp.id, side, goals: 0, assists: 0, shots: 0, saves: 0, tacklesWon: 0, passesCompleted: 0, skills: 0, fouls: 0, rating: 6, lost: 0, tacklesLost: 0, role: lp.role });
   home.players.forEach((p) => add(p, 'home'));
   away.players.forEach((p) => add(p, 'away'));
+  const bench = new Map<string, { p: LineupPlayer; side: TeamSide }>();
+  for (const p of home.bench ?? []) bench.set(p.id, { p, side: 'home' });
+  for (const p of away.bench ?? []) bench.set(p.id, { p, side: 'away' });
 
   for (const e of events) {
     switch (e.type) {
+      case 'SUB': {
+        // A substitute gets a line from the moment he comes on, in the role he took over.
+        const b = bench.get(e.inId);
+        const role = lines.get(e.outId)?.role;
+        if (b && !lines.has(b.p.id)) add({ ...b.p, ...(role ? { role } : {}) }, b.side);
+        break;
+      }
       case 'GOAL': {
         const l = lines.get(e.scorerId);
         if (l) l.goals++;

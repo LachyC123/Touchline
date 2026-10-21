@@ -77,6 +77,7 @@ const MOMENT_ICON: Record<MatchMoment['kind'], IconName> = {
   skill: 'feet',
   booking: 'whistle',
   woodwork: 'wall',
+  sub: 'shirt',
 };
 
 export function ResultScreen({ id }: { id: string }) {

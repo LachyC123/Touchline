@@ -1,4 +1,5 @@
 import { CLUB_BY_ID, CUP_GUEST_CLUBS, DIVISIONS, type ClubDef } from '../../data/clubs';
+import { lineupAtFullTime, matchSquad } from '../../game/simulation/fromSquad';
 import { replayMatch } from '../../game/simulation/replay';
 import type { MatchResult, TeamLineup } from '../../game/simulation/types';
 import { opponentLineup } from '../club/opponents';
@@ -92,7 +93,7 @@ export function userCupTie(save: Pick<ClubSave, 'league' | 'cup' | 'season'>): U
 }
 
 function scorers(result: MatchResult, home: TeamLineup, away: TeamLineup, homeId: string, awayId: string): LeagueScorer[] {
-  const names = new Map([...home.players, ...away.players].map((p) => [p.id, p.name] as const));
+  const names = new Map([...matchSquad(home), ...matchSquad(away)].map((p) => [p.id, p.name] as const));
   return result.events.flatMap((e) => (e.type === 'GOAL' ? [{ playerId: e.scorerId, name: names.get(e.scorerId) ?? 'Unknown', clubId: e.team === 'home' ? homeId : awayId }] : []));
 }
 
@@ -114,7 +115,7 @@ export function simulateTie(careerSeed: string, season: number, round: number, t
   const away = opponentLineup(careerSeed, { number: 100 + round, club: ac, lap, home: false }).lineup;
   const seed = `${careerSeed}:s${season}:cup${round}:${tie.home}-v-${tie.away}`;
   const result = replayMatch({ matchId: seed, seed, home, away, userSide: null }, []);
-  const shootout = result.score.home === result.score.away ? penaltyShootout(seed, home, away) : null;
+  const shootout = result.score.home === result.score.away ? penaltyShootout(seed, lineupAtFullTime(home, 'home', result.events), lineupAtFullTime(away, 'away', result.events)) : null;
   return settleTie(tie, result, home, away, shootout);
 }
 

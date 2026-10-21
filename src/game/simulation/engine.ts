@@ -19,6 +19,7 @@ import {
   SKILL,
   SLIDE,
   STAMINA,
+  SUBS,
   TACKLE,
   TICKS_PER_MINUTE,
 } from './constants';
@@ -35,6 +36,7 @@ import {
   inOwnBox,
   isTacticActive,
   keeperOf,
+  makePlayer,
   other,
   ownGoalY,
   pressureAt,
@@ -46,6 +48,7 @@ import {
 import type {
   CommandResult,
   FootballEvent,
+  LineupPlayer,
   MatchCheckpoint,
   MatchCommand,
   MatchSnapshot,
@@ -93,6 +96,7 @@ function teamState(l: TeamLineup, side: TeamSide, controlledBy: 'user' | 'ai'): 
     queue: deck.slice(HAND_SIZE),
     marking: null,
     controlledBy,
+    subbedOn: [],
   };
 }
 
@@ -121,6 +125,9 @@ function validateLineup(l: TeamLineup): void {
   if (l.players.length !== 7) throw new Error(`${l.name}: a lineup needs exactly 7 players`);
   if (new Set(used).size !== 7 || !slots.every((s) => used.includes(s))) throw new Error(`${l.name}: every formation slot needs one player`);
   if (new Set(l.players.map((p) => p.id)).size !== 7) throw new Error(`${l.name}: a player appears twice`);
+  const bench = l.bench ?? [];
+  if (bench.length > SUBS.bench) throw new Error(`${l.name}: at most ${SUBS.bench} substitutes`);
+  if (new Set([...l.players, ...bench].map((p) => p.id)).size !== 7 + bench.length) throw new Error(`${l.name}: a substitute is already in the team`);
 }
 
 /**
@@ -133,7 +140,8 @@ export class MatchEngine {
   constructor(args: CreateMatchArgs) {
     validateLineup(args.home);
     validateLineup(args.away);
-    if (new Set([...args.home.players, ...args.away.players].map((p) => p.id)).size !== 14) throw new Error('A player cannot play for both teams');
+    const everyone = [...args.home.players, ...args.away.players, ...(args.home.bench ?? []), ...(args.away.bench ?? [])];
+    if (new Set(everyone.map((p) => p.id)).size !== everyone.length) throw new Error('A player cannot play for both teams');
     this.st = {
       matchId: args.matchId,
       seed: args.seed,
@@ -198,12 +206,51 @@ export class MatchEngine {
     const team = st.teams[side];
     if (!team.hand.includes(type)) return { ok: false, reason: 'That card is not in your hand' };
     if ((team.activeUntil[type] ?? 0) > tick) return { ok: false, reason: 'Already active' };
-    const queuedCost = st.pending.filter((c) => c.side === side).reduce((sum, c) => sum + CARD_DEFS[c.type].cost, 0);
+    const queuedCost = st.pending.filter((c) => c.side === side && c.type !== 'SUB').reduce((sum, c) => sum + CARD_DEFS[c.type as TacticCommand].cost, 0);
     if (team.momentum - queuedCost < CARD_DEFS[type].cost) return { ok: false, reason: `Needs ${CARD_DEFS[type].cost} Momentum` };
     if (st.pending.some((c) => c.type === type && c.side === side)) return { ok: false, reason: 'Already queued' };
     const command: MatchCommand = { type, side, tick };
     st.pending.push(command);
     return { ok: true, command };
+  }
+
+  /**
+   * Validate and queue a substitution. Half-time only: it takes effect as the second half
+   * kicks off and is recorded with the half-time tick, so replays make the same change.
+   */
+  dispatchSub(side: TeamSide, outId: string, inId: string, atTick?: number): CommandResult {
+    const st = this.st;
+    const team = st.teams[side];
+    if (st.phase !== 'halftime') return { ok: false, reason: 'Substitutions are made at half-time' };
+    const tick = atTick ?? st.tick;
+    if (tick !== st.tick) return { ok: false, reason: 'Commands can only be applied at the current tick' };
+    const queued = st.pending.filter((c) => c.side === side && c.type === 'SUB');
+    if (team.subbedOn.length + queued.length >= SUBS.max) return { ok: false, reason: `Only ${SUBS.max} changes allowed` };
+    if (!team.players.some((p) => p.id === outId) || queued.some((c) => c.outId === outId)) return { ok: false, reason: 'That player is not on the pitch' };
+    const bench = team.lineup.bench ?? [];
+    if (!bench.some((p) => p.id === inId) || team.subbedOn.includes(inId) || queued.some((c) => c.inId === inId)) return { ok: false, reason: 'That substitute is not available' };
+    const command: MatchCommand = { type: 'SUB', side, tick, outId, inId };
+    st.pending.push(command);
+    return { ok: true, command };
+  }
+
+  /** Replays a recorded command of either kind. */
+  dispatchCommand(c: MatchCommand): CommandResult {
+    if (c.type === 'SUB') return this.dispatchSub(c.side, c.outId ?? '', c.inId ?? '', c.tick);
+    return this.dispatch(c.type, c.side, c.tick);
+  }
+
+  /** Substitutions queued for the second-half kick-off. */
+  queuedSubs(side: TeamSide): MatchCommand[] {
+    return this.st.pending.filter((c) => c.side === side && c.type === 'SUB');
+  }
+
+  /** Bench players who have not come on yet, and how many changes are left (queued ones count). */
+  benchFor(side: TeamSide): { available: LineupPlayer[]; changesLeft: number } {
+    const team = this.st.teams[side];
+    const queued = this.st.pending.filter((c) => c.side === side && c.type === 'SUB');
+    const used = new Set([...team.subbedOn, ...queued.map((c) => c.inId)]);
+    return { available: (team.lineup.bench ?? []).filter((p) => !used.has(p.id)), changesLeft: Math.max(0, SUBS.max - team.subbedOn.length - queued.length) };
   }
 
   getSnapshot(): MatchSnapshot {
@@ -279,6 +326,8 @@ export class MatchEngine {
     const st = this.st;
     if (st.phase === 'fulltime') return;
     if (st.phase === 'halftime') {
+      this.aiHalftimeSubs();
+      this.applyPending(); // half-time substitutions
       this.startSecondHalf();
     }
     this.applyPending();
@@ -325,11 +374,51 @@ export class MatchEngine {
     if (st.pending.length === 0) return;
     const now = st.pending.filter((c) => c.tick <= st.tick);
     st.pending = st.pending.filter((c) => c.tick > st.tick);
-    for (const c of now) this.playCard(c);
+    for (const c of now) {
+      if (c.type === 'SUB') this.makeSub(c);
+      else this.playCard(c as MatchCommand & { type: TacticCommand });
+    }
+  }
+
+  /**
+   * AI benches change their most tired outfielders at half-time, like-for-like where they can.
+   * Deterministic (stamina, then slot order), so replays re-derive the same changes.
+   */
+  private aiHalftimeSubs(): void {
+    for (const side of ['home', 'away'] as const) {
+      const team = this.st.teams[side];
+      if (team.controlledBy !== 'ai' || !team.lineup.bench?.length) continue;
+      const tired = team.players.filter((p) => p.slot.position !== 'GK' && p.stamina < STAMINA.aiSubBelow).sort((a, b) => a.stamina - b.stamina || a.index - b.index);
+      for (const out of tired) {
+        const { available, changesLeft } = this.benchFor(side);
+        if (changesLeft <= 0 || available.length === 0) break;
+        const on = available.find((b) => b.naturalPosition === out.slot.position) ?? (available.find((b) => b.naturalPosition !== 'GK') as LineupPlayer | undefined);
+        if (on) this.dispatchSub(side, out.id, on.id);
+      }
+    }
+  }
+
+  /** The bench player takes the outgoing player's slot and spot, fresh. */
+  private makeSub(c: MatchCommand): void {
+    const st = this.st;
+    const team = st.teams[c.side];
+    const i = team.players.findIndex((p) => p.id === c.outId);
+    const lp = (team.lineup.bench ?? []).find((p) => p.id === c.inId);
+    const out = team.players[i];
+    if (!out || !lp || team.subbedOn.includes(lp.id)) return; // validated at dispatch; defensive
+    const on = makePlayer({ ...lp, slotId: out.lp.slotId, role: out.lp.role }, c.side, out.index, out.slot);
+    Object.assign(on, { x: out.x, y: out.y, targetX: out.targetX, targetY: out.targetY, facing: out.facing });
+    team.players[i] = on;
+    team.subbedOn.push(lp.id);
+    if (team.marking?.markerId === out.id) team.marking = { ...team.marking, markerId: on.id };
+    const rival = st.teams[other(c.side)];
+    if (rival.marking?.targetId === out.id) rival.marking = { ...rival.marking, targetId: on.id };
+    st.commands.push({ ...c, tick: st.tick });
+    this.emit({ type: 'SUB', team: c.side, outId: out.id, inId: on.id });
   }
 
   /** Spend Momentum, cycle the hand and start the card's effect on the simulation. */
-  private playCard(c: MatchCommand): void {
+  private playCard(c: MatchCommand & { type: TacticCommand }): void {
     const st = this.st;
     const team = st.teams[c.side];
     const def = CARD_DEFS[c.type];
@@ -1127,7 +1216,7 @@ export class MatchEngine {
       const pressure = pressureAt(st, receiver.side, receiver);
       const pressedBy = isTacticActive(st, other(receiver.side), 'PRESS') ? 0.1 : 0;
       const calm = isTacticActive(st, receiver.side, 'HAIRDRYER') ? 0.6 : 1;
-      const shadowed = this.markerNear(receiver, 4) ? 0.1 : 0;
+      const shadowed = this.markerNear(receiver, 4) ? 0.12 : 0;
       const pControl = clamp(0.72 + (receiver.lp.attributes.ballControl / 100) * 0.3 - pressure * (0.16 + pressedBy) * calm - shadowed - (f.peakZ > 2 ? 0.08 : 0), 0.4, 0.99);
       if (st.rng.chance(pControl)) {
         this.emit({ type: 'PASS', fromId: f.kickerId, toId: receiver.id, start, end, outcome: 'complete' });
@@ -1542,7 +1631,10 @@ export class MatchEngine {
 
   private maxSpeed(p: PState): number {
     const a = p.lp.attributes;
-    let s = (MOVE.baseSpeed + (a.pace / 100) * MOVE.paceSpeed) * (0.6 + 0.4 * p.stamina);
+    // A man-marker digs in: tiredness costs him only half as much pace while he shadows.
+    const marking = this.st.teams[p.side].marking?.markerId === p.id && isTacticActive(this.st, p.side, 'MAN_MARK');
+    const legs = marking ? 1 - (1 - p.stamina) / 2 : p.stamina;
+    let s = (MOVE.baseSpeed + (a.pace / 100) * MOVE.paceSpeed) * (0.6 + 0.4 * legs);
     if (isTacticActive(this.st, p.side, 'PRESS') && this.st.possession !== p.side) s *= 1.1;
     if (this.st.ball.ownerId === p.id) s *= MOVE.carrierSpeedFactor;
     return s;

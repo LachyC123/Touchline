@@ -87,6 +87,35 @@ describe('opponents', () => {
 });
 
 describe('match flow (persisted)', () => {
+  it('a half-time substitution is saved, replayed at settlement, and counts as an appearance', async () => {
+    const save = await startNewCareer('flow-sub', db);
+    const pm = await kickOff(db);
+    expect(pm.home.bench ?? pm.away.bench).toBeDefined();
+    const ours = pm.userSide === 'home' ? pm.home : pm.away;
+    expect(ours.bench!.length).toBeGreaterThanOrEqual(3);
+    const engine = createMatch(matchArgs(pm));
+    while (engine.getSnapshot().phase !== 'halftime') engine.advanceTicks(1);
+    const outId = ours.players.find((p) => p.role === 'MID')!.id;
+    const inId = ours.bench!.find((p) => p.naturalPosition === 'MID')?.id ?? ours.bench![0]!.id;
+    const r = engine.dispatchSub(pm.userSide, outId, inId);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      await recordCommand(pm.matchId, r.command, db);
+      await recordCommand(pm.matchId, r.command, db); // a double tap records it once
+    }
+    engine.runToEnd();
+    const live = resultOf(engine, matchArgs(pm));
+    await settleMatchOnce(pm.matchId, db);
+    const after = (await loadSave(db))!;
+    const record = after.matchRecords[0]!;
+    expect(record.commands.filter((c) => c.type === 'SUB')).toHaveLength(1);
+    expect(record.score).toEqual(live.score);
+    expect(record.moments?.some((m) => m.kind === 'sub' && m.text.includes('on for'))).toBe(true);
+    expect(after.footballers[inId]!.stats.matches).toBe(save.footballers[inId]!.stats.matches + 1);
+    expect(after.footballers[outId]!.stats.matches).toBe(save.footballers[outId]!.stats.matches + 1);
+    expect(record.gains.find((g) => g.playerId === inId)?.rating).toBeDefined();
+  });
+
   it('kick-off freezes the match; commands persist; settlement pays out exactly once', async () => {
     const save = await startNewCareer('flow-1', db);
     const pm = await kickOff(db);

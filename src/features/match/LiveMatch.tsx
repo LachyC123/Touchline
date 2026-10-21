@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { matchSquad } from '../../game/simulation/fromSquad';
 import { isReducedMotion } from '../../accessibility/motion';
 import { playSfx } from '../../audio/sfx';
 import { useGame, useSave } from '../../app/GameContext';
@@ -23,6 +24,8 @@ import { createMatchGame } from '../../game/renderer/createMatchGame';
 import { recordCommand, restartStaleMatch, saveCheckpoint, settleMatchOnce } from '../../storage/saveRepo';
 import { ENGINE_VERSION } from '../../game/simulation/constants';
 import { WalkOut } from './WalkOut';
+import { Icon } from '../../components/icons/Icon';
+import { HalftimeSubs } from './HalftimeSubs';
 import { bigMatch, fixtureOfPending } from '../../domain/match/bigMatch';
 import './live.css';
 
@@ -99,14 +102,15 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const [goalHow, setGoalHow] = useState<string | null>(null);
   const [oppCard, setOppCard] = useState<{ card: CardId; id: number } | null>(null);
   const oppCardId = useRef(0);
-  const [moment, setMoment] = useState<{ title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save'; id: number } | null>(null);
+  const [moment, setMoment] = useState<{ title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save' | 'sub'; id: number } | null>(null);
   const momentId = useRef(0);
-  const flashMoment = useCallback((m: { title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save' }) => {
+  const flashMoment = useCallback((m: { title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save' | 'sub' }) => {
     const id = ++momentId.current;
     setMoment({ ...m, id });
     window.setTimeout(() => setMoment((cur) => (cur?.id === id ? null : cur)), 1900);
   }, []);
-  const nameOf = useCallback((id: string) => [...pending.home.players, ...pending.away.players].find((p) => p.id === id)?.name ?? '', [pending]);
+  const subBatch = useRef<string[]>([]);
+  const nameOf = useCallback((id: string) => [...matchSquad(pending.home), ...matchSquad(pending.away)].find((p) => p.id === id)?.name ?? '', [pending]);
   const settling = useRef(false);
   const user = pending.userSide;
   const oppClub = CLUB_BY_ID[pending.opponentId];
@@ -147,6 +151,21 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
         } else if (e.style === 'dive' || e.style === 'fingertip') playSfx('ooh');
       },
       onSkill: () => playSfx('swish'),
+      onSub: (e) => {
+        // Both benches change at the same kick-off: gather them into one flash, ours first.
+        const line = `${e.team === user ? '' : `${(e.team === 'home' ? pending.home : pending.away).shortName}: `}${nameOf(e.inId)} on for ${nameOf(e.outId)}`;
+        const batch = subBatch.current;
+        if (e.team === user) batch.unshift(line);
+        else batch.push(line);
+        if (batch.length === 1) {
+          playSfx('whistle');
+          window.setTimeout(() => {
+            const lines = subBatch.current.splice(0);
+            const ours = lines.some((l) => !l.includes(': '));
+            flashMoment({ title: ours ? 'Fresh legs' : 'Their change', sub: lines.join(' · '), tone: 'sub' });
+          }, 0);
+        }
+      },
       onCard: (e) => {
         playSfx(e.team === user ? 'pop' : 'flip');
         if (e.team !== user) {
@@ -187,7 +206,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
         if (r === 'halftime' || r === 'fulltime') playSfx('whistle');
       },
     });
-  }, [controller, pending.matchId, flashMoment, nameOf, user]);
+  }, [controller, pending.matchId, pending.home, pending.away, flashMoment, nameOf, user]);
 
   // Backgrounding pauses presentation and checkpoints; nothing simulates unseen.
   useEffect(() => {
@@ -250,7 +269,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const tactics = snap.tactics[user];
   const userTeam = user === 'home' ? pending.home : pending.away;
   const oppTeam = user === 'home' ? pending.away : pending.home;
-  const scorerName = goal ? [...pending.home.players, ...pending.away.players].find((p) => p.id === goal.scorerId)?.name : '';
+  const scorerName = goal ? [...matchSquad(pending.home), ...matchSquad(pending.away)].find((p) => p.id === goal.scorerId)?.name : '';
   const ourGoal = goal?.team === user;
 
   const halftimeInfo = useMemo(() => {
@@ -342,6 +361,11 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
         {moment && !goal && (
           <div key={moment.id} className={`moment moment--${moment.tone}`} role="status">
             {moment.tone === 'card' && <span className="moment__card" aria-hidden="true" />}
+            {moment.tone === 'sub' && (
+              <span className="moment__icon" aria-hidden="true">
+                <Icon name="shirt" size={30} />
+              </span>
+            )}
             <span className="moment__title">{moment.title}</span>
             <span className="moment__sub">{moment.sub}</span>
           </div>
@@ -513,6 +537,14 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
               </p>
             )}
             <p className="ht-tip">Momentum carries over — you have {tactics.momentum}. The second half is a chance to change it up.</p>
+            <HalftimeSubs
+              controller={controller}
+              snap={snap}
+              starters={userTeam.players}
+              onMade={(c) => {
+                void recordCommand(pending.matchId, c).catch((err: unknown) => toast.show(err instanceof Error ? err.message : 'Could not save that change.', 'error'));
+              }}
+            />
             <Button variant="primary" size="lg" block onClick={() => controller.resume()} sfx="whistle">
               Second half
             </Button>

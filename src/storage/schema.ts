@@ -26,6 +26,7 @@ import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
 import { MILESTONE_KINDS } from '../domain/players/milestones';
 import { ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
 import { CARD_IDS, DECK_MAX, DECK_MIN } from '../game/simulation/cards';
+import { SUBS } from '../game/simulation/constants';
 import { CUP_ROUNDS } from '../domain/cup/cup';
 
 /**
@@ -113,7 +114,9 @@ export const footballerSchema = z.object({
 const pair = <T extends z.ZodType>(t: T) => z.object({ home: t, away: t });
 const side = z.enum(['home', 'away']);
 const cardId = z.enum(CARD_IDS);
-const commandSchema = z.object({ type: cardId, side, tick: z.number().int().min(0).max(100_000) });
+const commandSchema = z
+  .object({ type: z.union([cardId, z.literal('SUB')]), side, tick: z.number().int().min(0).max(100_000), outId: z.string().min(1).max(80).optional(), inId: z.string().min(1).max(80).optional() })
+  .refine((c) => (c.type === 'SUB') === (c.outId !== undefined && c.inId !== undefined), { message: 'a substitution names who goes off and who comes on' });
 
 const simAttributesSchema = z.object({
   ...(Object.fromEntries(
@@ -121,6 +124,22 @@ const simAttributesSchema = z.object({
   ) as Record<string, typeof rating>),
   // Added with engine-2; lineups frozen by engine-1 lack it (and are not replayed on engine-2).
   setPieces: rating.default(50),
+});
+
+const lineupPlayerSchema = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().min(1).max(90),
+  shortName: z.string().min(1).max(45),
+  slotId: z.string().min(1).max(16),
+  role: z.enum(POSITIONS),
+  naturalPosition: z.enum(POSITIONS),
+  rating,
+  attributes: simAttributesSchema,
+  traitIds: z.array(z.string().max(40)).max(4),
+  strongFoot: z.enum(['left', 'right', 'both']),
+  appearance: appearanceSchema,
+  runningStyleId: z.enum(RUNNING_STYLE_IDS).optional(),
+  celebrationId: z.enum(CELEBRATION_IDS).optional(),
 });
 
 const teamLineupSchema = z.object({
@@ -131,25 +150,8 @@ const teamLineupSchema = z.object({
   kit: z.object({ primary: hex, secondary: hex, pattern: z.enum(KIT_PATTERNS).optional() }),
   formation: z.enum(FORMATION_IDS),
   deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX).optional(),
-  players: z
-    .array(
-      z.object({
-        id: z.string().min(1).max(80),
-        name: z.string().min(1).max(90),
-        shortName: z.string().min(1).max(45),
-        slotId: z.string().min(1).max(16),
-        role: z.enum(POSITIONS),
-        naturalPosition: z.enum(POSITIONS),
-        rating,
-        attributes: simAttributesSchema,
-        traitIds: z.array(z.string().max(40)).max(4),
-        strongFoot: z.enum(['left', 'right', 'both']),
-        appearance: appearanceSchema,
-        runningStyleId: z.enum(RUNNING_STYLE_IDS).optional(),
-        celebrationId: z.enum(CELEBRATION_IDS).optional(),
-      }),
-    )
-    .length(7),
+  players: z.array(lineupPlayerSchema).length(7),
+  bench: z.array(lineupPlayerSchema).max(SUBS.bench).optional(),
 });
 
 const clubRef = z.string().min(1).max(40);
@@ -258,7 +260,7 @@ const matchRecordSchema = z.object({
       z.object({
         minute: z.number().int().min(0).max(130),
         side,
-        kind: z.enum(['screamer', 'header', 'freeKick', 'penalty', 'penaltyMiss', 'doubleSave', 'save', 'skill', 'booking', 'woodwork']),
+        kind: z.enum(['screamer', 'header', 'freeKick', 'penalty', 'penaltyMiss', 'doubleSave', 'save', 'skill', 'booking', 'woodwork', 'sub']),
         text: z.string().max(120),
         stat: z.string().max(12).optional(),
       }),

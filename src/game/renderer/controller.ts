@@ -30,6 +30,7 @@ export interface ControllerListener {
   onRestart?(e: Extract<FootballEvent, { type: 'RESTART' }>): void;
   /** A manager card was played (by either bench). */
   onCard?(e: Extract<FootballEvent, { type: 'TACTIC_APPLIED' }>): void;
+  onSub?(e: Extract<FootballEvent, { type: 'SUB' }>): void;
   onSave?(e: Extract<FootballEvent, { type: 'SAVE' }>): void;
   onShot?(e: Extract<FootballEvent, { type: 'SHOT' }>): void;
   onTackle?(e: Extract<FootballEvent, { type: 'TACKLE' }>): void;
@@ -67,7 +68,7 @@ export class MatchController {
     this.home = home;
     this.away = away;
     this.userSide = userSide;
-    for (const p of [...home.players, ...away.players]) this.names.set(p.id, p.shortName);
+    for (const p of [...home.players, ...away.players, ...(home.bench ?? []), ...(away.bench ?? [])]) this.names.set(p.id, p.shortName);
     this.curr = engine.getSnapshot();
     this.prev = this.curr;
     // When resuming from a checkpoint, don't replay old commentary.
@@ -139,6 +140,13 @@ export class MatchController {
     this.flushQueued();
     this.consumeEvents();
     for (const l of this.listeners) l.onTick?.(this.curr);
+  }
+
+  /** Half-time substitution for the user's side. */
+  dispatchSub(outId: string, inId: string): CommandResult {
+    const r = this.engine.dispatchSub(this.userSide, outId, inId);
+    for (const l of this.listeners) l.onCommand?.(r);
+    return r;
   }
 
   dispatch(type: TacticCommand): CommandResult {
@@ -290,6 +298,11 @@ export class MatchController {
         case 'PASS':
           if (e.outcome === 'intercepted' && e.interceptedBy && !e.cross) this.say({ text: `Read it! ${this.nameOf(e.interceptedBy)} cuts it out.`, tone: 'info' });
           break;
+        case 'SUB': {
+          for (const l of this.listeners) l.onSub?.(e);
+          this.say({ text: `Change for ${this.teamName(e.team)}: ${this.nameOf(e.inId)} on for ${this.nameOf(e.outId)}.`, tone: 'info', side: e.team });
+          break;
+        }
         case 'TACTIC_APPLIED': {
           for (const l of this.listeners) l.onCard?.(e);
           const def = CARD_DEFS[e.command];

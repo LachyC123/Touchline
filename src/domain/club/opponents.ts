@@ -31,6 +31,17 @@ export function opponentSquad(careerSeed: string, club: ClubDef, lap: number): F
   });
 }
 
+/** Two substitutes per club (a midfielder and a forward), a little below the first team. */
+export function opponentBench(careerSeed: string, club: ClubDef, lap: number): Footballer[] {
+  const target = club.baseOvr + lap * 2 - 3;
+  return (['MID', 'FWD'] as const).map((position, i) => {
+    const seed = `${careerSeed}:club:${club.id}:bench:${i}`;
+    const p = generateFootballer({ seed, position, targetOvr: target + stream(seed, 'roster').int(-2, 2), tier: 'street', season: 1 });
+    p.isNew = false;
+    return p;
+  });
+}
+
 export function opponentLineup(careerSeed: string, fixture: Fixture): { lineup: TeamLineup; squad: Footballer[] } {
   const squad = opponentSquad(careerSeed, fixture.club, fixture.lap);
   const byId = Object.fromEntries(squad.map((p) => [p.id, p]));
@@ -47,6 +58,7 @@ export function opponentLineup(careerSeed: string, fixture: Fixture): { lineup: 
     fixture.club.formation,
     slots,
     byId,
+    opponentBench(careerSeed, fixture.club, fixture.lap),
   );
   return { lineup, squad };
 }

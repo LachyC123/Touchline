@@ -102,6 +102,8 @@ export interface TeamState {
   queue: TacticCommand[];
   marking: { markerId: string; targetId: string } | null;
   controlledBy: 'user' | 'ai';
+  /** Bench players brought on, in order (each can only come on once). */
+  subbedOn: string[];
 }
 
 export interface RestartState {
@@ -187,6 +189,13 @@ export function buildPlayers(lineup: TeamLineup, side: TeamSide): PState[] {
   return lineup.players.map((lp, index) => {
     const slot = slots.find((s) => s.id === lp.slotId);
     if (!slot) throw new Error(`Slot ${lp.slotId} is not part of formation ${lineup.formation}`);
+    return makePlayer(lp, side, index, slot);
+  });
+}
+
+/** A fresh on-pitch player (kick-off state; full stamina). */
+export function makePlayer(lp: LineupPlayer, side: TeamSide, index: number, slot: FormationSlot): PState {
+  {
     return {
       id: lp.id,
       side,
@@ -217,7 +226,7 @@ export function buildPlayers(lineup: TeamLineup, side: TeamSide): PState[] {
       targetX: 50,
       targetY: 75,
     };
-  });
+  }
 }
 
 /** Pressure on a point from the opposition: Σ max(0, 1 − d/6), capped at 1.5. */

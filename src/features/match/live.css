@@ -264,6 +264,9 @@
   display: grid;
   gap: var(--s-3);
   width: min(100%, 380px);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   text-align: center;
   animation: dialog-pop 300ms var(--ease-spring);
 }
@@ -725,4 +728,14 @@
 
 .live__coach--played.coach--down::after {
   display: none;
+}
+
+.moment__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--lime);
+  color: var(--ink);
 }

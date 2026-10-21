@@ -1,6 +1,6 @@
 import { CLUB_BY_ID } from '../../data/clubs';
-import { buildTeamLineup } from '../../game/simulation/fromSquad';
-import { ENGINE_VERSION } from '../../game/simulation/constants';
+import { buildTeamLineup, lineupAtFullTime, matchSquad } from '../../game/simulation/fromSquad';
+import { ENGINE_VERSION, SUBS } from '../../game/simulation/constants';
 import type { CreateMatchArgs } from '../../game/simulation/engine';
 import { possessionShare } from '../../game/simulation/summary';
 import type { FootballEvent, LineupPlayer, MatchResult, TeamLineup, TeamSide } from '../../game/simulation/types';
@@ -15,7 +15,8 @@ import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
 import { xpToNext } from '../players/progression';
-import type { HistoryEventKind } from '../players/types';
+import { overall } from '../players/rating';
+import type { Footballer, HistoryEventKind } from '../players/types';
 import { FOCUS_OPTIONS } from '../players/upgrades';
 import { seededUuid, stream } from '../rng';
 import { MAX_MATCH_RECORDS, PLAYER_CLUB_ID, REPLAYS_KEPT, type ClubSave, type MatchMoment, type MatchRecord, type PendingMatch, type PlayerGain, type RecordMilestone, type RewardLine } from '../save/types';
@@ -47,6 +48,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     save.formationId,
     save.lineup,
     save.footballers,
+    benchFor(save),
   );
   const theirs = opponentLineup(save.careerSeed, fixture).lineup;
   const number = save.matchNumber + 1;
@@ -66,6 +68,16 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     season: save.season,
     ...(fx.competition === 'cup' ? { competition: 'cup' as const, cupRound: fx.cupRound ?? 0 } : { round: fx.round }),
   };
+}
+
+/** The substitutes for kick-off: everyone not starting, best first (up to the bench size). */
+export function benchFor(save: Pick<ClubSave, 'squadIds' | 'lineup' | 'footballers'>): Footballer[] {
+  const starting = new Set(Object.values(save.lineup));
+  return save.squadIds
+    .filter((id) => !starting.has(id))
+    .flatMap((id) => (save.footballers[id] ? [save.footballers[id]] : []))
+    .sort((a, b) => overall(b) - overall(a) || a.id.localeCompare(b.id))
+    .slice(0, SUBS.bench);
 }
 
 export function matchArgs(p: PendingMatch): CreateMatchArgs {
@@ -92,7 +104,7 @@ export function computeRewards(result: MatchResult, side: TeamSide, careerSeed: 
   };
 }
 
-const MOMENT_PRIORITY: Record<MatchMoment['kind'], number> = { penalty: 9, penaltyMiss: 9, doubleSave: 8, screamer: 8, freeKick: 8, header: 6, woodwork: 5, save: 4, skill: 4, booking: 3 };
+const MOMENT_PRIORITY: Record<MatchMoment['kind'], number> = { penalty: 9, penaltyMiss: 9, doubleSave: 8, screamer: 8, freeKick: 8, header: 6, woodwork: 5, sub: 4, save: 4, skill: 4, booking: 3 };
 
 /**
  * The incidents worth remembering, each built from a logged event (never invented). Strong
@@ -100,8 +112,8 @@ const MOMENT_PRIORITY: Record<MatchMoment['kind'], number> = { penalty: 9, penal
  */
 export function matchMoments(result: MatchResult, pending: Pick<PendingMatch, 'home' | 'away'>): MatchMoment[] {
   const players = new Map<string, { p: LineupPlayer; side: TeamSide }>();
-  for (const p of pending.home.players) players.set(p.id, { p, side: 'home' });
-  for (const p of pending.away.players) players.set(p.id, { p, side: 'away' });
+  for (const p of [...pending.home.players, ...(pending.home.bench ?? [])]) players.set(p.id, { p, side: 'home' });
+  for (const p of [...pending.away.players, ...(pending.away.bench ?? [])]) players.set(p.id, { p, side: 'away' });
   const name = (id: string) => players.get(id)?.p.name ?? 'Unknown';
   const sideOf = (id: string) => players.get(id)?.side ?? 'home';
   const stat = (id: string, label: string, key: 'dribbling' | 'shooting' | 'reflexes' | 'setPieces' | 'strength'): string | undefined => {
@@ -129,6 +141,8 @@ export function matchMoments(result: MatchResult, pending: Pick<PendingMatch, 'h
     } else if (e.type === 'SKILL') {
       const label = { stepover: 'stepover', nutmeg: 'nutmeg', roulette: 'roulette', flick: 'rainbow flick', dragBack: 'drag-back' }[e.move];
       push({ minute: e.minute, side: sideOf(e.playerId), kind: 'skill', text: `${name(e.playerId)}'s ${label} beats ${name(e.beatenId)}`, stat: stat(e.playerId, 'DRI', 'dribbling') });
+    } else if (e.type === 'SUB') {
+      push({ minute: e.minute, side: e.team, kind: 'sub', text: `${name(e.inId)} on for ${name(e.outId)}` });
     } else if (e.type === 'FOUL' && e.booked) {
       push({ minute: e.minute, side: e.team, kind: 'booking', text: `${name(e.foulerId)} is booked` });
     }
@@ -178,7 +192,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   const gf = result.score[side];
   const ga = result.score[opp];
   const won = gf > ga;
-  const nameOf = (id: string) => [...pending.home.players, ...pending.away.players].find((p) => p.id === id)?.name ?? 'Unknown';
+  const nameOf = (id: string) => [...matchSquad(pending.home), ...matchSquad(pending.away)].find((p) => p.id === id)?.name ?? 'Unknown';
   const lines = new Map(result.players.map((l) => [l.playerId, l]));
   const season = draft.season;
   let order = draft.nextSeq;
@@ -215,6 +229,14 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   // Player stats, scrapbook, XP.
   const gains: PlayerGain[] = [];
   const starters = new Set(mine.players.map((p) => p.id));
+  // Substitutes who came on play in the role of the man they replaced.
+  const subRole = new Map<string, LineupPlayer['role']>();
+  for (const e of result.events) {
+    if (e.type === 'SUB' && e.team === side) {
+      const role = mine.players.find((x) => x.id === e.outId)?.role ?? subRole.get(e.outId);
+      if (role) subRole.set(e.inId, role);
+    }
+  }
   const recruitedIds = new Set(draft.packs.flatMap((p) => (p.playerId ? [p.playerId] : [])));
   for (const id of draft.squadIds) {
     const p = draft.footballers[id];
@@ -222,13 +244,13 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     const levelBefore = p.level;
     let xp: number;
     const line = lines.get(id);
-    if (starters.has(id) && line) {
+    if ((starters.has(id) || subRole.has(id)) && line) {
       const wasDebut = p.stats.matches === 0;
       const statsBefore = { ...p.stats };
       p.stats.matches++;
       p.stats.goals += line.goals;
       p.stats.assists += line.assists;
-      const role = mine.players.find((x) => x.id === id)?.role;
+      const role = mine.players.find((x) => x.id === id)?.role ?? subRole.get(id);
       const cleanSheet = ga === 0 && (role === 'GK' || role === 'DEF');
       if (cleanSheet) p.stats.cleanSheets++;
       const firstGoal = myGoals.find((x) => x.scorerId === id);
@@ -264,7 +286,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   const isCup = pending.competition === 'cup';
   let shootout: ShootoutResult | null = null;
   if (isCup) {
-    if (gf === ga) shootout = penaltyShootout(pending.seed, pending.home, pending.away);
+    if (gf === ga) shootout = penaltyShootout(pending.seed, lineupAtFullTime(pending.home, 'home', result.events), lineupAtFullTime(pending.away, 'away', result.events));
     const k = pending.cupRound ?? -1;
     const tie = draft.cup?.rounds[k]?.find((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID);
     if (draft.cup && pending.season === draft.season && k === draft.cup.round && tie && !tie.winner) {
@@ -287,7 +309,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   // League: our result, the rest of the round (same engine, AI benches), then the next round.
   const leagueRound = pending.round ?? draft.league.round;
   if (!isCup && pending.season === draft.season && leagueRound === draft.league.round && draft.league.rounds[leagueRound]) {
-    const names = new Map([...pending.home.players, ...pending.away.players].map((p) => [p.id, p.name] as const));
+    const names = new Map([...matchSquad(pending.home), ...matchSquad(pending.away)].map((p) => [p.id, p.name] as const));
     const homeId = side === 'home' ? PLAYER_CLUB_ID : pending.opponentId;
     const awayId = side === 'home' ? pending.opponentId : PLAYER_CLUB_ID;
     draft.league.results.push(userLeagueResult(leagueRound, homeId, awayId, result, names));

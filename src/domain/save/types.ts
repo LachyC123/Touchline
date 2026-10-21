@@ -47,7 +47,7 @@ export interface ScorerLine {
 export interface MatchMoment {
   minute: number;
   side: TeamSide;
-  kind: 'screamer' | 'header' | 'freeKick' | 'penalty' | 'penaltyMiss' | 'doubleSave' | 'save' | 'skill' | 'booking' | 'woodwork';
+  kind: 'screamer' | 'header' | 'freeKick' | 'penalty' | 'penaltyMiss' | 'doubleSave' | 'save' | 'skill' | 'booking' | 'woodwork' | 'sub';
   text: string;
   /** The attribute behind it, when it was a strong one (e.g. "DRI 78"). */
   stat?: string;

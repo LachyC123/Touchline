@@ -198,3 +198,12 @@ A cup tie is an ordinary engine match (same lineups, commands, fixed timestep an
 - The kicks are stored on the match record and the result screen replays exactly those kicks. Nothing on screen is invented.
 
 AI-vs-AI cup ties use the same match engine (both benches AI-managed) plus the same shootout, seeded from the career, season, cup round and clubs, so the bracket never changes once played.
+
+## 15. Half-time substitutions and fatigue — `engine-4`
+
+- A `TeamLineup` may carry a `bench` of up to `SUBS.bench` (5) players. The player's club fields everyone not starting, best first. Every AI club has two substitutes (a midfielder and a forward, about 3 OVR below its first team).
+- `dispatchSub(side, outId, inId)` is valid only while the match is in the `halftime` phase, at most `SUBS.max` (2) times per side, for a player on the pitch and a bench player who has not come on. It is recorded as `{ type: 'SUB', side, tick, outId, inId }` at the half-time tick and applied as the second half kicks off. The substitute takes the outgoing player's slot, role and position, with full stamina. Man-Mark pairings follow the change.
+- AI benches change outfielders below `STAMINA.aiSubBelow` (0.8) at half-time: most tired first, like-for-like where possible. These changes are re-derived on replay; they are not stored as commands.
+- A `SUB` event is emitted. Player lines, ratings, appearances, scorers' names and the penalty shootout (which uses the seven on the pitch at full time) all include substitutes.
+- **Fatigue (engine-4):** base and sprint drain were raised (0.0003 / 0.002) and half-time recovery cut to 0.06, so a side ends a match at about 65–76% stamina (it was about 86%). Stamina affects pace, dribbling and tackling, which is what makes a fresh substitute worth bringing on. While Man-Mark is active, the marker loses only half as much pace to tiredness.
+- **Replay at a checkpoint:** `replayTo(args, commands, tick)` also queues commands recorded at exactly the stopping tick, so a match resumed from a checkpoint saved at half-time still makes the recorded changes.

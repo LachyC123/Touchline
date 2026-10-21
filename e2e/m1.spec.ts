@@ -144,3 +144,33 @@ test('after two matches players level up and a training focus applies once', asy
     }
   }
 });
+
+test('half-time: bring a substitute on by tapping, and he shows up in the result', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone-390', 'one viewport is enough for a full first half');
+  test.setTimeout(150_000);
+  await startCareerSkippingTutorial(page);
+  await page.goto('/#/match');
+  await page.getByRole('button', { name: /play match/i }).click();
+  await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+  await kickOffIfWalkOut(page);
+  const speed = page.locator('.live__speed');
+  if ((await speed.innerText()).trim() === '1×') await speed.click(); // a first match may already run at 2×
+  await expect(page.getByRole('button', { name: /second half/i })).toBeVisible({ timeout: 90_000 });
+  const subs = page.locator('.subs');
+  await expect(subs.locator('.subs__left')).toHaveText('2 left');
+  const confirm = subs.getByRole('button', { name: /pick one of each/i });
+  await expect(confirm).toBeDisabled();
+  await subs.getByRole('listbox', { name: 'Players on the pitch' }).getByRole('option').nth(3).click();
+  const sub = subs.getByRole('listbox', { name: 'Substitutes' }).getByRole('option').first();
+  const subName = (await sub.locator('.subs__name').innerText()).trim();
+  await sub.click();
+  await subs.getByRole('button', { name: new RegExp(`bring on ${subName}`, 'i') }).click();
+  await expect(subs.locator('.subs__queued')).toContainText(new RegExp(`${subName} on for`, 'i'));
+  await expect(subs.locator('.subs__left')).toHaveText('1 left');
+  await page.getByRole('button', { name: /second half/i }).click();
+  await expect(page.locator('.moment')).toContainText(new RegExp(`${subName} on for`, 'i'), { timeout: 10_000 });
+  await page.getByRole('button', { name: /skip to ft/i }).click();
+  await page.getByRole('button', { name: /simulate the rest/i }).click();
+  await expect(page.locator('.result__hero')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.result__moments')).toContainText(new RegExp(`${subName}.* on for`, 'i'));
+});

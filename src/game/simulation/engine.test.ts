@@ -11,7 +11,7 @@ const away = makeTeam('t-away', 55);
 const args = (seed: string, extra: Partial<CreateMatchArgs> = {}): CreateMatchArgs => ({ matchId: seed, seed, home, away, userSide: 'home', ...extra });
 
 /** Play a match "live", dispatching commands at fixed ticks, like the UI does. */
-function playLive(a: CreateMatchArgs, at: Record<number, MatchCommand['type']>) {
+function playLive(a: CreateMatchArgs, at: Record<number, Exclude<MatchCommand['type'], 'SUB'>>) {
   const e = createMatch(a);
   while (!e.isFinished()) {
     const cmd = at[e.tick];

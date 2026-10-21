@@ -218,7 +218,8 @@ export function recordCommand(matchId: string, command: MatchCommand, db?: Touch
   return mutateSave((s) => {
     const pm = s.pendingMatch;
     if (!pm || pm.matchId !== matchId) throw new Error('That match is no longer in progress.');
-    if (!pm.commands.some((c) => c.tick === command.tick && c.type === command.type && c.side === command.side)) {
+    // Idempotent per command: two substitutions at the same half-time tick are different commands.
+    if (!pm.commands.some((c) => c.tick === command.tick && c.type === command.type && c.side === command.side && c.outId === command.outId && c.inId === command.inId)) {
       pm.commands.push({ ...command });
       pm.commands.sort((a, b) => a.tick - b.tick);
     }

@@ -1,4 +1,5 @@
 import { CLUB_BY_ID, DIVISIONS, type ClubDef, type DivisionDef } from '../../data/clubs';
+import { matchSquad } from '../../game/simulation/fromSquad';
 import { replayMatch } from '../../game/simulation/replay';
 import type { MatchResult } from '../../game/simulation/types';
 import { grantClubXp } from '../club/manager';
@@ -138,7 +139,7 @@ export function simulateOtherFixtures(careerSeed: string, season: number, league
     const away = opponentLineup(careerSeed, { number: round, club: ac, lap, home: false }).lineup;
     const seed = `${careerSeed}:s${season}:r${round}:${f.home}-v-${f.away}`;
     const result = replayMatch({ matchId: seed, seed, home, away, userSide: null }, []);
-    const names = new Map([...home.players, ...away.players].map((p) => [p.id, p.name] as const));
+    const names = new Map([...matchSquad(home), ...matchSquad(away)].map((p) => [p.id, p.name] as const));
     out.push(userLeagueResult(round, f.home, f.away, result, names));
   }
   return out;

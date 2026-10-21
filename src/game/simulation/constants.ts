@@ -2,7 +2,10 @@
  * Named tuning constants for the match engine. Balance scripts import these so reports state
  * exactly which numbers produced them. Units: pitch units (1 ≈ 0.4 m) and ticks (10 per second).
  */
-export const ENGINE_VERSION = 'engine-3';
+export const ENGINE_VERSION = 'engine-4';
+
+/** Substitutions: half-time only, from a bench of up to five. */
+export const SUBS = { max: 2, bench: 5 } as const;
 
 export const PITCH_W = 100;
 export const PITCH_L = 150;
@@ -25,10 +28,13 @@ export const MOVE = {
 };
 
 export const STAMINA = {
-  baseDrain: 0.00018,
-  sprintDrain: 0.0013,
+  // engine-4: legs tire enough over 90 minutes for half-time changes to matter.
+  baseDrain: 0.0003,
+  sprintDrain: 0.002,
   pressMultiplier: 2.4,
-  halftimeRecovery: 0.15,
+  halftimeRecovery: 0.06,
+  /** AI benches replace outfielders below this at half-time. */
+  aiSubBelow: 0.8,
 };
 
 export const BALL = {

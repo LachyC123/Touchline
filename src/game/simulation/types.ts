@@ -67,6 +67,8 @@ export interface TeamLineup {
   kit: { primary: string; secondary: string; pattern?: 'plain' | 'stripes' | 'hoops' | 'sash' | 'halves' };
   formation: FormationId;
   players: LineupPlayer[];
+  /** Substitutes available at half-time (slotId 'bench', role = natural position). */
+  bench?: LineupPlayer[];
   /** Manager cards brought to this match, in draw order (absent on lineups frozen before engine-3). */
   deck?: CardId[];
 }
@@ -75,10 +77,14 @@ export interface TeamLineup {
 export type TacticCommand = CardId;
 
 export interface MatchCommand {
-  type: TacticCommand;
+  /** A manager card, or a substitution (half-time only). */
+  type: TacticCommand | 'SUB';
   side: TeamSide;
   /** Tick at which the command takes effect (recorded for replay). */
   tick: number;
+  /** Substitutions: the player going off and the bench player coming on. */
+  outId?: string;
+  inId?: string;
 }
 
 export type CommandResult = { ok: true; command: MatchCommand } | { ok: false; reason: string };
@@ -112,6 +118,7 @@ export type FootballEvent =
   | (EventBase & { type: 'RESTART'; kind: RestartKind; team: TeamSide; at: SimPos })
   | (EventBase & { type: 'TACTIC_APPLIED'; team: TeamSide; command: TacticCommand; expiresMinute: number; markerId?: string; markedId?: string })
   | (EventBase & { type: 'HALFTIME' })
+  | (EventBase & { type: 'SUB'; team: TeamSide; outId: string; inId: string })
   | (EventBase & { type: 'FULLTIME'; home: number; away: number });
 
 export type FootballEventType = FootballEvent['type'];

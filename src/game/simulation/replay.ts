@@ -8,16 +8,22 @@ export function replayTo(args: CreateMatchArgs, commands: readonly MatchCommand[
   const engine = createMatch(args);
   const queue = [...commands].sort((a, b) => a.tick - b.tick);
   let qi = 0;
-  while (!engine.isFinished() && engine.tick < untilTick) {
+  const feed = () => {
     while (qi < queue.length && (queue[qi] as MatchCommand).tick === engine.tick) {
       const c = queue[qi] as MatchCommand;
-      const r = engine.dispatch(c.type, c.side);
+      const r = engine.dispatchCommand(c);
       if (!r.ok) throw new Error(`Recorded command rejected on replay at tick ${c.tick}: ${r.reason}`);
       qi++;
     }
     if (qi < queue.length && (queue[qi] as MatchCommand).tick < engine.tick) throw new Error('Recorded command tick is in the past');
+  };
+  while (!engine.isFinished() && engine.tick < untilTick) {
+    feed();
     engine.advanceTicks(1);
   }
+  // Commands recorded at the stopping tick itself (e.g. a half-time substitution saved with a
+  // checkpoint at that tick) are queued too, so a resumed match applies them like the original.
+  if (!engine.isFinished()) feed();
   return engine;
 }
 

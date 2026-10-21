@@ -73,7 +73,8 @@ export class MatchScene extends Phaser.Scene {
     this.drawPitch();
 
     for (const [side, team] of [['home', this.controller.home], ['away', this.controller.away]] as const) {
-      for (const p of team.players) {
+      // Substitutes get a figure up front; it is shown once they appear in a snapshot.
+      for (const p of [...team.players, ...(team.bench ?? [])]) {
         this.figures.set(p.id, this.makeFigure(p, side, team.kit));
         this.players.set(p.id, p);
         this.pace.set(p.id, p.attributes.pace);
@@ -389,6 +390,12 @@ export class MatchScene extends Phaser.Scene {
     const carrierId = curr.ball.ownerId;
 
     const ballNow = this.toWorld(curr.ball.x, curr.ball.y, flip);
+    const onPitch = new Set(curr.players.map((p) => p.id));
+    for (const [id, f] of this.figures) {
+      const shown = onPitch.has(id);
+      f.rig.root.setVisible(shown);
+      if (!shown) f.label.setVisible(false);
+    }
     for (const p of curr.players) {
       const f = this.figures.get(p.id);
       if (!f) continue;
