@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { isReducedMotion } from '../../accessibility/motion';
 import { playSfx } from '../../audio/sfx';
 import { useGame, useSave } from '../../app/GameContext';
@@ -19,7 +19,8 @@ import { playerLines, possessionShare } from '../../game/simulation/summary';
 import type { FootballEvent, MatchSnapshot, TacticCommand, TeamSide } from '../../game/simulation/types';
 import { MatchController, type CommentaryLine, type HoldReason } from '../../game/renderer/controller';
 import { createMatchGame } from '../../game/renderer/createMatchGame';
-import { recordCommand, saveCheckpoint, settleMatchOnce } from '../../storage/saveRepo';
+import { recordCommand, restartStaleMatch, saveCheckpoint, settleMatchOnce } from '../../storage/saveRepo';
+import { ENGINE_VERSION } from '../../game/simulation/constants';
 import './live.css';
 
 export function LiveMatch() {
@@ -38,7 +39,23 @@ export function LiveMatch() {
       </main>
     );
   }
+  if (pm.engineVersion !== ENGINE_VERSION) return <StaleMatch />;
   return <LiveMatchInner key={pm.matchId} pending={pm} />;
+}
+
+/** A match saved mid-way on an older engine restarts from kick-off (it can't be replayed faithfully). */
+function StaleMatch() {
+  return (
+    <main className="screen">
+      <div className="paper live__none">
+        <p className="display">The game has been updated</p>
+        <p>This match was paused on an older version of the match engine, so it kicks off again from 0–0. Nothing was paid out yet, so nothing is lost.</p>
+        <Button variant="primary" icon="whistle" onClick={() => void restartStaleMatch()}>
+          Kick off again
+        </Button>
+      </div>
+    </main>
+  );
 }
 
 const CHIPS: { type: TacticCommand; label: string; activeLabel: string; icon: 'bolt' | 'needle'; help: string }[] = [
@@ -65,6 +82,15 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const [speed, setSpeed] = useState(1);
   const [confirmSkip, setConfirmSkip] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [goalHow, setGoalHow] = useState<string | null>(null);
+  const [moment, setMoment] = useState<{ title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save'; id: number } | null>(null);
+  const momentId = useRef(0);
+  const flashMoment = useCallback((m: { title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save' }) => {
+    const id = ++momentId.current;
+    setMoment({ ...m, id });
+    window.setTimeout(() => setMoment((cur) => (cur?.id === id ? null : cur)), 1900);
+  }, []);
+  const nameOf = useCallback((id: string) => [...pending.home.players, ...pending.away.players].find((p) => p.id === id)?.name ?? '', [pending]);
   const settling = useRef(false);
   const user = pending.userSide;
   const oppClub = CLUB_BY_ID[pending.opponentId];
@@ -97,7 +123,22 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
       },
       onCommentary: (l) => setLine(l),
       onShot: () => playSfx('kick'),
-      onSave: () => playSfx('save'),
+      onSave: (e) => {
+        playSfx('save');
+        if (e.double) {
+          playSfx('cheer');
+          flashMoment({ title: 'Double save!', sub: nameOf(e.keeperId), tone: 'save' });
+        } else if (e.style === 'dive' || e.style === 'fingertip') playSfx('ooh');
+      },
+      onSkill: () => playSfx('swish'),
+      onFoul: (e) => {
+        playSfx('peep');
+        if (e.booked) window.setTimeout(() => playSfx('stamp'), 250);
+        if (e.award === 'penalty') {
+          playSfx('ooh');
+          flashMoment({ title: 'Penalty!', sub: `${nameOf(e.foulerId)} brings down ${nameOf(e.victimId)}`, tone: e.team === user ? 'bad' : 'good' });
+        } else if (e.booked) flashMoment({ title: 'Yellow card', sub: nameOf(e.foulerId), tone: 'card' });
+      },
       onTackle: (e) => {
         if (e.won) playSfx('tackle');
       },
@@ -108,10 +149,11 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
         } else if (e.outcome === 'wide') playSfx('ooh');
         else playSfx('tackle');
       },
-      onGoal: (e) => {
+      onGoal: (e, shot) => {
         // Bank the goal immediately so a reload can never rewind past it.
         void saveCheckpoint(pending.matchId, controller.snapshot.tick).catch(() => undefined);
         setGoal(e);
+        setGoalHow(shot?.style === 'long' ? 'Screamer from distance' : shot?.style === 'header' ? 'Header' : shot?.style === 'volley' ? 'Rebound, first time' : shot?.style === 'freeKick' ? 'Direct free kick' : shot?.style === 'penalty' ? 'Penalty' : null);
         playSfx('goal');
         window.setTimeout(() => setGoal(null), 1900);
       },
@@ -121,7 +163,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
         if (r === 'halftime' || r === 'fulltime') playSfx('whistle');
       },
     });
-  }, [controller, pending.matchId]);
+  }, [controller, pending.matchId, flashMoment, nameOf, user]);
 
   // Backgrounding pauses presentation and checkpoints; nothing simulates unseen.
   useEffect(() => {
@@ -195,13 +237,15 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   // Tutorial: once the user's side has settled on the ball, prompt the first tactic.
   const quickReady = tactics.activeUntil.QUICK_PASS <= snap.tick && tactics.readyAt.QUICK_PASS <= snap.tick;
   const ourBall = userTeam.players.some((p) => p.id === snap.ball.ownerId);
-  const [tipShown, setTipShown] = useState(false);
-  const showTacticTip = tipPending(save, 'tactic') && (tipShown || (hold === null && quickReady && ourBall && snap.minute >= 4 && snap.phase !== 'halftime'));
+  // Tick at which the tip appeared; it steps aside after ~10 s of play if ignored (and comes back next match).
+  const [tipAt, setTipAt] = useState<number | null>(null);
+  const tipExpired = tipAt !== null && snap.tick > tipAt + 100;
+  const showTacticTip = tipPending(save, 'tactic') && !tipExpired && (tipAt !== null || (hold === null && quickReady && ourBall && snap.minute >= 4 && snap.phase !== 'halftime'));
   // Latch it (derived state set during render) so the tip stays up after possession changes.
-  if (showTacticTip && !tipShown) setTipShown(true);
+  if (showTacticTip && tipAt === null) setTipAt(snap.tick);
   useEffect(() => {
-    if (tipShown) playSfx('pop');
-  }, [tipShown]);
+    if (tipAt !== null) playSfx('pop');
+  }, [tipAt]);
 
   const crestFor = (side: TeamSide) =>
     side === user ? { name: userTeam.name, shortName: userTeam.shortName, crest: 'shield' as const, kit: { ...userTeam.kit, pattern: 'plain' as const, cut: 'crew' as const } } : { name: oppTeam.name, shortName: oppTeam.shortName, crest: oppClub?.crest ?? ('round' as const), kit: { ...oppTeam.kit, pattern: 'plain' as const, cut: 'crew' as const } };
@@ -234,10 +278,18 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
 
       <div className="live__pitch" ref={canvasRef} data-testid="pitch">
         {banner && <div className="live__banner">{banner}</div>}
+        {moment && !goal && (
+          <div key={moment.id} className={`moment moment--${moment.tone}`} role="status">
+            {moment.tone === 'card' && <span className="moment__card" aria-hidden="true" />}
+            <span className="moment__title">{moment.title}</span>
+            <span className="moment__sub">{moment.sub}</span>
+          </div>
+        )}
         {goal && (
           <div className={`goalcard ${ourGoal ? 'is-ours' : ''}`} role="status">
             <span className="goalcard__word">{ourGoal ? 'GOAL!' : 'Goal'}</span>
             <span className="goalcard__name">{scorerName}</span>
+            {goalHow && <span className="goalcard__how">{goalHow}</span>}
             <span className="goalcard__min">{goal.minute}'</span>
           </div>
         )}

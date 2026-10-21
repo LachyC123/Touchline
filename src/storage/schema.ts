@@ -110,11 +110,13 @@ const pair = <T extends z.ZodType>(t: T) => z.object({ home: t, away: t });
 const side = z.enum(['home', 'away']);
 const commandSchema = z.object({ type: z.enum(['PRESS', 'QUICK_PASS']), side, tick: z.number().int().min(0).max(100_000) });
 
-const simAttributesSchema = z.object(
-  Object.fromEntries(
+const simAttributesSchema = z.object({
+  ...(Object.fromEntries(
     ['pace', 'acceleration', 'shooting', 'finishing', 'passing', 'vision', 'dribbling', 'ballControl', 'tackling', 'marking', 'strength', 'stamina', 'composure', 'reflexes', 'positioning', 'handling', 'distribution', 'reach'].map((k) => [k, rating]),
-  ) as Record<string, typeof rating>,
-);
+  ) as Record<string, typeof rating>),
+  // Added with engine-2; lineups frozen by engine-1 lack it (and are not replayed on engine-2).
+  setPieces: rating.default(50),
+});
 
 const teamLineupSchema = z.object({
   clubId: z.string().min(1).max(64),
@@ -182,6 +184,18 @@ const matchRecordSchema = z.object({
   rewards: z.object({ coins: safeCount, clubXp: safeCount, lines: z.array(z.object({ label: z.string().max(60), coins: safeCount })).max(10) }),
   gains: z.array(z.object({ playerId: z.string().max(80), xp: safeCount, levelBefore: z.number().int().min(1).max(99), levelAfter: z.number().int().min(1).max(99), rating: z.number().min(0).max(10).optional() })).max(200),
   storyHeadline: z.string().max(200),
+  moments: z
+    .array(
+      z.object({
+        minute: z.number().int().min(0).max(130),
+        side,
+        kind: z.enum(['screamer', 'header', 'freeKick', 'penalty', 'penaltyMiss', 'doubleSave', 'save', 'skill', 'booking', 'woodwork']),
+        text: z.string().max(120),
+        stat: z.string().max(12).optional(),
+      }),
+    )
+    .max(8)
+    .optional(),
   replay: z.object({ home: teamLineupSchema, away: teamLineupSchema }).optional(),
   packId: z.string().uuid().optional(),
 });

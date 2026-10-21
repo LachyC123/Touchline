@@ -12,7 +12,7 @@ The full specification lives in this repo:
 
 ## Status
 
-**M0, M1 and M2** are implemented: opening comic → free First Signing pack (tear, reveal, persisted before the animation) → guided lineup placement → an animated, deterministic 7v7 match you can influence with PRESS and QUICK PASS (with a first-time prompt) → full time with real rewards, XP and the first training choice → name your club and pick its colours → hub. Scout packs are earned every 3 matches with published odds and a visible guarantee; goal replays; everything persists across reloads (including mid-match). See `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred.
+**M0, M1 and M2** are implemented: opening comic → free First Signing pack (tear, reveal, persisted before the animation) → guided lineup placement → an animated, deterministic 7v7 match you can influence with PRESS and QUICK PASS (with a first-time prompt) → full time with real rewards, XP and the first training choice → name your club and pick its colours → hub. Scout packs are earned every 3 matches with published odds and a visible guarantee; goal replays; everything persists across reloads (including mid-match). Matches (engine-2) include long shots, crosses and headers, diving/fingertip/double saves, rebounds, slide tackles, named skill moves, fouls, free kicks with walls, penalties and bookings, all decided by player attributes; strong stats light up on the pitch as card-style chips. See `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred.
 
 ## Requirements
 
@@ -34,6 +34,7 @@ The full specification lives in this repo:
 | `npm run typecheck` | TypeScript only |
 | `npm run icons` | Re-render PWA PNG icons from `public/icons/icon.svg` |
 | `npm run simulate:balance -- --n 1000` | Batch match sims → `reports/balance-latest.md` / `.json` (fairness, power gaps, formations, tactics) |
+| `node scripts/capture-moment.mjs <url> <dir> "<Lab scenario>" "<ticker regex>"` | DEV build: kick off a Lab scenario seed (Penalty, Double save, Diving save, Free kick shot, Skill move) and capture frames when the commentary matches |
 | `node scripts/capture.mjs <url> <dir>` / `capture-m1.mjs` / `capture-m2.mjs` | Capture the review storyboard screenshots (M0 screens / M1 match flow / M2 first run; `VW=320 VH=680` for other viewports) |
 
 To include the developer Card Lab in a production-style build: `VITE_DEV_DEBUG=true npx vite build`.

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { assignToSlot, changeFormation, LineupError, lineupProblems } from '../domain/club/lineup';
 import { createCareer } from '../domain/club/newCareer';
 import { fixtureFor, opponentSquad } from '../domain/club/opponents';
-import { matchArgs, prepareMatch, settleMatch, XP } from '../domain/match/settle';
+import { matchArgs, matchMoments, prepareMatch, settleMatch, XP } from '../domain/match/settle';
 import { xpToNext } from '../domain/players/progression';
 import { overall } from '../domain/players/rating';
 import { createMatch } from '../game/simulation/engine';
@@ -203,5 +203,26 @@ describe('settlement facts', () => {
     const d2 = structuredClone(s);
     settleMatch(d2, pm, replayMatch(matchArgs(pm), []));
     expect(d2.footballers[starter]!.history.filter((h) => h.kind === 'milestone')).toHaveLength(0);
+  });
+});
+
+describe('key moments', () => {
+  it('are built only from logged events, capped at eight, and name only strong stats', () => {
+    let seen = 0;
+    for (let i = 0; i < 40; i++) {
+      const s = createCareer(`moments-${i}`, 'x');
+      const pm = prepareMatch(s);
+      const result = replayMatch(matchArgs(pm), []);
+      const moments = matchMoments(result, pm);
+      expect(moments.length).toBeLessThanOrEqual(8);
+      for (const m of moments) {
+        seen++;
+        expect(result.events.some((e) => e.minute === m.minute)).toBe(true);
+        if (m.stat) expect(Number(m.stat.split(' ')[1])).toBeGreaterThanOrEqual(65);
+      }
+      const minutes = moments.map((m) => m.minute);
+      expect([...minutes].sort((a, b) => a - b)).toEqual(minutes);
+    }
+    expect(seen).toBeGreaterThan(20);
   });
 });

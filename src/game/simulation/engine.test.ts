@@ -231,3 +231,112 @@ describe('fairness and tactical influence (batch sims)', () => {
     expect(tacklesPress / N).toBeGreaterThan((tacklesNo / N) * 1.1);
   });
 });
+
+// ---------------------------------------------------------------- engine-2: football incidents
+
+type Attr = keyof import('./types').SimAttributes;
+/** Same team, with some attributes overridden for every outfielder (or the keeper). */
+function withAttrs(team: ReturnType<typeof makeTeam>, set: Partial<Record<Attr, number>>, who: 'outfield' | 'keeper' = 'outfield') {
+  return {
+    ...team,
+    players: team.players.map((p) => ((p.role === 'GK') === (who === 'keeper') ? { ...p, attributes: { ...p.attributes, ...set } } : p)),
+  };
+}
+
+describe('football incidents', () => {
+  const results = Array.from({ length: 250 }, (_, i) => replayMatch(args(`inc-${i}`, { userSide: null }), []));
+  const all = results.flatMap((r) => r.events);
+
+  it('produces the full range of incidents over a season of matches', () => {
+    const shotStyles = new Set(all.flatMap((e) => (e.type === 'SHOT' ? [e.style] : [])));
+    for (const s of ['normal', 'long', 'header', 'volley', 'freeKick', 'penalty']) expect(shotStyles).toContain(s);
+    const saveStyles = new Set(all.flatMap((e) => (e.type === 'SAVE' ? [e.style] : [])));
+    for (const s of ['catch', 'dive', 'fingertip', 'parry']) expect(saveStyles).toContain(s);
+    expect(all.some((e) => e.type === 'SAVE' && e.double)).toBe(true);
+    expect(all.some((e) => e.type === 'FOUL' && e.award === 'penalty')).toBe(true);
+    expect(all.some((e) => e.type === 'FOUL' && e.booked)).toBe(true);
+    expect(new Set(all.flatMap((e) => (e.type === 'SKILL' ? [e.move] : []))).size).toBeGreaterThanOrEqual(4);
+    expect(all.some((e) => e.type === 'TACKLE' && e.style === 'slide')).toBe(true);
+    expect(all.some((e) => e.type === 'CLEARANCE')).toBe(true);
+  });
+
+  it('penalties follow fouls in the box and are taken from the spot; free kicks from where the foul was', () => {
+    for (const r of results) {
+      r.events.forEach((e, i) => {
+        if (e.type !== 'FOUL') return;
+        const next = r.events.slice(i + 1).find((x) => x.type === 'RESTART');
+        expect(next?.type === 'RESTART' && next.kind).toBe(e.award);
+        if (e.award === 'penalty') {
+          const inBox = Math.abs(e.at.x - 50) < 23 && (e.at.y < 20 || e.at.y > PITCH_L - 20);
+          expect(inBox).toBe(true);
+          const shot = r.events.slice(i + 1).find((x) => x.type === 'SHOT');
+          expect(shot?.type === 'SHOT' && shot.style).toBe('penalty');
+          if (shot?.type === 'SHOT') expect(Math.abs(shot.from.x - 50)).toBeLessThan(1.6);
+        }
+      });
+    }
+  });
+
+  it('a player is booked at most once and booked players stay cautious', () => {
+    for (const r of results) {
+      const booked = r.events.flatMap((e) => (e.type === 'FOUL' && e.booked ? [e.foulerId] : []));
+      expect(new Set(booked).size).toBe(booked.length);
+    }
+  });
+
+  it('a double save only follows an earlier save by the same keeper', () => {
+    for (const r of results) {
+      r.events.forEach((e, i) => {
+        if (e.type !== 'SAVE' || !e.double) return;
+        const prev = r.events.slice(0, i).filter((x) => x.type === 'SAVE').at(-1);
+        expect(prev?.type === 'SAVE' && prev.keeperId).toBe(e.keeperId);
+      });
+    }
+  });
+});
+
+describe('stats show on the pitch', () => {
+  const N = 120;
+  const tally = (h: ReturnType<typeof makeTeam>, a: ReturnType<typeof makeTeam>, seed: string) => {
+    const out = { skills: 0, longShots: 0, longGoals: 0, saves: 0, onTargetAgainst: 0, fkShots: 0, headers: 0, headerGoals: 0 };
+    for (let i = 0; i < N; i++) {
+      const r = replayMatch({ matchId: `${seed}${i}`, seed: `${seed}-${i}`, home: h, away: a }, []);
+      out.skills += r.stats.skills.home;
+      out.saves += r.stats.saves.home;
+      out.onTargetAgainst += r.stats.onTarget.away;
+      for (const e of r.events) {
+        if (e.type !== 'SHOT' || e.team !== 'home') continue;
+        if (e.style === 'long') {
+          out.longShots++;
+          if (e.outcome === 'goal') out.longGoals++;
+        }
+        if (e.style === 'header') {
+          out.headers++;
+          if (e.outcome === 'goal') out.headerGoals++;
+        }
+      }
+    }
+    return out;
+  };
+  const base = makeTeam('stat-base', 55);
+  const opp = mirrorOf(makeTeam('stat-opp', 55));
+
+  it('great dribblers beat their man far more often', () => {
+    const plain = tally(withAttrs(base, { dribbling: 50, ballControl: 50 }), opp, 'dr');
+    const tricky = tally(withAttrs(base, { dribbling: 85, ballControl: 80 }), opp, 'dr');
+    expect(tricky.skills).toBeGreaterThan(plain.skills * 1.8);
+  });
+
+  it('great strikers try (and score) more from distance', () => {
+    const plain = tally(withAttrs(base, { shooting: 45 }), opp, 'ls');
+    const sniper = tally(withAttrs(base, { shooting: 85 }), opp, 'ls');
+    expect(sniper.longShots).toBeGreaterThan(plain.longShots * 1.5);
+    expect(sniper.longGoals).toBeGreaterThan(plain.longGoals);
+  });
+
+  it('a great keeper saves a bigger share of what he faces', () => {
+    const weak = tally(withAttrs(base, { reflexes: 40, positioning: 40, handling: 40, reach: 40 }, 'keeper'), opp, 'gk');
+    const great = tally(withAttrs(base, { reflexes: 85, positioning: 85, handling: 85, reach: 85 }, 'keeper'), opp, 'gk');
+    expect(great.saves / great.onTargetAgainst).toBeGreaterThan(weak.saves / weak.onTargetAgainst + 0.08);
+  });
+});

@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { cardStats } from '../../domain/players/rating';
+import type { Attributes } from '../../domain/players/types';
 import { PITCH_L, PITCH_W } from '../simulation/constants';
 import type { LineupPlayer, MatchSnapshot, PlayerSnapshot, TeamLineup, TeamSide } from '../simulation/types';
 import type { MatchController } from './controller';
@@ -30,6 +32,8 @@ interface Figure {
 export class MatchScene extends Phaser.Scene {
   private S = 5;
   private figures = new Map<string, Figure>();
+  private players = new Map<string, LineupPlayer>();
+  private pace = new Map<string, number>();
   private ball!: Phaser.GameObjects.Container;
   private ballShadow!: Phaser.GameObjects.Ellipse;
   private trail!: Phaser.GameObjects.Graphics;
@@ -40,6 +44,7 @@ export class MatchScene extends Phaser.Scene {
   private unsubscribe: (() => void) | null = null;
   private nets: Phaser.GameObjects.Graphics[] = [];
   private scorerId: string | null = null;
+  private trailColour = 0xffffff;
 
   constructor(
     private readonly controller: MatchController,
@@ -66,7 +71,11 @@ export class MatchScene extends Phaser.Scene {
     this.drawPitch();
 
     for (const [side, team] of [['home', this.controller.home], ['away', this.controller.away]] as const) {
-      for (const p of team.players) this.figures.set(p.id, this.makeFigure(p, side, team.kit));
+      for (const p of team.players) {
+        this.figures.set(p.id, this.makeFigure(p, side, team.kit));
+        this.players.set(p.id, p);
+        this.pace.set(p.id, p.attributes.pace);
+      }
     }
 
     this.trail = this.add.graphics().setDepth(PITCH_L * S + 5);
@@ -84,17 +93,38 @@ export class MatchScene extends Phaser.Scene {
     this.cameras.main.centerOn(b.x, b.y);
 
     this.unsubscribe = this.controller.subscribe({
-      onGoal: (e) => {
+      onGoal: (e, shot) => {
         this.scorerId = e.scorerId;
         this.goalFx(e.team);
+        const label = shot?.style === 'long' ? 'SCREAMER!' : shot?.style === 'header' ? 'HEADER!' : shot?.style === 'volley' ? 'VOLLEY!' : shot?.style === 'freeKick' ? 'TOP BIN!' : null;
+        if (label) this.callout(e.scorerId, label, 0xf4c653, 1.6);
       },
       onSave: (e) => {
-        this.burst(e.at.x, e.at.y, 0xcbf238, 'SAVE!');
+        if (e.style === 'catch') {
+          this.ring(e.at.x, e.at.y, 0xfff7e9);
+          return;
+        }
+        this.burst(e.at.x, e.at.y, 0xcbf238, e.double ? 'DOUBLE SAVE!' : e.style === 'fingertip' ? 'FINGERTIPS!' : 'SAVE!');
         this.ring(e.at.x, e.at.y, 0xcbf238);
+        this.statChip(e.keeperId, 'REF');
       },
       onTackle: (e) => {
-        if (e.won) this.impact(e.at.x, e.at.y);
+        if (!e.won) return;
+        this.impact(e.at.x, e.at.y);
+        if (e.style === 'slide') this.statChip(e.challengerId, 'DEF');
       },
+      onSkill: (e) => {
+        const label = { stepover: 'STEPOVER', nutmeg: 'NUTMEG!', roulette: 'ROULETTE', flick: 'RAINBOW FLICK!', dragBack: 'DRAG BACK' }[e.move];
+        this.callout(e.playerId, label, 0xfff7e9, 1.1);
+        this.statChip(e.playerId, 'DRI', 0.35);
+        this.swirl(e.at.x, e.at.y);
+      },
+      onFoul: (e) => {
+        this.impact(e.at.x, e.at.y);
+        if (e.booked) this.card(e.foulerId);
+        this.callout(e.foulerId, e.award === 'penalty' ? 'PENALTY!' : 'FOUL', e.award === 'penalty' ? 0xff7956 : 0xfff7e9, e.award === 'penalty' ? 1.5 : 0.9);
+      },
+      onClearance: (e) => this.ring(e.at.x, e.at.y, 0xfff7e9),
       onMiss: (e) => {
         if (e.outcome === 'woodwork') {
           this.burst(e.target.x, e.target.y, 0xfff7e9, 'CLANG!');
@@ -106,8 +136,11 @@ export class MatchScene extends Phaser.Scene {
           this.impact(e.target.x, e.target.y);
         }
       },
-      onShot: () => {
+      onShot: (e) => {
         this.trailPoints = [];
+        this.trailColour = e.style === 'long' || e.style === 'freeKick' ? 0xf4c653 : 0xffffff;
+        if (e.style === 'long' || e.style === 'freeKick') this.statChip(e.shooterId, e.style === 'freeKick' ? 'SET' : 'SHO');
+        if (e.style === 'header') this.statChip(e.shooterId, 'STR');
       },
     });
     this.events.once('shutdown', () => this.unsubscribe?.());
@@ -210,6 +243,79 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The number behind the moment: a small card-style chip ("DRI 81") over the player when a
+   * strong attribute decided what just happened. Values are the same numbers as on his card.
+   */
+  private statChip(playerId: string, key: 'DRI' | 'SHO' | 'DEF' | 'REF' | 'STR' | 'SET', delay = 0): void {
+    const lp = this.players.get(playerId);
+    const f = this.figures.get(playerId);
+    if (!lp || !f) return;
+    const a = lp.attributes;
+    const card = cardStats({ attributes: a as unknown as Attributes, primaryPosition: lp.naturalPosition });
+    const value = key === 'DRI' ? a.dribbling : key === 'STR' ? a.strength : key === 'SET' ? a.setPieces : (card.find((c) => c.key === key)?.value ?? 0);
+    if (value < 65) return; // only good stats get the spotlight
+    const S = this.S;
+    const colour = value >= 80 ? '#F4C653' : value >= 72 ? '#CBF238' : '#FFF7E9';
+    const text = this.add
+      .text(0, 0, `${key} ${value}`, { fontFamily: 'Barlow Condensed, sans-serif', fontStyle: '900', fontSize: `${Math.round(2.1 * S)}px`, color: '#1B2235', backgroundColor: colour, padding: { x: Math.round(0.5 * S), y: Math.round(0.1 * S) } })
+      .setOrigin(0.5, 1)
+      .setDepth(PITCH_L * S + 13)
+      .setAlpha(0);
+    const x0 = f.rig.root.x + 2.6 * S * (f.isUser ? 1 : -1);
+    const y0 = f.rig.root.y - 7.5 * S;
+    text.setPosition(x0, y0);
+    this.tweens.add({ targets: text, alpha: 1, y: y0 - 1.2 * S, duration: 220, delay: delay * 1000, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: text, alpha: 0, y: y0 - 3 * S, duration: 380, delay: delay * 1000 + 1250, ease: 'Quad.easeIn', onComplete: () => text.destroy() });
+  }
+
+  /** Short comic callout above a player (skill names, FOUL, PENALTY!). */
+  private callout(playerId: string, label: string, colour: number, scale: number): void {
+    const f = this.figures.get(playerId);
+    if (!f) return;
+    const S = this.S;
+    const t = this.add
+      .text(f.rig.root.x, f.rig.root.y - 10 * S, label, { fontFamily: 'Barlow Condensed, sans-serif', fontStyle: '900', fontSize: `${Math.round(2.6 * S * scale)}px`, color: `#${colour.toString(16).padStart(6, '0')}`, stroke: '#1B2235', strokeThickness: Math.round(0.6 * S) })
+      .setOrigin(0.5)
+      .setDepth(PITCH_L * S + 12)
+      .setScale(this.opts.reducedMotion ? 1 : 0.4);
+    this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 3 * S, duration: 420, delay: 900, onComplete: () => t.destroy() });
+  }
+
+  /** Booking: a yellow card held up over the player. */
+  private card(playerId: string): void {
+    const f = this.figures.get(playerId);
+    if (!f) return;
+    const S = this.S;
+    const c = this.add.rectangle(f.rig.root.x + 2 * S, f.rig.root.y - 9 * S, 1.6 * S, 2.2 * S, 0xf4c653).setStrokeStyle(Math.max(1, 0.2 * S), 0x1b2235).setDepth(PITCH_L * S + 12).setAngle(-12);
+    this.tweens.add({ targets: c, y: c.y - 1.5 * S, angle: 8, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: c, alpha: 0, duration: 300, delay: 1500, onComplete: () => c.destroy() });
+  }
+
+  /** A little swirl of sparks around a skill move. */
+  private swirl(x: number, y: number): void {
+    if (this.opts.reducedMotion) return;
+    const w = this.toWorld(x, y, this.flip(this.controller.snapshot));
+    const S = this.S;
+    for (let i = 0; i < 5; i++) {
+      const a0 = (i / 5) * Math.PI * 2;
+      const dot = this.add.circle(w.x + Math.cos(a0) * 2 * S, w.y - 1 * S + Math.sin(a0) * 0.8 * S, 0.3 * S, 0xcbf238).setDepth(PITCH_L * S + 6);
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: 500,
+        onUpdate: (tw) => {
+          const k = tw.getValue() ?? 0;
+          const a = a0 + k * Math.PI * 2;
+          dot.setPosition(w.x + Math.cos(a) * (2 + k * 2) * S, w.y - (1 + k * 2) * S + Math.sin(a) * 0.8 * S);
+          dot.setAlpha(1 - k);
+        },
+        onComplete: () => dot.destroy(),
+      });
+    }
+  }
+
   /** An expanding ring (keeper saves). */
   private ring(x: number, y: number, colour: number): void {
     if (this.opts.reducedMotion) return;
@@ -285,6 +391,8 @@ export class MatchScene extends Phaser.Scene {
       if (!f) continue;
       const pp: PlayerSnapshot = this.flip(prev) === flip ? (prevById.get(p.id) ?? p) : p;
       const w = this.toWorld(lerp(pp.x, p.x, t), lerp(pp.y, p.y, t), flip);
+      const w0 = this.toWorld(pp.x, pp.y, flip);
+      const w1 = this.toWorld(p.x, p.y, flip);
       const facing = (flip ? -p.facing : p.facing) as 1 | -1;
       const has = p.id === carrierId;
       f.rig.update({
@@ -299,6 +407,10 @@ export class MatchScene extends Phaser.Scene {
         isScorer: p.id === this.scorerId,
         dtMs: this.controller.isRunning() || p.action === 'celebrate' ? delta : 0,
         now: this.time.now,
+        detail: p.detail,
+        velX: (w1.x - w0.x) / S,
+        velY: (w1.y - w0.y) / S,
+        sprint: (this.pace.get(p.id) ?? 0) >= 72 && p.speed > 1.3,
       });
       f.rig.root.setDepth(2 + w.y / S);
       f.rig.ring.clear();
@@ -327,7 +439,7 @@ export class MatchScene extends Phaser.Scene {
       this.trailPoints.push({ x: bw.x, y: bw.y - bz * 1.6 * S - 0.6 * S });
       if (this.trailPoints.length > 8) this.trailPoints.shift();
       this.trailPoints.forEach((pt, i) => {
-        this.trail.fillStyle(0xffffff, (i / this.trailPoints.length) * 0.5).fillCircle(pt.x, pt.y, 0.55 * S * (i / this.trailPoints.length));
+        this.trail.fillStyle(this.trailColour, (i / this.trailPoints.length) * 0.6).fillCircle(pt.x, pt.y, 0.55 * S * (i / this.trailPoints.length));
       });
     } else if (this.trailPoints.length) this.trailPoints = [];
 

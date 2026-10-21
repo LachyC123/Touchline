@@ -9,6 +9,7 @@ export interface PoseSpec {
   speed: number;
   scorer?: boolean;
   celebrationId?: string;
+  detail?: string;
 }
 
 export const POSES: readonly PoseSpec[] = [
@@ -16,8 +17,18 @@ export const POSES: readonly PoseSpec[] = [
   { label: 'Jog', action: 'run', speed: 0.7 },
   { label: 'Sprint', action: 'run', speed: 1.7 },
   { label: 'Strike', action: 'kick', speed: 0.3 },
-  { label: 'Slide', action: 'tackle', speed: 0 },
+  { label: 'Slide', action: 'slide', speed: 0 },
+  { label: 'Block', action: 'tackle', speed: 0 },
   { label: 'Dive', action: 'dive', speed: 0 },
+  { label: 'Catch', action: 'catch', speed: 0 },
+  { label: 'Header', action: 'header', speed: 0 },
+  { label: 'Volley', action: 'volley', speed: 0 },
+  { label: 'Stepover', action: 'skill', speed: 0.4, detail: 'stepover' },
+  { label: 'Nutmeg', action: 'skill', speed: 0.4, detail: 'nutmeg' },
+  { label: 'Roulette', action: 'skill', speed: 0.4, detail: 'roulette' },
+  { label: 'Flick', action: 'skill', speed: 0.4, detail: 'flick' },
+  { label: 'Wall', action: 'wall', speed: 0 },
+  { label: 'Fouled', action: 'fouled', speed: 0 },
   { label: 'Stumble', action: 'stumble', speed: 0 },
   { label: 'Knee slide', action: 'celebrate', speed: 0, scorer: true, celebrationId: 'kneeSlide' },
   { label: 'Aeroplane', action: 'celebrate', speed: 0, scorer: true, celebrationId: 'aeroplane' },
@@ -34,7 +45,7 @@ export class PoseLabScene extends Phaser.Scene {
   }
 
   create(): void {
-    const cols = 4;
+    const cols = 5;
     const cellW = this.scale.width / cols;
     const rows = Math.ceil(POSES.length / cols);
     const cellH = this.scale.height / rows;
@@ -42,7 +53,7 @@ export class PoseLabScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#1E8D70');
     POSES.forEach((pose, i) => {
       const base = this.team.players[i % this.team.players.length] as LineupPlayer;
-      const player: LineupPlayer = { ...base, ...(pose.celebrationId ? { celebrationId: pose.celebrationId } : {}), ...(pose.action === 'dive' ? { role: 'GK' as const } : {}) };
+      const player: LineupPlayer = { ...base, ...(pose.celebrationId ? { celebrationId: pose.celebrationId } : {}), ...(pose.action === 'dive' || pose.action === 'catch' ? { role: 'GK' as const } : {}) };
       const rig = new FootballerRig(this, player, this.team.kit, S, true, false);
       const x = (i % cols) * cellW + cellW / 2;
       const y = Math.floor(i / cols) * cellH + cellH * 0.78;
@@ -56,10 +67,10 @@ export class PoseLabScene extends Phaser.Scene {
 
   override update(time: number, delta: number): void {
     for (const { rig, pose } of this.rigs) {
-      // Re-trigger one-shot actions every 1.2 s so they can be inspected.
-      const cycle = time % 1200;
-      const oneShot = pose.action === 'kick' || pose.action === 'dive';
-      const action: PlayerAction = oneShot && cycle > 700 ? 'idle' : pose.action;
+      // Re-trigger one-shot actions every 1.6 s so they can be inspected.
+      const cycle = time % 1600;
+      const oneShot = ['kick', 'dive', 'header', 'volley', 'skill', 'fouled', 'tackle'].includes(pose.action);
+      const action: PlayerAction = oneShot && cycle > 1300 ? 'idle' : pose.action;
       rig.update({
         x: rig.root.x,
         y: rig.root.y,
@@ -72,6 +83,10 @@ export class PoseLabScene extends Phaser.Scene {
         isScorer: Boolean(pose.scorer),
         dtMs: delta,
         now: time,
+        detail: pose.detail ?? null,
+        velX: pose.label === 'Sprint' ? 1 : 0,
+        velY: 0,
+        sprint: pose.label === 'Sprint',
       });
     }
   }

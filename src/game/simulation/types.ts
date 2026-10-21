@@ -26,6 +26,8 @@ export interface SimAttributes {
   strength: number;
   stamina: number;
   composure: number;
+  /** Free kicks, penalties and corner delivery. */
+  setPieces: number;
   reflexes: number;
   positioning: number;
   handling: number;
@@ -77,8 +79,14 @@ export interface MatchCommand {
 
 export type CommandResult = { ok: true; command: MatchCommand } | { ok: false; reason: string };
 
-export type RestartKind = 'goalKick' | 'corner' | 'throwIn' | 'kickoff';
+export type RestartKind = 'goalKick' | 'corner' | 'throwIn' | 'kickoff' | 'freeKick' | 'penalty';
 export type ShotOutcome = 'goal' | 'saved' | 'blocked' | 'wide' | 'woodwork';
+/** How a shot was struck: drives xG, the ball's flight and the presentation. */
+export type ShotStyle = 'normal' | 'long' | 'header' | 'volley' | 'freeKick' | 'penalty';
+/** How a keeper dealt with a shot on target. */
+export type SaveStyle = 'catch' | 'dive' | 'fingertip' | 'parry';
+export type SkillMove = 'stepover' | 'nutmeg' | 'roulette' | 'flick' | 'dragBack';
+export type TackleStyle = 'standing' | 'slide';
 
 interface EventBase {
   id: number;
@@ -88,12 +96,15 @@ interface EventBase {
 
 export type FootballEvent =
   | (EventBase & { type: 'KICKOFF'; team: TeamSide; half: 1 | 2 })
-  | (EventBase & { type: 'PASS'; fromId: string; toId: string; start: SimPos; end: SimPos; outcome: 'complete' | 'intercepted' | 'loose'; interceptedBy?: string })
+  | (EventBase & { type: 'PASS'; fromId: string; toId: string; start: SimPos; end: SimPos; outcome: 'complete' | 'intercepted' | 'loose'; interceptedBy?: string; cross?: boolean })
   | (EventBase & { type: 'DRIBBLE'; playerId: string; from: SimPos; to: SimPos })
-  | (EventBase & { type: 'TACKLE'; challengerId: string; carrierId: string; won: boolean; at: SimPos })
-  | (EventBase & { type: 'SHOT'; shooterId: string; team: TeamSide; from: SimPos; target: SimPos; xg: number; outcome: ShotOutcome; blockerId?: string })
+  | (EventBase & { type: 'TACKLE'; challengerId: string; carrierId: string; won: boolean; at: SimPos; style: TackleStyle })
+  | (EventBase & { type: 'SKILL'; playerId: string; beatenId: string; move: SkillMove; at: SimPos })
+  | (EventBase & { type: 'FOUL'; foulerId: string; victimId: string; team: TeamSide; at: SimPos; award: 'freeKick' | 'penalty'; booked: boolean })
+  | (EventBase & { type: 'CLEARANCE'; playerId: string; team: TeamSide; at: SimPos })
+  | (EventBase & { type: 'SHOT'; shooterId: string; team: TeamSide; from: SimPos; target: SimPos; xg: number; outcome: ShotOutcome; style: ShotStyle; blockerId?: string })
   | (EventBase & { type: 'GOAL'; scorerId: string; assistId?: string; team: TeamSide; shotEventId: number })
-  | (EventBase & { type: 'SAVE'; keeperId: string; shotEventId: number; at: SimPos; held: boolean })
+  | (EventBase & { type: 'SAVE'; keeperId: string; shotEventId: number; at: SimPos; held: boolean; style: SaveStyle; /** a second save from the rebound of the first */ double: boolean })
   | (EventBase & { type: 'RESTART'; kind: RestartKind; team: TeamSide; at: SimPos })
   | (EventBase & { type: 'TACTIC_APPLIED'; team: TeamSide; command: TacticCommand; expiresMinute: number })
   | (EventBase & { type: 'HALFTIME' })
@@ -103,7 +114,7 @@ export type FootballEventType = FootballEvent['type'];
 
 export type MatchPhase = 'play' | 'restart' | 'goal' | 'halftime' | 'fulltime';
 
-export type PlayerAction = 'run' | 'kick' | 'tackle' | 'dive' | 'celebrate' | 'stumble' | 'idle';
+export type PlayerAction = 'run' | 'kick' | 'tackle' | 'slide' | 'dive' | 'catch' | 'header' | 'volley' | 'skill' | 'wall' | 'celebrate' | 'stumble' | 'fouled' | 'idle';
 
 export interface PlayerSnapshot {
   id: string;
@@ -114,6 +125,8 @@ export interface PlayerSnapshot {
   facing: -1 | 1;
   speed: number;
   action: PlayerAction;
+  /** Extra detail for the action (e.g. the skill move), for presentation only. */
+  detail: string | null;
   stamina: number;
 }
 
@@ -156,6 +169,9 @@ export interface MatchStats {
   tacklesWon: Record<TeamSide, number>;
   saves: Record<TeamSide, number>;
   turnovers: Record<TeamSide, number>;
+  fouls: Record<TeamSide, number>;
+  skills: Record<TeamSide, number>;
+  corners: Record<TeamSide, number>;
   /** Mean stamina at full time (0..1). */
   fatigue: Record<TeamSide, number>;
 }
@@ -169,6 +185,8 @@ export interface PlayerMatchLine {
   saves: number;
   tacklesWon: number;
   passesCompleted: number;
+  skills: number;
+  fouls: number;
   rating: number;
 }
 

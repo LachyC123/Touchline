@@ -59,6 +59,13 @@ export interface RigFrame {
   isScorer: boolean;
   dtMs: number;
   now: number;
+  /** Action detail from the engine (skill move name). */
+  detail: string | null;
+  /** Screen-space velocity (display units per tick) for speed lines. */
+  velX: number;
+  velY: number;
+  /** A genuinely quick player (high pace) at full tilt: draw speed lines. */
+  sprint: boolean;
 }
 
 interface Limb {
@@ -79,6 +86,8 @@ interface Pose {
   armB: number;
   elbowB: number;
   head: number;
+  /** Horizontal squash of the whole body (a roulette spin reads as the body turning). */
+  spin?: number;
 }
 
 export class FootballerRig {
@@ -91,6 +100,7 @@ export class FootballerRig {
   private readonly armF: Limb;
   private readonly armB: Limb;
   readonly ring: Phaser.GameObjects.Graphics;
+  private readonly streaks: Phaser.GameObjects.Graphics;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly gait: Gait;
   private phase: number;
@@ -332,8 +342,9 @@ export class FootballerRig {
     this.body = scene.add.container(0, -u(LEG_LEN), [this.armB.upper, this.legB.upper, this.legF.upper, this.torso, this.head, this.armF.upper]);
 
     this.ring = scene.add.graphics();
+    this.streaks = scene.add.graphics();
     this.shadow = scene.add.ellipse(0, 0, u(3.4), u(1.15), 0x000000, 0.3);
-    this.root = scene.add.container(0, 0, [this.ring, this.shadow, this.body]);
+    this.root = scene.add.container(0, 0, [this.ring, this.shadow, this.streaks, this.body]);
     void isUser;
   }
 
@@ -360,8 +371,8 @@ export class FootballerRig {
     const S = this.S;
     if (f.action !== this.lastAction) {
       this.actionT = 0;
-      if (f.action === 'tackle' || f.action === 'dive') this.puff(1.2);
-      if (f.action === 'kick') this.puff(0.6);
+      if (f.action === 'slide' || f.action === 'dive' || f.action === 'fouled') this.puff(1.3);
+      if (f.action === 'kick' || f.action === 'tackle' || f.action === 'volley') this.puff(0.6);
       this.lastAction = f.action;
     } else {
       this.actionT += f.dtMs;
@@ -369,7 +380,6 @@ export class FootballerRig {
     this.root.setPosition(f.x, f.y);
     // Stand still → face the ball; moving → face the running direction.
     const facing: 1 | -1 = f.speed < 0.12 && f.action === 'idle' ? (f.ballDx >= 0 ? 1 : -1) : f.facing;
-    this.body.scaleX = facing;
 
     const g = this.gait;
     const run = Math.min(1.4, f.speed / 1.3);
@@ -415,12 +425,50 @@ export class FootballerRig {
         }
         break;
       }
-      case 'tackle':
+      case 'slide':
+        // Feet-first slide along the turf.
         Object.assign(p, { bodyRot: -1.1, lift: 2.3, thighF: -0.5, shinF: 0.05, thighB: 0.1, shinB: 1.4, armF: 0.9, elbowF: -0.2, armB: -0.6, elbowB: -0.4, lean: 0 });
         break;
+      case 'tackle': {
+        // Standing block: plant, lunge the front leg across the ball.
+        const k = Math.min(1, t / 140);
+        Object.assign(p, { lean: 0.28 * k, lift: 0.45 * k, thighF: -1.25 * k, shinF: 0.15, thighB: 0.55 * k, shinB: 0.8, armF: -0.6, elbowF: -0.6, armB: 0.9, elbowB: -0.4 });
+        break;
+      }
       case 'dive': {
-        const k = Math.min(1, t / 220);
-        Object.assign(p, { bodyRot: 1.3 * k, lift: -1.2 * Math.sin(Math.min(1, t / 500) * Math.PI), thighF: 0.25, shinF: 0.3, thighB: 0.45, shinB: 0.5, armF: -2.9, elbowF: 0, armB: -2.7, elbowB: 0, lean: 0 });
+        // Full-stretch dive towards the facing side, arms leading; lands on the side.
+        const k = Math.min(1, t / 140);
+        const air = Math.sin(Math.min(1, t / 520) * Math.PI);
+        Object.assign(p, { bodyRot: 1.35 * k, lift: -1.4 * air + 1.6 * Math.max(0, (t - 520) / 300 > 1 ? 1 : (t - 520) / 300), thighF: 0.25, shinF: 0.3, thighB: 0.55, shinB: 0.7, armF: -2.95, elbowF: 0, armB: -2.75, elbowB: 0, lean: 0 });
+        break;
+      }
+      case 'catch':
+        // Get the body behind it: crouch and gather into the chest.
+        Object.assign(p, { lift: 0.6, lean: 0.3, thighF: -0.6, shinF: 1.0, thighB: -0.3, shinB: 1.0, armF: -1.35, elbowF: -1.3, armB: -1.25, elbowB: -1.35, head: 0.1 });
+        break;
+      case 'header': {
+        // Leap, then snap the head through the ball.
+        const k = Math.min(1, t / 420);
+        Object.assign(p, { lift: -2.2 * Math.sin(k * Math.PI), lean: -0.15 + 0.45 * k, head: -0.4 + 0.7 * k, thighF: -0.2, shinF: 1.3, thighB: 0.4, shinB: 1.4, armF: -2.0, elbowF: -0.6, armB: 1.0, elbowB: -0.3 });
+        break;
+      }
+      case 'volley': {
+        // Scissor volley: lean back, strike leg high.
+        const k = Math.min(1, t / 260);
+        Object.assign(p, { bodyRot: -0.35 * k, lift: -0.9 * Math.sin(Math.min(1, t / 400) * Math.PI), lean: -0.35, thighF: -1.9 * k, shinF: 0.15, thighB: 0.5, shinB: 1.1, armF: -1.8, elbowF: -0.3, armB: 1.3, elbowB: -0.2 });
+        break;
+      }
+      case 'skill':
+        this.skill(p, f);
+        break;
+      case 'wall':
+        // Shoulder to shoulder, hands protecting, bouncing on the toes.
+        Object.assign(p, { lift: -Math.abs(Math.sin(f.now / 140)) * 0.12, lean: 0.05, armF: 0.55, elbowF: -1.55, armB: 0.45, elbowB: -1.6, thighF: -0.08, thighB: 0.08 });
+        break;
+      case 'fouled': {
+        // Clipped: stumble forward and go down.
+        const k = Math.min(1, t / 380);
+        Object.assign(p, { bodyRot: 1.25 * k, lift: 2.0 * k, lean: 0.2, armF: -2.4, elbowF: -0.3, armB: -2.0, elbowB: -0.4, thighF: -0.4, shinF: 0.6, thighB: 0.6, shinB: 0.9 });
         break;
       }
       case 'stumble':
@@ -432,7 +480,9 @@ export class FootballerRig {
     }
 
     const u = (n: number) => n * S;
-    this.body.rotation = p.bodyRot;
+    // Rotation is applied after the facing mirror, so it has to be mirrored too.
+    this.body.rotation = p.bodyRot * facing;
+    this.body.scaleX = facing * (p.spin ?? 1);
     this.body.y = -u(LEG_LEN) + u(p.lift);
     this.torso.rotation = p.lean;
     const rot = (x: number, y: number) => ({ x: x * Math.cos(p.lean) - y * Math.sin(p.lean), y: x * Math.sin(p.lean) + y * Math.cos(p.lean) });
@@ -450,6 +500,51 @@ export class FootballerRig {
     // Shadow shrinks as the body leaves the ground.
     const air = Math.max(0, -p.lift);
     this.shadow.setScale(1 / (1 + air * 0.25), 1);
+
+    // Speed lines behind genuinely quick players at full tilt.
+    this.streaks.clear();
+    const v = Math.hypot(f.velX, f.velY);
+    if (f.sprint && v > 0.01 && !this.reducedMotion && run > 0.85) {
+      const nx = -f.velX / v;
+      const ny = -f.velY / v;
+      this.streaks.lineStyle(Math.max(1, 0.18 * S), 0xfff7e9, 0.55);
+      for (const [off, len, h] of [[-0.7, 2.2, -2.2], [0.1, 3.0, -3.0], [0.8, 1.8, -1.2]] as const) {
+        const ox = -ny * off * S;
+        const oy = nx * off * S;
+        const sx = ox + nx * 1.6 * S;
+        const sy = oy + ny * 1.6 * S + h * S;
+        this.streaks.lineBetween(sx, sy, sx + nx * len * S, sy + ny * len * S);
+      }
+    }
+  }
+
+  /** Named dribbling skills, keyed by the engine's recorded move. */
+  private skill(p: Pose, f: RigFrame): void {
+    const t = this.actionT;
+    const k = Math.min(1, t / 700);
+    switch (f.detail) {
+      case 'stepover': {
+        // Front leg circles over the ball twice; hips sway.
+        const w = Math.sin(k * Math.PI * 4);
+        Object.assign(p, { thighF: -0.7 + 0.5 * Math.cos(k * Math.PI * 4), shinF: 0.9, thighB: 0.25, shinB: 0.5, lean: 0.12 + w * 0.12, lift: 0.25, armF: -0.9 - w * 0.4, armB: 0.6 + w * 0.4 });
+        break;
+      }
+      case 'nutmeg':
+        // Low, quick poke through the legs.
+        Object.assign(p, { lean: 0.35, lift: 0.5, thighF: -1.0 + Math.min(1, t / 160) * 0.3, shinF: 0.2, thighB: 0.6, shinB: 0.9, armF: -0.4, armB: 0.8 });
+        break;
+      case 'roulette':
+        // Drag-and-spin: the body turns a full circle over the ball.
+        Object.assign(p, { spin: this.reducedMotion ? 1 : Math.cos(k * Math.PI * 2), lean: 0.1, thighF: -0.5, shinF: 0.6, thighB: 0.4, shinB: 0.6, armF: -1.2, armB: 1.2, elbowF: -0.2, elbowB: -0.2 });
+        break;
+      case 'flick':
+        // Rainbow flick: heel kicks up behind.
+        Object.assign(p, { lean: 0.15, lift: -0.4 * Math.sin(k * Math.PI), thighB: 1.1 - 0.4 * k, shinB: 1.9, thighF: -0.2, shinF: 0.3, armF: -1.5, armB: 1.4 });
+        break;
+      default:
+        // Drag back: sole on the ball, lean away.
+        Object.assign(p, { lean: -0.18, thighF: -0.55 + 0.4 * k, shinF: 0.45, thighB: 0.35, shinB: 0.4, armF: -1.4, armB: 1.2, elbowF: -0.2 });
+    }
   }
 
   private celebrate(p: Pose, f: RigFrame): void {

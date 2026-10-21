@@ -10,6 +10,8 @@ import { overall } from '../../domain/players/rating';
 import { POSITIONS, TIERS, type Position, type Tier } from '../../domain/players/types';
 import { prepareMatch, matchArgs } from '../../domain/match/settle';
 import { replayMatch } from '../../game/simulation/replay';
+import type { FootballEvent } from '../../game/simulation/types';
+import { mutateSave } from '../../storage/saveRepo';
 import './lab.css';
 
 const KITS: Kit[] = [
@@ -171,11 +173,46 @@ function MatchLab() {
         Simulate next fixture × 50
       </Button>
       {report && <p className="lab__meta">{report}</p>}
+      <p className="lab__meta">Scenario kick-off (finds a seed where it happens in the first 25'):</p>
+      <div className="lab__row">
+        {SCENARIOS.map((sc) => (
+          <Button key={sc.label} size="sm" onClick={() => void kickOffScenario(sc, setReport)} disabled={Boolean(save.pendingMatch)}>
+            {sc.label}
+          </Button>
+        ))}
+      </div>
       <p className="lab__meta">
         Claims: {claims.length} · duplicates: {dupes.length} · settled matches missing a claim: {missing.length}
       </p>
     </section>
   );
+}
+
+const SCENARIOS: { label: string; test: (e: FootballEvent) => boolean }[] = [
+  { label: 'Penalty', test: (e) => e.type === 'FOUL' && e.award === 'penalty' },
+  { label: 'Double save', test: (e) => e.type === 'SAVE' && e.double },
+  { label: 'Diving save', test: (e) => e.type === 'SAVE' && (e.style === 'dive' || e.style === 'fingertip') },
+  { label: 'Free kick shot', test: (e) => e.type === 'SHOT' && e.style === 'freeKick' },
+  { label: 'Skill move', test: (e) => e.type === 'SKILL' },
+];
+
+/**
+ * DEV_DEBUG: replaces the next fixture's seed with one where the chosen incident happens early,
+ * then kicks off. The match is still a normal, fully simulated and settled match.
+ */
+async function kickOffScenario(sc: (typeof SCENARIOS)[number], report: (s: string) => void): Promise<void> {
+  let found: string | null = null;
+  await mutateSave((s) => {
+    const base = prepareMatch(s);
+    for (let i = 0; i < 400 && !found; i++) {
+      const seed = `${base.seed}:scenario:${sc.label}:${i}`;
+      const r = replayMatch({ ...matchArgs(base), seed }, []);
+      if (r.events.some((e) => e.minute < 25 && sc.test(e))) found = seed;
+    }
+    if (found) s.pendingMatch = { ...base, seed: found };
+  });
+  if (found) navigate({ name: 'live' });
+  else report(`No ${sc.label} scenario found in 400 seeds.`);
 }
 
 /** Pitch figures in every pose, rendered by the real match rig (DEV_DEBUG only). */

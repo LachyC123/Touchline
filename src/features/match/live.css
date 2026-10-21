@@ -511,3 +511,90 @@
 .live__coach.coach--down::after {
   left: 75%;
 }
+
+.goalcard__how {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* Big moments that are not goals: penalties, bookings, double saves. */
+.moment {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 200px;
+  max-width: calc(100% - 32px);
+  padding: 10px 18px 8px;
+  translate: -50% 0;
+  border: 3px solid var(--ink);
+  border-radius: var(--r-md);
+  background: var(--cream);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 0 5px 0 rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  animation: moment-in 1.9s var(--ease-out) both;
+}
+
+.moment--good {
+  background: var(--lime);
+}
+
+.moment--bad {
+  background: var(--orange);
+}
+
+.moment--save {
+  background: var(--royal);
+  color: var(--cream);
+}
+
+.moment__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-2xl);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.moment__sub {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.moment__card {
+  width: 22px;
+  height: 30px;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: var(--gold);
+  rotate: -10deg;
+}
+
+@keyframes moment-in {
+  0% {
+    opacity: 0;
+    scale: 0.5;
+  }
+  12% {
+    opacity: 1;
+    scale: 1.06;
+  }
+  18% {
+    scale: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

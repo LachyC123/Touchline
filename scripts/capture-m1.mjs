@@ -18,9 +18,13 @@ const shot = async (name, full = false, wait = 600) => {
 
 await page.goto(base + '/');
 await page.getByRole('button', { name: /start your club/i }).click();
+// Skip the guided first run (captured by capture-m2.mjs).
+await page.getByRole('button', { name: 'Skip', exact: true }).click();
+await page.getByRole('button', { name: /meet your first signing/i }).click();
+await page.getByRole('button', { name: /skip tutorial/i }).click();
 await page.waitForSelector('.club__hud');
 await shot('m1-01-club', true);
-await page.getByRole('button', { name: 'Match', exact: true }).click();
+await page.getByRole('button', { name: /^Match( \(\d+ new\))?$/ }).click();
 await shot('m1-02-lobby', true);
 await page.getByRole('button', { name: /lineup/i }).first().click();
 await shot('m1-03-lineup', true);

@@ -3,7 +3,7 @@ import { buildTeamLineup } from '../../game/simulation/fromSquad';
 import { ENGINE_VERSION } from '../../game/simulation/constants';
 import type { CreateMatchArgs } from '../../game/simulation/engine';
 import { possessionShare } from '../../game/simulation/summary';
-import type { FootballEvent, MatchResult, TeamLineup, TeamSide } from '../../game/simulation/types';
+import type { FootballEvent, LineupPlayer, MatchResult, TeamLineup, TeamSide } from '../../game/simulation/types';
 import { advanceOnboarding, colourDistance, KIT_CLASH_DISTANCE } from '../club/onboarding';
 import { fixtureFor, opponentLineup } from '../club/opponents';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
@@ -11,7 +11,7 @@ import { lineupProblems } from '../club/lineup';
 import { xpToNext } from '../players/progression';
 import { FOCUS_OPTIONS } from '../players/upgrades';
 import { seededUuid, stream } from '../rng';
-import { MAX_MATCH_RECORDS, REPLAYS_KEPT, type ClubSave, type MatchRecord, type PendingMatch, type PlayerGain, type RewardLine } from '../save/types';
+import { MAX_MATCH_RECORDS, REPLAYS_KEPT, type ClubSave, type MatchMoment, type MatchRecord, type PendingMatch, type PlayerGain, type RewardLine } from '../save/types';
 
 export const XP = { match: 40, win: 15, cleanSheet: 5, goal: 8, assist: 5, potm: 10, cap: 85, bench: 10, recruitDebut: 40 } as const;
 
@@ -79,6 +79,56 @@ export function computeRewards(result: MatchResult, side: TeamSide, careerSeed: 
     clubXp: CLUB_XP.match + (outcome === 'win' ? CLUB_XP.win : outcome === 'draw' ? CLUB_XP.draw : 0),
     lines,
   };
+}
+
+const MOMENT_PRIORITY: Record<MatchMoment['kind'], number> = { penalty: 9, penaltyMiss: 9, doubleSave: 8, screamer: 8, freeKick: 8, header: 6, woodwork: 5, save: 4, skill: 4, booking: 3 };
+
+/**
+ * The incidents worth remembering, each built from a logged event (never invented). Strong
+ * attributes behind a moment are named, so a player's numbers visibly mean something.
+ */
+export function matchMoments(result: MatchResult, pending: Pick<PendingMatch, 'home' | 'away'>): MatchMoment[] {
+  const players = new Map<string, { p: LineupPlayer; side: TeamSide }>();
+  for (const p of pending.home.players) players.set(p.id, { p, side: 'home' });
+  for (const p of pending.away.players) players.set(p.id, { p, side: 'away' });
+  const name = (id: string) => players.get(id)?.p.name ?? 'Unknown';
+  const sideOf = (id: string) => players.get(id)?.side ?? 'home';
+  const stat = (id: string, label: string, key: 'dribbling' | 'shooting' | 'reflexes' | 'setPieces' | 'strength'): string | undefined => {
+    const v = players.get(id)?.p.attributes[key];
+    return v !== undefined && v >= 65 ? `${label} ${v}` : undefined;
+  };
+  const shots = new Map(result.events.flatMap((e) => (e.type === 'SHOT' ? [[e.id, e] as const] : [])));
+  const out: MatchMoment[] = [];
+  const push = (m: MatchMoment) => out.push(m.stat === undefined ? (({ stat: _s, ...rest }) => rest)(m) : m);
+  for (const e of result.events) {
+    if (e.type === 'GOAL') {
+      const shot = shots.get(e.shotEventId);
+      const who = name(e.scorerId);
+      if (shot?.style === 'long') push({ minute: e.minute, side: e.team, kind: 'screamer', text: `${who} scores a screamer from distance`, stat: stat(e.scorerId, 'SHO', 'shooting') });
+      else if (shot?.style === 'freeKick') push({ minute: e.minute, side: e.team, kind: 'freeKick', text: `${who} curls in a direct free kick`, stat: stat(e.scorerId, 'SET', 'setPieces') });
+      else if (shot?.style === 'header') push({ minute: e.minute, side: e.team, kind: 'header', text: `${who} heads home`, stat: stat(e.scorerId, 'STR', 'strength') });
+      else if (shot?.style === 'penalty') push({ minute: e.minute, side: e.team, kind: 'penalty', text: `${who} scores the penalty` });
+    } else if (e.type === 'SHOT' && e.style === 'penalty' && e.outcome !== 'goal') {
+      push({ minute: e.minute, side: e.team, kind: 'penaltyMiss', text: e.outcome === 'saved' ? `Penalty saved! ${name(e.shooterId)} is denied` : `${name(e.shooterId)} misses a penalty` });
+    } else if (e.type === 'SHOT' && e.outcome === 'woodwork') {
+      push({ minute: e.minute, side: e.team, kind: 'woodwork', text: `${name(e.shooterId)} hits the woodwork` });
+    } else if (e.type === 'SAVE' && (e.double || e.style === 'dive' || e.style === 'fingertip')) {
+      const s = sideOf(e.keeperId);
+      push({ minute: e.minute, side: s, kind: e.double ? 'doubleSave' : 'save', text: e.double ? `Double save from ${name(e.keeperId)}` : `${e.style === 'fingertip' ? 'Fingertip' : 'Diving'} save by ${name(e.keeperId)}`, stat: stat(e.keeperId, 'REF', 'reflexes') });
+    } else if (e.type === 'SKILL') {
+      const label = { stepover: 'stepover', nutmeg: 'nutmeg', roulette: 'roulette', flick: 'rainbow flick', dragBack: 'drag-back' }[e.move];
+      push({ minute: e.minute, side: sideOf(e.playerId), kind: 'skill', text: `${name(e.playerId)}'s ${label} beats ${name(e.beatenId)}`, stat: stat(e.playerId, 'DRI', 'dribbling') });
+    } else if (e.type === 'FOUL' && e.booked) {
+      push({ minute: e.minute, side: e.team, kind: 'booking', text: `${name(e.foulerId)} is booked` });
+    }
+  }
+  // Keep the eight that matter most, shown in match order.
+  return out
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => MOMENT_PRIORITY[b.m.kind] - MOMENT_PRIORITY[a.m.kind] || a.i - b.i)
+    .slice(0, 8)
+    .sort((a, b) => a.i - b.i)
+    .map(({ m }) => m);
 }
 
 function scoreTimeline(events: readonly FootballEvent[]): { home: number; away: number }[] {
@@ -218,6 +268,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     rewards,
     gains,
     storyHeadline,
+    moments: matchMoments(result, pending),
     ...(pending.number % SCOUT_PACK_EVERY === 0 ? { packId: grantPack(draft, 'local-scout', `match:${pending.matchId}`).id } : {}),
     replay: { home: pending.home, away: pending.away },
   };

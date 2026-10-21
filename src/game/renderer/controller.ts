@@ -21,7 +21,12 @@ export type HoldReason = 'goal' | 'halftime' | 'paused' | 'hidden' | 'fulltime' 
 
 export interface ControllerListener {
   onCommentary?(line: CommentaryLine): void;
-  onGoal?(e: Extract<FootballEvent, { type: 'GOAL' }>): void;
+  /** `shot` is the scoring shot (for its style: header, long range, penalty…). */
+  onGoal?(e: Extract<FootballEvent, { type: 'GOAL' }>, shot?: Extract<FootballEvent, { type: 'SHOT' }>): void;
+  onSkill?(e: Extract<FootballEvent, { type: 'SKILL' }>): void;
+  onFoul?(e: Extract<FootballEvent, { type: 'FOUL' }>): void;
+  onClearance?(e: Extract<FootballEvent, { type: 'CLEARANCE' }>): void;
+  onRestart?(e: Extract<FootballEvent, { type: 'RESTART' }>): void;
   onSave?(e: Extract<FootballEvent, { type: 'SAVE' }>): void;
   onShot?(e: Extract<FootballEvent, { type: 'SHOT' }>): void;
   onTackle?(e: Extract<FootballEvent, { type: 'TACKLE' }>): void;
@@ -52,6 +57,7 @@ export class MatchController {
   private lineId = 1;
   private listeners = new Set<ControllerListener>();
   private names = new Map<string, string>();
+  private shots = new Map<number, Extract<FootballEvent, { type: 'SHOT' }>>();
 
   constructor(engine: MatchEngine, home: TeamLineup, away: TeamLineup, userSide: TeamSide) {
     this.engine = engine;
@@ -183,6 +189,10 @@ export class MatchController {
     }
   }
 
+  private sideOf(id: string): TeamSide {
+    return this.home.players.some((p) => p.id === id) ? 'home' : 'away';
+  }
+
   private teamName(side: TeamSide): string {
     return side === 'home' ? this.home.shortName : this.away.shortName;
   }
@@ -198,35 +208,79 @@ export class MatchController {
           break;
         case 'SHOT': {
           for (const l of this.listeners) l.onShot?.(e);
-          this.say({ text: `${this.nameOf(e.shooterId)} shoots!`, tone: 'chance', side: e.team });
+          const who = this.nameOf(e.shooterId);
+          const lead: Record<typeof e.style, string> = {
+            normal: `${who} shoots!`,
+            long: `${who} lets fly from distance!`,
+            header: `${who} rises to meet it — header!`,
+            volley: `${who} hits it first time!`,
+            freeKick: `${who} goes for goal from the free kick…`,
+            penalty: `${who} steps up… runs in…`,
+          };
+          this.say({ text: lead[e.style], tone: 'chance', side: e.team });
           // Misses have no follow-up event: reveal them when the ball gets there.
           const ticks = Math.max(2, Math.ceil(Math.hypot(e.target.x - e.from.x, e.target.y - e.from.y) / BALL.shotSpeed));
           const at = this.curr.tick + ticks;
-          if (e.outcome === 'wide') this.queued.push({ atTick: at, line: { text: 'Wide of the post.', tone: 'info', side: e.team }, miss: e });
+          if (e.outcome === 'wide') this.queued.push({ atTick: at, line: { text: e.style === 'penalty' ? 'He’s missed the penalty!' : 'Wide of the post.', tone: 'info', side: e.team }, miss: e });
           if (e.outcome === 'woodwork') this.queued.push({ atTick: at, line: { text: 'Off the woodwork!', tone: 'chance', side: e.team }, miss: e });
           if (e.outcome === 'blocked') this.queued.push({ atTick: at, line: { text: `Blocked by ${this.nameOf(e.blockerId ?? '')}!`, tone: 'info' }, miss: e });
+          this.shots.set(e.id, e);
           break;
         }
-        case 'SAVE':
+        case 'SAVE': {
           for (const l of this.listeners) l.onSave?.(e);
-          this.say({ text: e.held ? `${this.nameOf(e.keeperId)} gathers it.` : `Great save by ${this.nameOf(e.keeperId)}!`, tone: 'save' });
+          const k = this.nameOf(e.keeperId);
+          const text = e.double
+            ? `DOUBLE SAVE! ${k} denies them again!`
+            : e.style === 'fingertip'
+              ? `Fingertip save from ${k} — tipped behind!`
+              : e.style === 'dive'
+                ? `Diving save by ${k}${e.held ? ' — and he holds it!' : '!'}`
+                : e.style === 'parry'
+                  ? `${k} parries it… rebound!`
+                  : `${k} gathers it.`;
+          this.say({ text, tone: 'save' });
           break;
-        case 'GOAL':
-          for (const l of this.listeners) l.onGoal?.(e);
+        }
+        case 'GOAL': {
+          const shot = this.shots.get(e.shotEventId);
+          for (const l of this.listeners) l.onGoal?.(e, shot);
+          const how = shot?.style === 'long' ? 'WHAT A STRIKE! ' : shot?.style === 'header' ? 'HEADER! ' : shot?.style === 'volley' ? 'ON THE REBOUND! ' : shot?.style === 'freeKick' ? 'STRAIGHT FROM THE FREE KICK! ' : shot?.style === 'penalty' ? 'PENALTY SCORED! ' : '';
           this.say({
-            text: `GOAL! ${this.nameOf(e.scorerId)}${e.assistId ? `, set up by ${this.nameOf(e.assistId)}` : ''}. ${this.curr.score.home}–${this.curr.score.away}`,
+            text: `${how}GOAL! ${this.nameOf(e.scorerId)}${e.assistId ? `, set up by ${this.nameOf(e.assistId)}` : ''}. ${this.curr.score.home}–${this.curr.score.away}`,
             tone: 'goal',
             side: e.team,
           });
           this.holdMs = GOAL_HOLD_MS;
           this.setHold('goal');
           break;
+        }
         case 'TACKLE':
           for (const l of this.listeners) l.onTackle?.(e);
-          if (e.won && this.lineId % 2 === 0) this.say({ text: `Strong tackle from ${this.nameOf(e.challengerId)}.`, tone: 'info' });
+          if (e.won && e.style === 'slide') this.say({ text: `Superb sliding tackle from ${this.nameOf(e.challengerId)}!`, tone: 'info' });
+          else if (e.won && this.lineId % 2 === 0) this.say({ text: `Strong tackle from ${this.nameOf(e.challengerId)}.`, tone: 'info' });
           break;
+        case 'SKILL': {
+          for (const l of this.listeners) l.onSkill?.(e);
+          const move = { stepover: 'stepover', nutmeg: 'NUTMEG', roulette: 'roulette', flick: 'rainbow flick', dragBack: 'drag-back' }[e.move];
+          this.say({ text: `${this.nameOf(e.playerId)} — ${move}! ${this.nameOf(e.beatenId)} is left for dead.`, tone: 'chance', side: this.sideOf(e.playerId) });
+          break;
+        }
+        case 'FOUL': {
+          for (const l of this.listeners) l.onFoul?.(e);
+          const who = this.nameOf(e.foulerId);
+          const text = e.award === 'penalty' ? `PENALTY! ${who} brings down ${this.nameOf(e.victimId)}.` : `Foul by ${who}. Free kick.`;
+          this.say({ text: e.booked ? `${text} ${who} is booked.` : text, tone: e.award === 'penalty' ? 'chance' : 'whistle', side: e.team === 'home' ? 'away' : 'home' });
+          break;
+        }
+        case 'CLEARANCE': {
+          for (const l of this.listeners) l.onClearance?.(e);
+          const keeper = (e.team === 'home' ? this.home : this.away).players.find((p) => p.id === e.playerId)?.role === 'GK';
+          this.say({ text: keeper ? `${this.nameOf(e.playerId)} comes and claims it.` : `${this.nameOf(e.playerId)} heads it clear.`, tone: 'info' });
+          break;
+        }
         case 'PASS':
-          if (e.outcome === 'intercepted' && e.interceptedBy) this.say({ text: `Read it! ${this.nameOf(e.interceptedBy)} cuts it out.`, tone: 'info' });
+          if (e.outcome === 'intercepted' && e.interceptedBy && !e.cross) this.say({ text: `Read it! ${this.nameOf(e.interceptedBy)} cuts it out.`, tone: 'info' });
           break;
         case 'TACTIC_APPLIED':
           this.say({
@@ -236,6 +290,7 @@ export class MatchController {
           });
           break;
         case 'RESTART':
+          for (const l of this.listeners) l.onRestart?.(e);
           if (e.kind === 'corner') this.say({ text: `Corner to ${this.teamName(e.team)}.`, tone: 'info', side: e.team });
           break;
         case 'HALFTIME':

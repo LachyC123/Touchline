@@ -64,6 +64,17 @@ Also added in M2 (needed so the pack system is not a one-off): a **Scout** tab (
 - No haptics, no font-size mode beyond the existing Large text toggle.
 - Tested in headless Chromium only (no physical phone/Safari yet).
 
+## M2.5 Match incidents (playtest feedback: "more things that can happen")
+- [x] Long shots, crosses and headers, first-time rebounds. *(Engine `engine-2`; see MATCH_ENGINE_CONTRACT §12.)*
+- [x] Real keeper saves: catch, directional full-stretch dive that travels, fingertip over/round for a corner, parry with a live rebound; double saves.
+- [x] Fouls with free kicks (direct ones get a wall and a set-piece specialist) and penalties for fouls in the box; bookings make players cautious.
+- [x] Slide tackles vs standing blocks; named skill moves (stepover, nutmeg, roulette, rainbow flick, drag-back) decided by dribbling duels.
+- [x] Stats visible in play: card-style chips (DRI/SHO/STR/SET/REF/DEF) pop over a player when a strong attribute (65+) decided a moment; speed lines on genuinely quick players; "Key moments" on the result screen name the stat behind each moment.
+- [x] Commentary, sounds (whistle peep, skill swish), banners (PENALTY!, DOUBLE SAVE!, yellow card) and goal-card labels (screamer, header, rebound, free kick, penalty).
+- [x] Tests: incident coverage, penalty/foul rules, booking and double-save invariants, attribute influence; balance report includes incidents per match.
+
+**M2.5 known gaps:** no red cards, offsides, injuries or substitutions yet; free-kick curl is drawn as an arc and gold trail rather than a modelled spin; skill and save animations are procedural rig poses, not hand-animated.
+
 ## M3. Competitive mode and career attachment
 - [ ] Stable fictional AI club identities and generated opponents with distinct tactics and named captains.
 - [ ] 8-club division fixtures, results, league table, promotion, season archive; AI fixtures simulated consistently.

@@ -9,7 +9,8 @@ import { replayMatch } from '../game/simulation/replay';
 import { matchArgs } from '../domain/match/settle';
 import { TouchlineDB, setDbForTests } from './db';
 import { migrateSave } from './migrations';
-import { assignPlayer, kickOff, loadSave, mutateSave, onboardingEvent, openPack, setClubIdentity, settleMatchOnce, startNewCareer } from './saveRepo';
+import { assignPlayer, kickOff, loadSave, mutateSave, onboardingEvent, openPack, restartStaleMatch, setClubIdentity, settleMatchOnce, startNewCareer } from './saveRepo';
+import { ENGINE_VERSION } from '../game/simulation/constants';
 
 let db: TouchlineDB;
 let n = 0;
@@ -194,5 +195,24 @@ describe('settlement still pays once with packs in play', () => {
     const { record } = await settleMatchOnce(pm.matchId, db);
     expect(record.score).toEqual(direct.score);
     expect(prepareMatch(save).seed).toBe(pm.seed);
+  });
+});
+
+describe('engine upgrades', () => {
+  it('a match paused on an older engine restarts from kick-off instead of replaying differently', async () => {
+    await startNewCareer('stale', db);
+    await onboardingEvent('skip', db);
+    const pm = await kickOff(db);
+    await mutateSave((s) => {
+      s.pendingMatch!.engineVersion = 'engine-1';
+      s.pendingMatch!.checkpointTick = 300;
+    }, {}, db);
+    await expect(settleMatchOnce(pm.matchId, db)).rejects.toThrow(/older version/);
+    await restartStaleMatch(db);
+    const s = (await loadSave(db))!;
+    expect(s.pendingMatch!.engineVersion).toBe(ENGINE_VERSION);
+    expect(s.pendingMatch!.checkpointTick).toBe(0);
+    expect(s.pendingMatch!.seed).toBe(pm.seed);
+    expect(s.coins).toBe(100);
   });
 });

@@ -35,6 +35,15 @@ export interface ScorerLine {
   assistName?: string;
 }
 
+export interface MatchMoment {
+  minute: number;
+  side: TeamSide;
+  kind: 'screamer' | 'header' | 'freeKick' | 'penalty' | 'penaltyMiss' | 'doubleSave' | 'save' | 'skill' | 'booking' | 'woodwork';
+  text: string;
+  /** The attribute behind it, when it was a strong one (e.g. "DRI 78"). */
+  stat?: string;
+}
+
 export interface RewardLine {
   label: string;
   coins: number;
@@ -76,6 +85,8 @@ export interface MatchRecord {
   /** Scout pack earned by this match, if any. */
   packId?: string;
   storyHeadline: string;
+  /** Notable non-routine incidents (screamers, double saves, penalties, skills, bookings). */
+  moments?: MatchMoment[];
   /** Frozen lineups so the match can be re-simulated exactly (kept for recent matches only). */
   replay?: { home: TeamLineup; away: TeamLineup };
 }

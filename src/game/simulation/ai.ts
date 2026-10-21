@@ -53,6 +53,11 @@ export function assignTargets(st: EngineState): void {
       let x: number;
 
       if (slot.position === 'GK') {
+        // A committed dive is moved by the engine, not by positioning.
+        if (p.action === 'dive' || p.action === 'catch') {
+          setTarget(st, p, p.x, p.y);
+          continue;
+        }
         const sweeper = p.traits.has('sweeperKeeper') ? 0.04 : 0;
         depth = clamp(0.025 + sweeper + (inPoss ? 0.03 : 0) + Math.max(0, 0.25 - ballDepth) * -0.02, 0.012, 0.12);
         x = 50 + (ball.x - 50) * 0.22;
@@ -206,6 +211,7 @@ function outletsOf(team: readonly PState[], p: PState): PState[] {
 
 export type CarrierDecision =
   | { kind: 'shoot'; score: number }
+  | { kind: 'cross'; to: PState; score: number }
   | { kind: 'pass'; to: PState; target: SimPos; through: boolean; score: number }
   | { kind: 'dribble'; target: SimPos; score: number }
   | { kind: 'hold'; score: number };
@@ -231,7 +237,8 @@ export function decide(st: EngineState, carrier: PState): CarrierDecision {
     const q = locationXg(pos, goalY);
     const tendency = (a.shooting + a.finishing) / 2;
     let score = 0.25 + q * 8 + (tendency - 50) / 90 - pressure * 0.2;
-    if (carrier.traits.has('longRanger') && dGoal > 28) score += 0.3;
+    // Long range: good strikers fancy it, poor ones (rightly) don't.
+    if (dGoal > 26) score += (a.shooting - 60) / 40 + (carrier.traits.has('longRanger') ? 0.45 : 0) - (dGoal - 26) * 0.02;
     if (quick) score -= 0.15;
     options.push({ kind: 'shoot', score });
   }
@@ -266,6 +273,17 @@ export function decide(st: EngineState, carrier: PState): CarrierDecision {
     if (quick) score += d < 30 ? 0.55 : -0.2;
     if (isKeeper && t.slot.position === 'FWD') score -= 0.3;
     options.push({ kind: 'pass', to: t, target, through, score });
+  }
+
+  // Cross from a wide area into the box.
+  if (!isKeeper && depth > 0.6 && Math.abs(carrier.x - 50) > 14) {
+    const boxY = (y: number) => (goalY === 0 ? y < 28 : y > PITCH_L - 28);
+    const inBox = mates.filter((t) => t !== carrier && t.slot.position !== 'GK' && t.stumble === 0 && boxY(t.y) && Math.abs(t.x - 50) < 20);
+    const best = inBox.sort((x, y) => y.lp.attributes.strength + y.lp.attributes.finishing - (x.lp.attributes.strength + x.lp.attributes.finishing) || x.index - y.index)[0];
+    if (best) {
+      const score = 0.75 + (a.passing - 50) / 110 + inBox.length * 0.22 + (Math.abs(carrier.x - 50) - 14) / 40 + ((best.lp.attributes.strength + best.lp.attributes.finishing) / 2 - 55) / 120 - (quick ? 0.3 : 0);
+      options.push({ kind: 'cross', to: best, score });
+    }
   }
 
   // Dribble

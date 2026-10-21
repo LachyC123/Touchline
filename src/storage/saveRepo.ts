@@ -7,6 +7,7 @@ import { matchArgs, prepareMatch, settleMatch } from '../domain/match/settle';
 import { applyFocus, FOCUSES } from '../domain/players/upgrades';
 import { seededUuid } from '../domain/rng';
 import type { ClubSave, MatchRecord, PendingMatch, TipId } from '../domain/save/types';
+import { ENGINE_VERSION } from '../game/simulation/constants';
 import { replayMatch } from '../game/simulation/replay';
 import type { MatchCommand } from '../game/simulation/types';
 import { getDb, MAIN_SLOT, MAX_BACKUPS, type BackupRow, type TouchlineDB } from './db';
@@ -191,6 +192,16 @@ export function autoPickLineup(db?: TouchlineDB): Promise<MutationResult> {
   }, {}, db);
 }
 
+/**
+ * A match left mid-way on an older engine can't be resumed faithfully (the same seed plays out
+ * differently), so it restarts from kick-off on the current engine. Nothing had been paid yet.
+ */
+export function restartStaleMatch(db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    if (s.pendingMatch && s.pendingMatch.engineVersion !== ENGINE_VERSION) s.pendingMatch = prepareMatch(s);
+  }, {}, db);
+}
+
 /** Freezes lineups + seed and persists the pending match before a ball is kicked. */
 export async function kickOff(db?: TouchlineDB): Promise<PendingMatch> {
   const { save } = await mutateSave((s) => {
@@ -229,6 +240,7 @@ export async function settleMatchOnce(matchId: string, db?: TouchlineDB): Promis
     (s) => {
       const pm = s.pendingMatch;
       if (!pm || pm.matchId !== matchId) throw new Error('That match is no longer in progress.');
+      if (pm.engineVersion !== ENGINE_VERSION) throw new Error('This match was started on an older version of the game. Restart it from the match screen.');
       const result = replayMatch(matchArgs(pm), pm.commands);
       record = settleMatch(s, pm, result);
     },

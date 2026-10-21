@@ -5,10 +5,11 @@ import { useSave } from '../../app/GameContext';
 import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
 import { PACK_DEFS } from '../../domain/packs/packs';
+import type { MatchMoment } from '../../domain/save/types';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
-import { Icon } from '../../components/icons/Icon';
+import { Icon, type IconName } from '../../components/icons/Icon';
 import { Button } from '../../components/ui/Button';
 import { Confetti } from '../../components/ui/Confetti';
 import { useCountUp } from '../../components/ui/useCountUp';
@@ -16,6 +17,19 @@ import { CLUB_BY_ID } from '../../data/clubs';
 import { xpToNext } from '../../domain/players/progression';
 import { UpgradePicker } from './UpgradePicker';
 import './result.css';
+
+const MOMENT_ICON: Record<MatchMoment['kind'], IconName> = {
+  screamer: 'bolt',
+  header: 'pulse',
+  freeKick: 'curve',
+  penalty: 'target',
+  penaltyMiss: 'glove',
+  doubleSave: 'glove',
+  save: 'glove',
+  skill: 'feet',
+  booking: 'whistle',
+  woodwork: 'wall',
+};
 
 export function ResultScreen({ id }: { id: string }) {
   const save = useSave();
@@ -113,6 +127,26 @@ export function ResultScreen({ id }: { id: string }) {
         <p className="result__paper">The Touchline Post</p>
         <h2>{record.storyHeadline}</h2>
       </article>
+
+      {record.moments && record.moments.length > 0 && (
+        <section className="result__moments panel" aria-labelledby="moments-title">
+          <h2 id="moments-title" className="eyebrow">
+            Key moments
+          </h2>
+          <ol>
+            {record.moments.map((m, i) => (
+              <li key={i} className={`result__moment ${m.side === us ? 'is-ours' : ''}`}>
+                <span className="result__moment-min">{m.minute}'</span>
+                <span className="result__moment-icon" aria-hidden="true">
+                  <Icon name={MOMENT_ICON[m.kind]} size={16} />
+                </span>
+                <span className="result__moment-text">{m.text}</span>
+                {m.stat && <span className="result__moment-stat">{m.stat}</span>}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section className="result__rewards paper" aria-label="Rewards">
         <div className="result__coins">

@@ -1,7 +1,7 @@
 import { FORMATION_DEFS, type FormationSlot } from '../../domain/formations';
 import type { Rng } from '../../domain/rng';
 import { PITCH_L } from './constants';
-import type { FootballEvent, LineupPlayer, MatchCommand, MatchPhase, MatchStats, PlayerAction, RestartKind, ShotOutcome, SimPos, TacticCommand, TeamLineup, TeamSide } from './types';
+import type { FootballEvent, LineupPlayer, MatchCommand, MatchPhase, MatchStats, PlayerAction, RestartKind, SaveStyle, ShotOutcome, ShotStyle, SimPos, TacticCommand, TeamLineup, TeamSide } from './types';
 
 /** Internal mutable engine state. Never exposed directly — snapshots are copies. */
 export interface PState {
@@ -22,7 +22,18 @@ export interface PState {
   stumble: number;
   action: PlayerAction;
   actionTicks: number;
+  /** Presentation detail for the current action (skill move, etc.). */
+  detail: string | null;
   runTicks: number;
+  /** Booked players go into challenges more carefully (there are no red cards yet). */
+  booked: boolean;
+  fouls: number;
+  /** Keeper only: where the current dive is heading. */
+  diveTarget: SimPos | null;
+  /** Ticks during which this player will hit a first-time shot (rebounds, knock-downs). */
+  firstTime: number;
+  /** Set while taking a set piece (delivery uses set-piece skill). */
+  restartKind: RestartKind | null;
   /** Ticks the carrier has held the ball. */
   hold: number;
   dribbleTarget: SimPos | null;
@@ -44,15 +55,24 @@ export interface Flight {
   kickerId: string;
   intendedId?: string;
   shot?: ShotPlan;
+  /** A lofted ball into the box: contested in the air on arrival. */
+  cross?: boolean;
 }
 
 export interface ShotPlan {
   eventId: number;
   outcome: ShotOutcome;
+  style: ShotStyle;
   keeperId: string | null;
   blockerId: string | null;
   assistId?: string;
   goalY: number;
+  /** Decided with the shot so the keeper can be seen to react before it arrives. */
+  save?: { style: SaveStyle; held: boolean; double: boolean };
+  /** Where the keeper ends his dive (a goal is a dive that falls short or goes the wrong way). */
+  diveX?: number;
+  /** A wide shot that took a deflection on its way out: corner, not goal kick. */
+  deflected?: boolean;
 }
 
 export interface BallState {
@@ -83,6 +103,10 @@ export interface RestartState {
   spot: SimPos;
   takerId: string;
   waited: number;
+  /** Free kicks in range: defenders forming the wall and where they stand. */
+  wall: { id: string; x: number; y: number }[];
+  /** Free kick close enough to shoot at. */
+  direct: boolean;
 }
 
 export interface EngineState {
@@ -104,6 +128,8 @@ export interface EngineState {
   pending: MatchCommand[];
   stats: MatchStats;
   lastCompletedPass: { fromId: string; toId: string; side: TeamSide; tick: number } | null;
+  /** Most recent parried save (for rebounds and double saves). */
+  lastSave: { tick: number; keeperId: string; side: TeamSide } | null;
   possession: TeamSide | null;
 }
 
@@ -171,7 +197,13 @@ export function buildPlayers(lineup: TeamLineup, side: TeamSide): PState[] {
       stumble: 0,
       action: 'idle',
       actionTicks: 0,
+      detail: null,
       runTicks: 0,
+      booked: false,
+      fouls: 0,
+      diveTarget: null,
+      firstTime: 0,
+      restartKind: null,
       hold: 0,
       dribbleTarget: null,
       dribbleFrom: null,
@@ -189,4 +221,9 @@ export function pressureAt(st: EngineState, side: TeamSide, p: SimPos): number {
     if (d < 6) total += 1 - d / 6;
   }
   return Math.min(1.5, total);
+}
+
+/** Penalty area of the goal `side` defends: 20 units deep, 46 wide (x 27–73). */
+export function inOwnBox(st: Pick<EngineState, 'half'>, side: TeamSide, p: SimPos): boolean {
+  return yToDepth(st, side, p.y) < 20 / PITCH_L && Math.abs(p.x - 50) < 23;
 }

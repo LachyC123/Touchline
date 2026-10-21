@@ -144,3 +144,23 @@ Calibrate from 1000-seed simulation distributions and review played matches. Abs
 A generated striker with strong finishing but weak pace receives a through pass; with QUICK PASS active, midfielders release earlier. The ball travels, striker makes an off-ball run, defender closes, shot leaves striker's foot from a spatially valid location, keeper dives in the proper direction. If saved, ball rebounds or is held and no goal banner appears. If scored, actual shot event yields the correct player goal, club score, XP, commentary, replay and diary entry. Exact same seed and choices repeat the same sequence.
 
 If any stage is fake, fix it before adding leagues or packs.
+
+## 12. Implementation notes — `engine-2` (football incidents)
+
+Everything below is decided by the pure simulation from player attributes and seeded RNG, logged as events, and only then animated.
+
+| Incident | Engine rule (see `src/game/simulation/engine.ts`, constants in `constants.ts`) | Event | Presentation |
+|---|---|---|---|
+| Long shot | Shot option beyond 26 units, scored up by `shooting` (and Long Ranger), down for poor shooters | `SHOT style: 'long'` | Higher arc, gold trail, `SHO` chip, "SCREAMER!" on a goal |
+| Cross + header | Wide carriers in the final third (and corners / wide free kicks) cross to the box; keeper may claim; attacker vs defender aerial duel on `strength`/`finishing`/`marking` | `PASS cross: true`, `SHOT style: 'header'`, `CLEARANCE` | Leap-and-nod header pose, `STR` chip, defender clearing header |
+| Keeper saves | Save type decided with the shot: `catch` (near the keeper), `dive`, `fingertip` (high balls → corner), `parry` (rebound). Held chance from `handling`. Keeper commits 4 ticks before arrival and travels to the dive point | `SAVE style, held` | Full-stretch directional dive that actually moves, crouch-and-gather catch, `REF` chip |
+| Rebounds / double saves | A parried ball collected by an attacker within 26 ticks is hit first time against a keeper who is still down (`keeperDown`); a second save by the same keeper is flagged | `SHOT style: 'volley'`, `SAVE double: true` | Scissor volley pose, "DOUBLE SAVE!" banner |
+| Slide tackles | Chasing a carrier who is getting away, or from beyond standing range: higher success, higher foul risk, defender left on the ground either way | `TACKLE style: 'slide'` | Feet-first slide with dust; standing challenges are a planted lunge |
+| Skill moves | A dribbler may take on the defender in his path (chance scales with `dribbling`²), and skilful carriers can beat a standing tackle; duel on `dribbling`/`ballControl`/`acceleration` vs `tackling`/`pace`. Moves: stepover, nutmeg, roulette, rainbow flick (high dribbling), drag-back | `SKILL move` | Named move animation (spin, stepovers, heel flick lifts the ball), callout, `DRI` chip |
+| Fouls | Every challenge can be a foul: more likely sliding, under PRESS, for poor tacklers and against good dribblers. Booking on rash slides, persistent fouling or stopping a breakaway; booked players challenge less (no red cards yet) | `FOUL award, booked` | Whistle, fouled player goes down, yellow card held up |
+| Free kicks | Taken by the set-piece specialist; within 38 units and central = "direct": a 2-man wall forms 9 units away and the taker usually shoots (`setPieces`), otherwise crosses or plays it short | `RESTART freeKick`, `SHOT style: 'freeKick'` | Wall pose, curling gold trail, `SET` chip |
+| Penalties | Fouls inside the box. Box cleared; taker (composure/finishing/set pieces) picks a corner, keeper guesses and dives as it's struck; same corner = a real chance to save. The whistle for half/full time waits for the kick | `FOUL award: 'penalty'`, `SHOT style: 'penalty'` | "PENALTY!" banner, keeper dive |
+
+Tests in `engine.test.ts` pin: every incident type occurs over a season of seeds; penalties only follow fouls in the box and are struck from the spot; nobody is booked twice; double saves only follow a save by the same keeper; and **stats show on the pitch** (better dribblers beat their man far more often, better strikers shoot and score more from distance, better keepers save a larger share).
+
+Version handling: replays recorded on `engine-1` are not re-simulated (the replay screen says so); a match paused mid-way on `engine-1` restarts from kick-off with the same seed (nothing had been paid).

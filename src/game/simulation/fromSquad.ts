@@ -19,6 +19,7 @@ export function simAttributes(p: Footballer): SimAttributes {
     strength: a.strength,
     stamina: a.stamina,
     composure: a.composure,
+    setPieces: a.setPieces,
     reflexes: a.reflexes,
     positioning: a.positioning,
     handling: a.handling,

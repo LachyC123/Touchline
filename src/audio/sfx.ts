@@ -18,9 +18,11 @@
  *  - ooh: crowd groan                (a miss / off the woodwork)
  *  - post: metallic ping             (woodwork)
  *  - cheer: short crowd lift         (win at full time, placing a new signing)
+ *  - peep: one short whistle blast   (fouls)
+ *  - swish: quick air flick          (skill moves)
  * Audio only starts after a user gesture (browser policy) and respects the SFX setting.
  */
-export type SfxName = 'tap' | 'flip' | 'pop' | 'thud' | 'chime' | 'whistle' | 'kick' | 'goal' | 'save' | 'coin' | 'tear' | 'whoosh' | 'reveal' | 'stamp' | 'tackle' | 'ooh' | 'post' | 'cheer';
+export type SfxName = 'tap' | 'flip' | 'pop' | 'thud' | 'chime' | 'whistle' | 'kick' | 'goal' | 'save' | 'coin' | 'tear' | 'whoosh' | 'reveal' | 'stamp' | 'tackle' | 'ooh' | 'post' | 'cheer' | 'peep' | 'swish';
 
 let ctx: AudioContext | null = null;
 let enabled = true;
@@ -149,6 +151,13 @@ export function playSfx(name: SfxName): void {
     case 'cheer':
       noise(c, 1.1, 700, 1600, 0.2, 0, 0.8);
       noise(c, 0.8, 1800, 2600, 0.08, 0.15, 1.5);
+      break;
+    case 'peep':
+      tone(c, 'square', 2350, 2300, 0.06, 0.004, 0.16);
+      break;
+    case 'swish':
+      noise(c, 0.16, 1800, 5200, 0.12, 0, 2);
+      noise(c, 0.12, 2600, 6000, 0.08, 0.1, 2);
       break;
     case 'chime':
       tone(c, 'sine', 784, 784, 0.16, 0.01, 0.22);

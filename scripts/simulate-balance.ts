@@ -78,6 +78,27 @@ function row(label: string, a: Agg, n: number): string {
 const header =
   '| Scenario (focus team) | Win | Draw | Loss | GF | GA | Shots | xG | xGA | Poss | Passes | Pass % | Tackles won | Turnovers won / lost | End stamina |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|';
 
+/** Football incidents per match (both teams), from the mirror scenario's event logs. */
+const incidents: Record<string, number> = {};
+function tallyIncidents(r: MatchResult) {
+  const inc = (k: string) => (incidents[k] = (incidents[k] ?? 0) + 1);
+  const shots = new Map<number, string>();
+  for (const e of r.events) {
+    if (e.type === 'SHOT') {
+      shots.set(e.id, e.style);
+      inc(`Shots: ${e.style}`);
+    }
+    if (e.type === 'GOAL') inc(`Goals: ${shots.get(e.shotEventId) ?? '?'}`);
+    if (e.type === 'SAVE') inc(e.double ? 'Saves: double save' : `Saves: ${e.style}`);
+    if (e.type === 'FOUL') inc(e.award === 'penalty' ? 'Fouls: penalty awarded' : 'Fouls: free kick');
+    if (e.type === 'FOUL' && e.booked) inc('Fouls: booking');
+    if (e.type === 'SKILL') inc(`Skills: ${e.move}`);
+    if (e.type === 'TACKLE') inc(`Tackles: ${e.style} ${e.won ? 'won' : 'lost'}`);
+    if (e.type === 'PASS' && e.cross) inc(`Crosses: ${e.outcome}`);
+    if (e.type === 'RESTART' && e.kind === 'corner') inc('Restarts: corner');
+  }
+}
+
 const t0 = Date.now();
 const sections: string[] = [];
 const json: Record<string, Agg & { n: number }> = {};
@@ -91,6 +112,7 @@ function scenario(key: string, label: string, focusTeam: TeamLineup, oppTeam: Te
     const side = focusHome ? 'home' : 'away';
     const { r, ticks } = run(home, away, `${key}-${i}`, policy ? { side, cmd: policy } : undefined);
     add(agg, r, side, ticks);
+    if (key === 'mirror') tallyIncidents(r);
   }
   json[key] = { ...agg, n: N };
   return row(label, agg, N);
@@ -122,6 +144,13 @@ sections.push(
   `## Tactics (chip re-used whenever ready)\n\n${header}\n${row('No chips (control)', json.mirror!, N)}\n${scenario('press', 'PRESS whenever ready', base, mirror, 'PRESS')}\n${scenario('quick', 'QUICK PASS whenever ready', base, mirror, 'QUICK_PASS')}`,
 );
 
+sections.push(
+  `## Incidents per match (mirror scenario, both teams)\n\n| Incident | Per match |\n|---|---|\n${Object.entries(incidents)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `| ${k} | ${(v / N).toFixed(2)} |`)
+    .join('\n')}`,
+);
+
 const secs = ((Date.now() - t0) / 1000).toFixed(1);
 const md = `# TOUCHLINE! balance report
 
@@ -140,5 +169,5 @@ ${sections.join('\n\n')}
 
 mkdirSync('reports', { recursive: true });
 writeFileSync('reports/balance-latest.md', md);
-writeFileSync('reports/balance-latest.json', JSON.stringify({ engine: C.ENGINE_VERSION, n: N, scenarios: json }, null, 2));
+writeFileSync('reports/balance-latest.json', JSON.stringify({ engine: C.ENGINE_VERSION, n: N, scenarios: json, incidents: Object.fromEntries(Object.entries(incidents).map(([k, v]) => [k, v / N])) }, null, 2));
 console.log(md);
