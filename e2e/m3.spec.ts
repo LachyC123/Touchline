@@ -23,6 +23,11 @@ test('league: a round is played across the division and the table adds up after 
   const around = page.locator('.result__league');
   await expect(around).toBeVisible();
   await expect(around.locator('li')).toHaveCount(4);
+  // The next fixture has a build-up drawn from the results, and both sides show their form.
+  await page.goto('/#/match');
+  await expect(page.locator('.lobby__buildup .storyline').first()).toBeVisible();
+  await expect(page.locator('.fixture__team .form-dots')).toHaveCount(2);
+  await expect(page.locator('.fixture__team').first().locator('.form-dot')).toHaveCount(1);
   await page.reload();
   await page.goto('/#/league');
   const rows = page.locator('.league__table tbody tr');
@@ -48,6 +53,7 @@ test('league: a whole season ends on the final day and season 2 starts once', as
   await page.getByRole('button', { name: /final day/i }).click();
   await expect(page.locator('.season__title')).toBeVisible();
   await expect(page.locator('.season__table li')).toHaveCount(4);
+  await expect(page.locator('.season__story li').first()).toBeVisible();
   await page.getByRole('button', { name: /start season 2/i }).click();
   await expect(page.locator('.club__league')).toContainText(/season 2/i);
   await page.reload();

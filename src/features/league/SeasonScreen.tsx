@@ -10,6 +10,8 @@ import { useToast } from '../../components/ui/Toast';
 import { clubName, divisionOf, leagueTable, ordinal, SEASON_CLUB_XP, seasonComplete, seasonOutcome } from '../../domain/league/league';
 import { PLAYER_CLUB_ID, type SeasonSummary } from '../../domain/save/types';
 import { crestOf } from './crestOf';
+import { Trophy } from '../../components/league/Trophy';
+import { seasonStory } from '../../domain/league/stories';
 import './league.css';
 
 const HEADLINE: Record<SeasonSummary['outcome'], string> = {
@@ -50,7 +52,20 @@ export function SeasonScreen() {
   const o = seasonOutcome(save);
   const table = leagueTable(save.league, (id) => clubName(id, save.club.name)).slice(0, 4);
   const good = o.outcome === 'promoted' || o.outcome === 'champions';
+
   const next = divisionOf(o.nextDivision);
+  // Winning the league is a title even when it also means promotion.
+  const won = o.position === 1;
+  const fate = won ? 'champions' : o.outcome === 'stayed' ? null : o.outcome;
+  const story = seasonStory(save, fate);
+  const storyLines = [
+    story.sealedRound !== null && story.sealedRound < save.league.rounds.length - 1
+      ? `${fate === 'relegated' ? 'The drop was confirmed' : fate === 'champions' ? 'The title was sealed' : 'Promotion was sealed'} in round ${story.sealedRound + 1}.`
+      : null,
+    story.bestWin ? `Best win: ${story.bestWin.gf}–${story.bestWin.ga} ${story.bestWin.home ? 'at home to' : 'away at'} ${story.bestWin.opponentName}.` : null,
+    story.longestWinRun >= 2 ? `Longest winning run: ${story.longestWinRun} games.` : null,
+    `At home: ${story.homeRecord.won}W ${story.homeRecord.drawn}D ${story.homeRecord.lost}L.`,
+  ].filter((l): l is string => Boolean(l));
 
   const start = async () => {
     setBusy(true);
@@ -72,20 +87,40 @@ export function SeasonScreen() {
         <p className="season__kicker">
           Season {o.season} · {o.divisionName}
         </p>
-        <Crest club={save.club} size={96} />
-        <h1 className="season__title">{HEADLINE[o.outcome]}</h1>
+        {good ? (
+          <div className="season__silverware">
+            <Trophy kind={won ? 'cup' : 'pennant'} ribbon={save.club.kit.primary} trim={save.club.kit.secondary} size={132} />
+            <span className="season__crest">
+              <Crest club={save.club} size={52} />
+            </span>
+          </div>
+        ) : (
+          <Crest club={save.club} size={96} />
+        )}
+        <h1 className="season__title">{won ? HEADLINE.champions : HEADLINE[o.outcome]}</h1>
         <p className="season__line">
           {save.club.name} finished <b>{ordinal(o.position)}</b> with <b>{o.points}</b> points ({o.won}W {o.drawn}D {o.lost}L, {o.gf}–{o.ga}).
         </p>
         <p className="season__line">
           {o.outcome === 'promoted'
-            ? `Next season: ${next.name}. Stronger clubs, bigger crowds.`
+            ? `${won ? `${o.divisionName} title and promotion. ` : ''}Next season: ${next.name}. Stronger clubs, bigger crowds.`
             : o.outcome === 'relegated'
               ? `Next season: back in ${next.name}. Regroup and go again.`
               : o.outcome === 'champions'
                 ? `Top of ${o.divisionName}. The next step up arrives in a later update — defend the title.`
                 : `Another go at ${next.name} next season.`}
         </p>
+      </section>
+
+      <section className="season__story paper" aria-labelledby="season-story">
+        <h2 id="season-story" className="season__story-title">
+          The season in brief
+        </h2>
+        <ul>
+          {storyLines.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
       </section>
 
       <section className="season__table panel" aria-label="Final table (top four)">

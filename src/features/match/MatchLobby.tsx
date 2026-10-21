@@ -18,6 +18,9 @@ import { CoachMark } from '../../components/ui/CoachMark';
 import { ManagerCard } from '../../components/manager/ManagerCard';
 import { AI_DECKS, CARD_DEFS, HAND_SIZE } from '../../game/simulation/cards';
 import { UpgradePicker } from './UpgradePicker';
+import { FormDots } from '../../components/league/FormDots';
+import { Storylines } from '../../components/league/Storylines';
+import { clubForm, preMatchStorylines } from '../../domain/league/stories';
 import './match.css';
 
 export function MatchLobby() {
@@ -74,6 +77,9 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
   // Keep the pickers that were open when the screen loaded so each confirmation stays visible.
   const [upgrades] = useState(() => save.pendingUpgrades);
   const maxPower = Math.max(ourPower, theirPower, 1);
+  const storylines = preMatchStorylines(save, fixture);
+  const ourForm = clubForm(save.league, PLAYER_CLUB_ID);
+  const theirForm = clubForm(save.league, club.id);
   const inForm = Object.values(save.lineup)
     .map((id) => save.footballers[id])
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
@@ -146,11 +152,13 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
             <div className="fixture__team">
               <Crest club={save.club} size={64} />
               <span>{save.club.shortName}</span>
+              {save.league.results.length > 0 && <FormDots form={ourForm} label={save.club.name} />}
             </div>
             <span className="fixture__vs">vs</span>
             <div className="fixture__team">
               <Crest club={{ ...club, kit: club.kit }} size={64} />
               <span>{club.shortName}</span>
+              {save.league.results.length > 0 && <FormDots form={theirForm} label={club.name} />}
             </div>
           </div>
           <h2 id="fixture-title" className="fixture__name">
@@ -184,6 +192,15 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
             ) : null}
             .
           </p>
+        </section>
+      )}
+
+      {!pending && storylines.length > 0 && (
+        <section className="lobby__buildup paper" aria-labelledby="buildup-title">
+          <h2 id="buildup-title" className="lobby__kicker">
+            The build-up
+          </h2>
+          <Storylines lines={storylines} />
         </section>
       )}
 

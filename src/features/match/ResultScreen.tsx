@@ -6,7 +6,9 @@ import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
 import { PACK_DEFS } from '../../domain/packs/packs';
 import { PLAYER_CLUB_ID, type MatchMoment } from '../../domain/save/types';
-import { clubName, leagueTable, ordinal, seasonComplete } from '../../domain/league/league';
+import { clubName, divisionOf, leagueTable, ordinal, seasonComplete } from '../../domain/league/league';
+import { fatesSealedIn, roundHeadline, type Fate } from '../../domain/league/stories';
+import { Trophy } from '../../components/league/Trophy';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
@@ -19,6 +21,30 @@ import { CLUB_BY_ID } from '../../data/clubs';
 import { xpToNext } from '../../domain/players/progression';
 import { UpgradePicker } from './UpgradePicker';
 import './result.css';
+
+const FATE_ORDER: Fate[] = ['champions', 'promoted', 'safe', 'relegated'];
+
+/** The single most important thing this round settled for the player's season, if anything. */
+function sealedFate(league: Parameters<typeof fatesSealedIn>[0], round: number | undefined, sameSeason: boolean): Fate | null {
+  if (!sameSeason || round === undefined) return null;
+  const sealed = fatesSealedIn(league, round);
+  return FATE_ORDER.find((f) => sealed.includes(f)) ?? null;
+}
+
+const FATE_TITLE: Record<Fate, string> = {
+  champions: 'Champions!',
+  promoted: 'Promotion sealed!',
+  safe: 'Safe!',
+  relegated: 'Relegated',
+};
+
+function fateLine(fate: Fate, left: number, div: { name: string; promote: number }): string {
+  const spare = left > 0 ? ` with ${left} game${left === 1 ? '' : 's'} to spare` : '';
+  if (fate === 'champions') return `Nobody can catch you now — the title${div.promote > 0 ? ' and promotion are' : ' is'} yours${spare}.`;
+  if (fate === 'promoted') return `A top-two finish is guaranteed${spare}. Bigger clubs await next season.`;
+  if (fate === 'safe') return `Nobody can drag you into the bottom two now${spare}.`;
+  return 'It’s confirmed: the drop. Finish strong and come straight back up.';
+}
 
 const MOMENT_ICON: Record<MatchMoment['kind'], IconName> = {
   screamer: 'bolt',
@@ -42,13 +68,15 @@ export function ResultScreen({ id }: { id: string }) {
   // Keep the pickers that were open when the screen loaded so each confirmation stays visible.
   const [upgrades] = useState(() => save.pendingUpgrades);
 
+  const sameSeason = record?.season !== undefined && record.season === save.season && record.round !== undefined;
+  const fate = sealedFate(save.league, record?.round, sameSeason);
   useEffect(() => {
     if (!record || !fresh) return;
     const ours = record.score[record.userSide];
     const theirs = record.score[record.userSide === 'home' ? 'away' : 'home'];
-    if (ours > theirs) playSfx('cheer');
-    else if (ours === theirs) playSfx('chime');
-  }, [record, fresh]);
+    if (ours > theirs || fate === 'champions' || fate === 'promoted') playSfx('cheer');
+    else if (ours === theirs || fate === 'safe') playSfx('chime');
+  }, [record, fresh, fate]);
 
   if (!record) {
     return (
@@ -77,12 +105,12 @@ export function ResultScreen({ id }: { id: string }) {
   const pack = record.packId ? save.packs.find((p) => p.id === record.packId) : undefined;
   const firstRun = save.onboarding === 'club';
   // League context (only while that season is still the current one).
-  const sameSeason = record.season !== undefined && record.season === save.season && record.round !== undefined;
   const roundResults = sameSeason ? save.league.results.filter((r) => r.round === record.round) : [];
   const nameFn = (id: string) => clubName(id, save.club.name);
   const posAt = (rounds: number) => leagueTable({ rounds: save.league.rounds, results: save.league.results.filter((r) => r.round < rounds) }, nameFn).findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const posAfter = sameSeason ? posAt((record.round ?? 0) + 1) : 0;
   const posBefore = sameSeason && (record.round ?? 0) > 0 ? posAt(record.round ?? 0) : null;
+  const headline = sameSeason ? roundHeadline(save.league, record.round ?? 0, save.club.name) : null;
   const seasonOver = !save.pendingMatch && seasonComplete(save.league) && sameSeason;
   const gains = [...record.gains].filter((g) => save.footballers[g.playerId]).sort((a, b) => b.xp - a.xp);
   const stats: [string, number | string, number | string, number, number][] = [
@@ -97,7 +125,7 @@ export function ResultScreen({ id }: { id: string }) {
   return (
     <main className={`screen result result--${verdict.toLowerCase()}`}>
       <section className="result__hero" aria-label={`Full time: ${verdict} ${gf}–${ga} against ${record.opponentName}`}>
-        {fresh && !reduced && gf > ga && <Confetti count={26} colours={[save.club.kit.primary, save.club.kit.secondary, '#CBF238', '#F4C653']} />}
+        {fresh && !reduced && (gf > ga || fate === 'champions' || fate === 'promoted') && <Confetti count={26} colours={[save.club.kit.primary, save.club.kit.secondary, '#CBF238', '#F4C653']} />}
         <p className="result__ft">Full time · {verdict}</p>
         <div className="result__score">
           <div className="result__team">
@@ -133,6 +161,16 @@ export function ResultScreen({ id }: { id: string }) {
         )}
       </section>
 
+      {fate && (
+        <section className={`result__sealed result__sealed--${fate}`} role="status">
+          {(fate === 'champions' || fate === 'promoted') && <Trophy kind={fate === 'champions' ? 'cup' : 'pennant'} ribbon={save.club.kit.primary} trim={save.club.kit.secondary} size={84} />}
+          <div>
+            <p className="result__sealed-title">{FATE_TITLE[fate]}</p>
+            <p className="result__sealed-line">{fateLine(fate, save.league.rounds.length - (record.round ?? 0) - 1, divisionOf(save.league.division))}</p>
+          </div>
+        </section>
+      )}
+
       <article className="result__story paper">
         <p className="result__paper">The Touchline Post</p>
         <h2>{record.storyHeadline}</h2>
@@ -149,6 +187,7 @@ export function ResultScreen({ id }: { id: string }) {
               {posBefore && posBefore !== posAfter ? <small className={posAfter < posBefore ? 'is-up' : 'is-down'}>{posAfter < posBefore ? `▲${posBefore - posAfter}` : `▼${posAfter - posBefore}`}</small> : null}
             </span>
           </div>
+          {headline && <p className="result__league-headline">{headline}</p>}
           <ul>
             {roundResults.map((r) => (
               <li key={`${r.home}-${r.away}`} className={r.home === PLAYER_CLUB_ID || r.away === PLAYER_CLUB_ID ? 'is-us' : ''}>

@@ -13,6 +13,7 @@ import { squadPower } from '../../domain/club/newCareer';
 import { CLUB_BY_ID } from '../../data/clubs';
 import { clubName, divisionOf, leagueTable, ordinal, seasonComplete, userFixture } from '../../domain/league/league';
 import { PLAYER_CLUB_ID } from '../../domain/save/types';
+import { preMatchStorylines } from '../../domain/league/stories';
 import './club.css';
 
 export function ClubScreen() {
@@ -31,6 +32,7 @@ export function ClubScreen() {
   const pos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const pendingOpp = save.pendingMatch ? CLUB_BY_ID[save.pendingMatch.opponentId] : undefined;
   const last = save.matchRecords[0];
+  const headline = fixture && !save.pendingMatch ? preMatchStorylines(save, fixture, 1)[0] : undefined;
 
   return (
     <main className="screen club">
@@ -99,7 +101,7 @@ export function ClubScreen() {
             ? 'Tap to resume where you left off'
             : over || !fixture
               ? 'See the final day and start the next season'
-              : `${fixture.home ? 'Home' : 'Away'} · ${fixture.club.rival ? 'Local rivals · ' : ''}${fixture.club.styleLine}`}
+              : `${fixture.home ? 'Home' : 'Away'} · ${headline ? headline.text : `${fixture.club.rival ? 'Local rivals · ' : ''}${fixture.club.styleLine}`}`}
         </span>
         <span className="club__next-go" aria-hidden="true">
           <Icon name="whistle" size={26} />

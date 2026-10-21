@@ -537,3 +537,69 @@
   font-weight: 900;
   text-align: center;
 }
+
+.result__sealed {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(ellipse 70% 90% at 0% 50%, rgb(255 255 255 / 0.35), transparent 70%),
+    var(--gold);
+  color: var(--ink);
+  box-shadow:
+    0 5px 0 var(--gold-dark),
+    var(--cast);
+  animation: sealed-in 620ms var(--ease-spring) 300ms both;
+}
+
+.result__sealed--safe {
+  background: var(--lime);
+  box-shadow:
+    0 5px 0 var(--lime-dark),
+    var(--cast);
+}
+
+.result__sealed--relegated {
+  background: var(--navy-600);
+  color: var(--cream);
+  box-shadow:
+    0 5px 0 var(--navy-900),
+    var(--cast);
+}
+
+.result__sealed .trophy {
+  flex: none;
+}
+
+.result__sealed-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-xl);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.result__sealed-line {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+@keyframes sealed-in {
+  from {
+    opacity: 0;
+    scale: 0.85;
+  }
+}
+
+.result__league-headline {
+  margin: var(--s-2) 0 var(--s-1);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-md);
+  letter-spacing: 0.02em;
+  color: var(--gold);
+}

@@ -339,3 +339,55 @@
     scale: 0.6;
   }
 }
+
+.season__silverware {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 150px;
+}
+
+.season__silverware::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgb(244 198 83 / 0.28) 0 10deg, transparent 10deg 24deg);
+  mask: radial-gradient(circle, #000 30%, transparent 70%);
+  animation: rays-spin 18s linear infinite;
+}
+
+.season__crest {
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  animation: crest-pop 520ms var(--ease-spring) 700ms both;
+}
+
+@keyframes rays-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+.season__story {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.season__story-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.season__story ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.1em;
+  font-weight: 600;
+}

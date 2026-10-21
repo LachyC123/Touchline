@@ -261,3 +261,18 @@
   gap: var(--s-3);
   text-align: center;
 }
+
+.lobby__buildup {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+}
+
+.lobby__buildup .lobby__kicker {
+  color: var(--ink);
+}
+
+.fixture__team .form-dots {
+  margin-top: 2px;
+}
