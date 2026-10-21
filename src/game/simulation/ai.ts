@@ -24,7 +24,11 @@ export function assignTargets(st: EngineState): void {
   for (const side of ['home', 'away'] as const) {
     const team = st.teams[side];
     const inPoss = st.possession === side;
-    const pressing = isTacticActive(st, side, 'PRESS');
+    const pressing = isTacticActive(st, side, 'PRESS') && !isTacticActive(st, side, 'PARK_BUS');
+    const wide = isTacticActive(st, side, 'GO_WIDE');
+    const bus = isTacticActive(st, side, 'PARK_BUS');
+    const allOut = isTacticActive(st, side, 'ALL_OUT');
+    const marking = isTacticActive(st, side, 'MAN_MARK') ? team.marking : null;
     const ballDepth = yToDepth(st, side, ball.y);
     const opponents = st.teams[other(side)].players;
     const oppOutfield = opponents.filter((o) => o.slot.position !== 'GK');
@@ -35,11 +39,14 @@ export function assignTargets(st: EngineState): void {
     const chasers = new Set<string>();
     if (!inPoss && (ball.state === 'owned' || ball.state === 'loose' || ball.state === 'pass')) {
       const count = ball.state === 'loose' ? 1 : pressing ? (ballDepth > 0.62 ? 3 : 2) : 1;
+
       const ranked = team.players
         .filter((p) => p.slot.position !== 'GK' || (ball.state === 'loose' && yToDepth(st, side, ball.y) < 0.12))
         .map((p) => ({ p, d: Math.hypot(p.x - ball.x, p.y - ball.y) }))
         .sort((a, b) => a.d - b.d || a.p.index - b.p.index);
       for (const r of ranked.slice(0, count)) chasers.add(r.p.id);
+      // The bus doesn't chase high up the pitch.
+      if (bus && ball.state === 'owned' && ballDepth > 0.45) chasers.clear();
     }
     if (inPoss && ball.state === 'loose') {
       const nearest = [...team.players].filter((p) => p.slot.position !== 'GK').sort((a, b) => Math.hypot(a.x - ball.x, a.y - ball.y) - Math.hypot(b.x - ball.x, b.y - ball.y) || a.index - b.index)[0];
@@ -73,12 +80,31 @@ export function assignTargets(st: EngineState): void {
         continue;
       }
 
-      const lineShift = inPoss ? 0.1 : pressing ? 0.07 : -0.05;
+      let lineShift = inPoss ? 0.1 : pressing ? 0.07 : -0.05;
+      if (bus) lineShift = inPoss ? 0 : -0.16;
+      if (allOut) lineShift = inPoss ? 0.22 : 0.06;
       depth = slot.depth + (ballDepth - 0.45) * 0.55 + lineShift;
-      const widthScale = inPoss ? 1.05 : 0.82;
-      x = 50 + (slot.x - 50) * widthScale + (ball.x - 50) * 0.3;
-      const maxDepth = slot.position === 'DEF' ? 0.62 : slot.position === 'MID' ? 0.82 : 0.9;
+      let widthScale = inPoss ? 1.05 : 0.82;
+      if (wide && inPoss && slot.position !== 'DEF') widthScale = 1.45;
+      if (bus && !inPoss) widthScale = 0.62;
+      x = 50 + (slot.x - 50) * widthScale + (ball.x - 50) * (bus && !inPoss ? 0.2 : 0.3);
+      let maxDepth = slot.position === 'DEF' ? 0.62 : slot.position === 'MID' ? 0.82 : 0.9;
+      if (allOut) maxDepth = slot.position === 'DEF' ? 0.8 : 0.93;
+      if (bus) maxDepth = slot.position === 'FWD' ? 0.62 : slot.position === 'MID' ? 0.45 : 0.3;
       depth = clamp(depth, 0.08, maxDepth);
+
+      // Man-Mark: the shadow stays goal-side of his man whenever we don't have the ball.
+      if (!inPoss && marking && marking.markerId === p.id) {
+        const man = opponents.find((o) => o.id === marking.targetId);
+        if (man) {
+          const gy = ownGoalY(st, side);
+          const toX = 50 - man.x;
+          const toY = gy - man.y;
+          const len = Math.hypot(toX, toY) || 1;
+          setTarget(st, p, man.x + (toX / len) * 1.8, man.y + (toY / len) * 1.8);
+          continue;
+        }
+      }
 
       if (chasers.has(p.id)) {
         // Press the carrier / attack the loose ball; the second presser screens the nearest pass.
@@ -127,7 +153,7 @@ export function assignTargets(st: EngineState): void {
             const quick = isTacticActive(st, side, 'QUICK_PASS');
             // A pressing opponent's high line invites runs in behind.
             const theyPress = isTacticActive(st, other(side), 'PRESS');
-            const runChance = 0.012 + (p.lp.attributes.acceleration / 100) * 0.012 + (quick ? 0.01 : 0) + (theyPress ? 0.045 : 0);
+            const runChance = bus ? 0.002 : 0.012 + (p.lp.attributes.acceleration / 100) * 0.012 + (quick ? 0.01 : 0) + (theyPress ? 0.045 : 0) + (allOut ? 0.03 : 0);
             if (ball.ownerId && ballDepth > 0.3 && st.rng.chance(runChance)) p.runTicks = 18;
           }
         } else {
@@ -189,6 +215,11 @@ export function assignTargets(st: EngineState): void {
   }
 }
 
+function bestHeader(team: readonly PState[]): PState | undefined {
+  const score = (p: PState) => p.lp.attributes.strength * 0.6 + p.lp.attributes.finishing * 0.4;
+  return [...team].filter((p) => p.slot.position !== 'GK').sort((a, b) => score(b) - score(a) || a.index - b.index)[0];
+}
+
 function setTarget(_st: EngineState, p: PState, x: number, y: number): void {
   p.targetX = clamp(x, 1, 99);
   p.targetY = clamp(y, 1, PITCH_L - 1);
@@ -223,6 +254,10 @@ export function decide(st: EngineState, carrier: PState): CarrierDecision {
   const mates = st.teams[side].players;
   const quick = isTacticActive(st, side, 'QUICK_PASS');
   const oppPressing = isTacticActive(st, other(side), 'PRESS');
+  const wide = isTacticActive(st, side, 'GO_WIDE');
+  const bus = isTacticActive(st, side, 'PARK_BUS');
+  const allOut = isTacticActive(st, side, 'ALL_OUT');
+  const targetMan = isTacticActive(st, side, 'TARGET_MAN') ? bestHeader(mates) : undefined;
   const goalY = attackGoalY(st, side);
   const pos = { x: carrier.x, y: carrier.y };
   const depth = yToDepth(st, side, carrier.y);
@@ -239,7 +274,9 @@ export function decide(st: EngineState, carrier: PState): CarrierDecision {
     let score = 0.25 + q * 8 + (tendency - 50) / 90 - pressure * 0.2;
     // Long range: good strikers fancy it, poor ones (rightly) don't.
     if (dGoal > 26) score += (a.shooting - 60) / 40 + (carrier.traits.has('longRanger') ? 0.45 : 0) - (dGoal - 26) * 0.02;
-    if (quick) score -= 0.15;
+    if (allOut) score += 0.5;
+    // Going wide means fewer pot-shots through the middle.
+    if (wide && Math.abs(carrier.x - 50) < 14) score -= 0.15;
     options.push({ kind: 'shoot', score });
   }
 
@@ -270,8 +307,11 @@ export function decide(st: EngineState, carrier: PState): CarrierDecision {
     let score = 0.25 + laneScore * 1.15 + recvScore * 0.85 + progress * (isKeeper ? 1.2 : 3.6) - Math.max(0, d - 34) * 0.03;
     score += ((a.vision - 50) / 100) * (progress > 0.1 ? 0.6 : 0.1);
     if (through && yToDepth(st, side, target.y) > lastLine) score += 0.5 + (a.vision / 100) * 0.4 + (carrier.traits.has('needlePass') ? 0.15 : 0) + (oppPressing ? 0.6 : 0);
-    if (quick) score += d < 30 ? 0.55 : -0.2;
+    if (quick) score += d < 30 ? 0.4 : -0.1;
     if (isKeeper && t.slot.position === 'FWD') score -= 0.3;
+    if (targetMan === t && progress > 0.1) score += 0.45; // long balls up to the big man
+    if (wide && Math.abs(target.x - 50) > 22 && progress > -0.05) score += 0.3;
+    if (bus && progress > 0.2) score -= 0.3; // keep it safe
     options.push({ kind: 'pass', to: t, target, through, score });
   }
 
@@ -281,7 +321,7 @@ export function decide(st: EngineState, carrier: PState): CarrierDecision {
     const inBox = mates.filter((t) => t !== carrier && t.slot.position !== 'GK' && t.stumble === 0 && boxY(t.y) && Math.abs(t.x - 50) < 20);
     const best = inBox.sort((x, y) => y.lp.attributes.strength + y.lp.attributes.finishing - (x.lp.attributes.strength + x.lp.attributes.finishing) || x.index - y.index)[0];
     if (best) {
-      const score = 0.75 + (a.passing - 50) / 110 + inBox.length * 0.22 + (Math.abs(carrier.x - 50) - 14) / 40 + ((best.lp.attributes.strength + best.lp.attributes.finishing) / 2 - 55) / 120 - (quick ? 0.3 : 0);
+      const score = 0.75 + (wide ? 0.45 : 0) + (targetMan ? 0.4 : 0) + (a.passing - 50) / 110 + inBox.length * 0.22 + (Math.abs(carrier.x - 50) - 14) / 40 + ((best.lp.attributes.strength + best.lp.attributes.finishing) / 2 - 55) / 120 - (quick ? 0.3 : 0);
       options.push({ kind: 'cross', to: best, score });
     }
   }
@@ -299,7 +339,9 @@ export function decide(st: EngineState, carrier: PState): CarrierDecision {
     if (quick) score -= 0.6;
     if (oppPressing) score -= 0.1;
     // Bend the carry towards goal, away from the nearest defender.
-    const tx = clamp(carrier.x + (50 - carrier.x) * 0.25 + (ahead < 10 ? (carrier.x < 50 ? -6 : 6) : 0), 4, 96);
+    // Wide: run down the line instead of cutting inside.
+    const hugLine = wide && Math.abs(carrier.x - 50) > 18;
+    const tx = hugLine ? carrier.x : clamp(carrier.x + (50 - carrier.x) * 0.25 + (ahead < 10 ? (carrier.x < 50 ? -6 : 6) : 0), 4, 96);
     const ty = clamp(carrier.y + forwardY * 14, 2, PITCH_L - 2);
     options.push({ kind: 'dribble', target: { x: tx, y: ty }, score });
   }

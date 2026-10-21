@@ -62,10 +62,11 @@ describe('lineup rules', () => {
 describe('save migration', () => {
   it('upgrades an M0 (v1) save all the way to the current version without touching players', () => {
     const v2 = createCareer('mig-1', 'x');
-    const { matchNumber: _a, pendingMatch: _b, matchRecords: _c, pendingUpgrades: _d, packs: _e, onboarding: _f, tipsSeen: _g, ...rest } = v2;
+    const { matchNumber: _a, pendingMatch: _b, matchRecords: _c, pendingUpgrades: _d, packs: _e, onboarding: _f, tipsSeen: _g, cardsUnlocked: _h, deck: _i, newCards: _j, ...rest } = v2;
     const v1 = { ...rest, schemaVersion: 1, contentVersion: 'content-1', packInventory: {}, tutorialStep: 'start' };
     const migrated = migrateSave(v1);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.deck).toEqual(['QUICK_PASS', 'PRESS', 'GO_WIDE', 'PARK_BUS']);
     expect(migrated.matchNumber).toBe(0);
     expect(migrated.pendingMatch).toBeNull();
     expect(migrated.footballers).toEqual(v2.footballers);

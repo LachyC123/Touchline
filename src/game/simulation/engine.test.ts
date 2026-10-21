@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeTeam, mirrorOf } from '../../test/fixtures/teams';
-import { FULL_TICKS, PITCH_L, PITCH_W, TACTIC_COOLDOWN_MIN, TICKS_PER_MINUTE } from './constants';
+import { CARD_DEFS, MOMENTUM, type CardId } from './cards';
+import { FULL_TICKS, PITCH_L, PITCH_W } from './constants';
 import { createMatch, type CreateMatchArgs } from './engine';
 import { replayMatch, replayTo, resultOf } from './replay';
 import type { FootballEvent, MatchCommand } from './types';
@@ -149,27 +150,132 @@ describe('event log integrity', () => {
   });
 });
 
-describe('tactical commands', () => {
-  it('are rejected outside their window without consuming the cooldown', () => {
+describe('manager cards and Momentum', () => {
+  it('cost Momentum, must be in hand, cycle the hand, and failed plays spend nothing', () => {
     const e = createMatch(args('cmd-1'));
-    e.advanceTicks(100);
+    const t0 = e.getSnapshot().tactics.home;
+    expect(t0.momentum).toBe(MOMENTUM.start);
+    expect(t0.hand).toEqual(['QUICK_PASS', 'PRESS', 'GO_WIDE']);
+    expect(t0.next).toBe('PARK_BUS');
+    expect(e.dispatch('PARK_BUS', 'home')).toMatchObject({ ok: false }); // not in hand yet
     expect(e.dispatch('PRESS', 'home').ok).toBe(true);
     e.advanceTicks(1);
-    const before = e.getSnapshot().tactics.home;
-    const again = e.dispatch('PRESS', 'home');
-    expect(again.ok).toBe(false);
-    expect(e.getSnapshot().tactics.home).toEqual(before);
-    // Still on cooldown after it expires…
-    e.advanceTicks(TICKS_PER_MINUTE * 13);
-    expect(e.dispatch('PRESS', 'home').ok).toBe(false);
-    // …and usable once the cooldown has passed.
-    e.advanceTicks(TICKS_PER_MINUTE * TACTIC_COOLDOWN_MIN);
-    expect(e.dispatch('PRESS', 'home').ok).toBe(true);
-    // Halftime and full time reject commands.
+    const t1 = e.getSnapshot().tactics.home;
+    expect(t1.momentum).toBe(MOMENTUM.start - CARD_DEFS.PRESS.cost);
+    expect(t1.hand).toEqual(['QUICK_PASS', 'PARK_BUS', 'GO_WIDE']); // drawn into the played slot
+    expect(t1.next).toBe('PRESS'); // played card goes to the back
+    expect(t1.activeUntil.PRESS).toBeGreaterThan(e.tick);
+    // Too expensive now: rejected and nothing changes.
+    expect(e.dispatch('PARK_BUS', 'home')).toMatchObject({ ok: false });
+    expect(e.getSnapshot().tactics.home).toEqual(t1);
+    // Halftime and full time reject cards.
     while (e.getSnapshot().phase !== 'halftime') e.advanceTicks(1);
     expect(e.dispatch('QUICK_PASS', 'home')).toMatchObject({ ok: false });
     e.runToEnd();
     expect(e.dispatch('QUICK_PASS', 'home')).toMatchObject({ ok: false, reason: 'The match is over' });
+  });
+
+  it('Momentum refills during play, caps at 10, and the conceding side gets a lift', () => {
+    const e = createMatch(args('mom-1'));
+    e.advanceTicks(MOMENTUM.regenTicks * 3 + 5);
+    expect(e.getSnapshot().tactics.home.momentum).toBeGreaterThanOrEqual(MOMENTUM.start + 2);
+    e.advanceTicks(MOMENTUM.regenTicks * 12);
+    expect(e.getSnapshot().tactics.home.momentum).toBe(MOMENTUM.max);
+    expect(e.getSnapshot().tactics.home.momentumProgress).toBe(0);
+  });
+
+  it('every card is replayed exactly and changes the match', () => {
+    for (const card of Object.keys(CARD_DEFS) as CardId[]) {
+      const deck = ([card, 'QUICK_PASS', 'PRESS', 'GO_WIDE'] as CardId[]).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4);
+      const a = args(`card-${card}`, { home: { ...home, deck } });
+      const plain = playLive(a, {});
+      const played = playLive(a, { [MOMENTUM.regenTicks * 2]: card });
+      expect(played.getCommands().map((c) => c.type)).toEqual([card]);
+      expect(played.getEvents()).not.toEqual(plain.getEvents());
+      expect(replayMatch(a, played.getCommands()).events).toEqual([...played.getEvents()]);
+    }
+  });
+});
+
+describe('cards change behaviour, not just numbers (paired seeds)', () => {
+  const N = 90;
+  const base = makeTeam('card-base', 55);
+  const opp = mirrorOf(makeTeam('card-opp', 55));
+  /** Home plays `card` whenever it is in hand and affordable; compares against never playing it. */
+  const measure = (card: CardId, metric: (r: ReturnType<typeof resultOf>) => number) => {
+    let withCard = 0;
+    let without = 0;
+    for (let i = 0; i < N; i++) {
+      // A 3-card deck never cycles, so the measured card is always in hand.
+      const deck = ([card, 'QUICK_PASS', 'GO_WIDE', 'PRESS'] as CardId[]).filter((c, j, arr) => arr.indexOf(c) === j).slice(0, 3);
+      const a: CreateMatchArgs = { matchId: `p${i}`, seed: `paired-${card}-${i}`, home: { ...base, deck }, away: opp, userSide: 'home' };
+      without += metric(replayMatch(a, []));
+      const e = createMatch(a);
+      while (!e.isFinished()) {
+        e.dispatch(card, 'home');
+        e.advanceTicks(1);
+      }
+      withCard += metric(resultOf(e, a));
+    }
+    return { withCard: withCard / N, without: without / N };
+  };
+  const count = (pred: (e: FootballEvent) => boolean) => (r: ReturnType<typeof resultOf>) => r.events.filter(pred).length;
+
+  it('Go Wide produces more crosses', () => {
+    const ours = new Set(base.players.map((p) => p.id));
+    const m = measure('GO_WIDE', count((e) => e.type === 'PASS' && Boolean(e.cross) && ours.has(e.fromId)));
+    expect(m.withCard).toBeGreaterThan(m.without * 1.3);
+  });
+
+  it('Park the Bus concedes fewer shots and takes fewer', () => {
+    const against = measure('PARK_BUS', (r) => r.stats.shots.away);
+    const taken = measure('PARK_BUS', (r) => r.stats.shots.home);
+    expect(against.withCard).toBeLessThan(against.without * 0.9);
+    expect(taken.withCard).toBeLessThan(taken.without);
+  });
+
+  /** Counts `pred` events during the minutes the card was on, against the same minutes without it. */
+  const windowed = (card: CardId, pred: (e: FootballEvent) => boolean) => {
+    let on = 0;
+    let off = 0;
+    for (let i = 0; i < N; i++) {
+      const deck = ([card, 'QUICK_PASS', 'GO_WIDE', 'PRESS'] as CardId[]).filter((c, j, arr) => arr.indexOf(c) === j).slice(0, 3);
+      const a: CreateMatchArgs = { matchId: `w${i}`, seed: `paired-${card}-w-${i}`, home: { ...base, deck }, away: opp, userSide: 'home' };
+      const e = createMatch(a);
+      while (!e.isFinished()) {
+        e.dispatch(card, 'home');
+        e.advanceTicks(1);
+      }
+      const played = resultOf(e, a);
+      const windows = played.events.flatMap((x) => (x.type === 'TACTIC_APPLIED' && x.team === 'home' ? [[x.minute, x.expiresMinute] as const] : []));
+      const count = (r: typeof played) => r.events.filter((x) => pred(x) && windows.some(([from, to]) => x.minute >= from && x.minute < to)).length;
+      on += count(played);
+      off += count(replayMatch(a, []));
+    }
+    return { on, off };
+  };
+
+  it('All-Out Attack shoots more while it is on, and tires the team', () => {
+    const { on, off } = windowed('ALL_OUT', (x) => x.type === 'SHOT' && x.team === 'home');
+    expect(on).toBeGreaterThan(off * 1.15);
+    const legs = measure('ALL_OUT', (r) => r.stats.fatigue.home);
+    expect(legs.withCard).toBeLessThan(legs.without);
+  });
+
+  it('Target Man wins more headers', () => {
+    const m = measure('TARGET_MAN', count((e) => e.type === 'SHOT' && e.style === 'header' && e.team === 'home'));
+    expect(m.withCard).toBeGreaterThan(m.without * 1.2);
+  });
+
+  it('Hairdryer refreshes legs', () => {
+    const m = measure('HAIRDRYER', (r) => r.stats.fatigue.home);
+    expect(m.withCard).toBeGreaterThan(m.without + 0.02);
+  });
+
+  it('Man-Mark quietens their most dangerous player', () => {
+    const threat = [...opp.players].filter((p) => p.role !== 'GK').sort((a, b) => b.attributes.finishing + b.attributes.dribbling + b.attributes.pace - (a.attributes.finishing + a.attributes.dribbling + a.attributes.pace))[0]!;
+    const { on, off } = windowed('MAN_MARK', (e) => (e.type === 'SHOT' && e.shooterId === threat.id) || (e.type === 'PASS' && e.toId === threat.id && e.outcome === 'complete'));
+    expect(on).toBeLessThan(off * 0.85);
   });
 });
 
@@ -215,13 +321,13 @@ describe('fairness and tactical influence (batch sims)', () => {
     let tacklesPress = 0;
     const N = 120;
     for (let i = 0; i < N; i++) {
-      const plain = replayMatch(args(`press-${i}`), []);
-      const e = createMatch(args(`press-${i}`));
+      const plain = replayMatch(args(`press-${i}`, { home: { ...home, deck: ['PRESS', 'QUICK_PASS', 'GO_WIDE'] } }), []);
+      const e = createMatch(args(`press-${i}`, { home: { ...home, deck: ['PRESS', 'QUICK_PASS', 'GO_WIDE'] } }));
       while (!e.isFinished()) {
         e.dispatch('PRESS', 'home'); // re-press whenever allowed
         e.advanceTicks(1);
       }
-      const pressed = resultOf(e, args(`press-${i}`));
+      const pressed = resultOf(e, args(`press-${i}`, { home: { ...home, deck: ['PRESS', 'QUICK_PASS', 'GO_WIDE'] } }));
       fatigueNo += plain.stats.fatigue.home;
       fatiguePress += pressed.stats.fatigue.home;
       tacklesNo += plain.stats.tacklesWon.home;

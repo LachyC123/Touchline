@@ -4,6 +4,7 @@
  */
 import type { FormationId } from '../../domain/formations';
 import type { Appearance, Position } from '../../domain/players/types';
+import type { CardId } from './cards';
 
 export type TeamSide = 'home' | 'away';
 export interface SimPos {
@@ -66,9 +67,12 @@ export interface TeamLineup {
   kit: { primary: string; secondary: string; pattern?: 'plain' | 'stripes' | 'hoops' | 'sash' | 'halves' };
   formation: FormationId;
   players: LineupPlayer[];
+  /** Manager cards brought to this match, in draw order (absent on lineups frozen before engine-3). */
+  deck?: CardId[];
 }
 
-export type TacticCommand = 'PRESS' | 'QUICK_PASS';
+/** A manager card played during the match. */
+export type TacticCommand = CardId;
 
 export interface MatchCommand {
   type: TacticCommand;
@@ -106,7 +110,7 @@ export type FootballEvent =
   | (EventBase & { type: 'GOAL'; scorerId: string; assistId?: string; team: TeamSide; shotEventId: number })
   | (EventBase & { type: 'SAVE'; keeperId: string; shotEventId: number; at: SimPos; held: boolean; style: SaveStyle; /** a second save from the rebound of the first */ double: boolean })
   | (EventBase & { type: 'RESTART'; kind: RestartKind; team: TeamSide; at: SimPos })
-  | (EventBase & { type: 'TACTIC_APPLIED'; team: TeamSide; command: TacticCommand; expiresMinute: number })
+  | (EventBase & { type: 'TACTIC_APPLIED'; team: TeamSide; command: TacticCommand; expiresMinute: number; markerId?: string; markedId?: string })
   | (EventBase & { type: 'HALFTIME' })
   | (EventBase & { type: 'FULLTIME'; home: number; away: number });
 
@@ -139,10 +143,18 @@ export interface BallSnapshot {
 }
 
 export interface TacticState {
-  /** Tick until which each tactic is active (exclusive); 0 = never activated. */
-  activeUntil: Record<TacticCommand, number>;
-  /** Tick from which each tactic may be used again. */
-  readyAt: Record<TacticCommand, number>;
+  /** Whole Momentum points available (0–10). */
+  momentum: number;
+  /** Progress towards the next point, 0..1 (0 when the bar is full). */
+  momentumProgress: number;
+  /** Cards that can be played now, in slot order. */
+  hand: TacticCommand[];
+  /** The card that replaces the next one played. */
+  next: TacticCommand | null;
+  /** Tick until which each card's effect lasts (exclusive); absent = not active. */
+  activeUntil: Partial<Record<TacticCommand, number>>;
+  /** Man-Mark pairing while it is active. */
+  marking: { markerId: string; targetId: string } | null;
 }
 
 export interface MatchSnapshot {

@@ -48,15 +48,21 @@ test('lineup: tap-to-swap and formation changes persist after reload', async ({ 
   await expect(page.getByRole('status')).toContainText(/goalkeeper/i);
 });
 
-test('match: tactic chip, skip to full time, rewards paid exactly once across reloads', async ({ page }) => {
+test('match: manager card, skip to full time, rewards paid exactly once across reloads', async ({ page }) => {
   await newClub(page);
   const before = await coins(page);
   await page.goto('/#/match');
   await page.getByRole('button', { name: /play match/i }).click();
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await page.waitForTimeout(1500);
-  await page.locator('.tchip').first().click();
-  await expect(page.locator('.tchip').first()).toHaveClass(/is-active/);
+  // Play the first manager card in hand (Quick Pass, 2 Momentum; the bar starts at 4).
+  await page.getByRole('button', { name: 'Pause', exact: true }).click(); // freeze Momentum regen while we check it
+  const momentum = Number(await page.locator('.momentum__num').textContent());
+  expect(momentum).toBeGreaterThanOrEqual(4);
+  await page.getByRole('button', { name: /^resume$/i }).click();
+  await page.locator('.mcard').first().click();
+  await expect(page.locator('.tray__active')).toContainText(/quick pass/i);
+  expect(Number(await page.locator('.momentum__num').textContent())).toBeLessThanOrEqual(momentum - 1);
   await page.getByRole('button', { name: /skip to ft/i }).click();
   await page.getByRole('button', { name: /simulate the rest/i }).click();
   await expect(page.locator('.result__hero')).toBeVisible({ timeout: 20_000 });

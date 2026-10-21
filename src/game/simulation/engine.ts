@@ -20,11 +20,10 @@ import {
   SLIDE,
   STAMINA,
   TACKLE,
-  TACTIC_COOLDOWN_MIN,
-  TACTIC_DURATION_MIN,
   TICKS_PER_MINUTE,
 } from './constants';
 import { clamp, segmentDistance } from './geometry';
+import { AI_DECKS, CARD_DEFS, DECK_MAX, DECK_MIN, DEFAULT_DECK, HAND_SIZE, MOMENTUM, isCardId, type CardId } from './cards';
 import { keeperSkill, shotXg } from './shotModel';
 import {
   allPlayers,
@@ -74,7 +73,28 @@ export interface CreateMatchArgs {
 
 type EventInput = FootballEvent extends infer E ? (E extends FootballEvent ? Omit<E, 'id' | 'tick' | 'minute'> : never) : never;
 
-const COMMANDS: readonly TacticCommand[] = ['PRESS', 'QUICK_PASS'];
+/** A valid brought deck (3–5 distinct cards), else the default for this bench. */
+function deckOf(l: TeamLineup, controlled: boolean): CardId[] {
+  const d = l.deck;
+  if (d && d.length >= DECK_MIN && d.length <= DECK_MAX && new Set(d).size === d.length && d.every(isCardId)) return [...d];
+  return [...(controlled ? DEFAULT_DECK : AI_DECKS[l.aiStyle])];
+}
+
+function teamState(l: TeamLineup, side: TeamSide, controlledBy: 'user' | 'ai'): EngineState['teams'][TeamSide] {
+  const deck = deckOf(l, controlledBy === 'user');
+  return {
+    side,
+    lineup: l,
+    players: buildPlayers(l, side),
+    activeUntil: {},
+    momentum: MOMENTUM.start,
+    momentumTicks: 0,
+    hand: deck.slice(0, HAND_SIZE),
+    queue: deck.slice(HAND_SIZE),
+    marking: null,
+    controlledBy,
+  };
+}
 
 function emptyStats(): MatchStats {
   const pair = () => ({ home: 0, away: 0 });
@@ -114,7 +134,6 @@ export class MatchEngine {
     validateLineup(args.home);
     validateLineup(args.away);
     if (new Set([...args.home.players, ...args.away.players].map((p) => p.id)).size !== 14) throw new Error('A player cannot play for both teams');
-    const ready = { PRESS: 0, QUICK_PASS: 0 };
     this.st = {
       matchId: args.matchId,
       seed: args.seed,
@@ -126,8 +145,8 @@ export class MatchEngine {
       phaseTicks: 0,
       score: { home: 0, away: 0 },
       teams: {
-        home: { side: 'home', lineup: args.home, players: buildPlayers(args.home, 'home'), activeUntil: { PRESS: 0, QUICK_PASS: 0 }, readyAt: { ...ready }, controlledBy: args.userSide === 'home' ? 'user' : 'ai' },
-        away: { side: 'away', lineup: args.away, players: buildPlayers(args.away, 'away'), activeUntil: { PRESS: 0, QUICK_PASS: 0 }, readyAt: { ...ready }, controlledBy: args.userSide === 'away' ? 'user' : 'ai' },
+        home: teamState(args.home, 'home', args.userSide === 'home' ? 'user' : 'ai'),
+        away: teamState(args.away, 'away', args.userSide === 'away' ? 'user' : 'ai'),
       },
       ball: { x: 50, y: 75, z: 0, vx: 0, vy: 0, state: 'dead', ownerId: null, lastTouchSide: 'home', lastTouchId: null, flight: null },
       restart: null,
@@ -171,14 +190,16 @@ export class MatchEngine {
    */
   dispatch(type: TacticCommand, side: TeamSide, atTick?: number): CommandResult {
     const st = this.st;
-    if (!COMMANDS.includes(type)) return { ok: false, reason: 'Unknown command' };
+    if (!isCardId(type)) return { ok: false, reason: 'Unknown card' };
     if (st.phase === 'fulltime') return { ok: false, reason: 'The match is over' };
     if (st.phase === 'halftime') return { ok: false, reason: 'Wait for the second half' };
     const tick = atTick ?? st.tick;
     if (tick !== st.tick) return { ok: false, reason: 'Commands can only be applied at the current tick' };
     const team = st.teams[side];
-    if (team.activeUntil[type] > tick) return { ok: false, reason: 'Already active' };
-    if (team.readyAt[type] > tick) return { ok: false, reason: `Ready in ${Math.ceil((team.readyAt[type] - tick) / TICKS_PER_MINUTE)}'` };
+    if (!team.hand.includes(type)) return { ok: false, reason: 'That card is not in your hand' };
+    if ((team.activeUntil[type] ?? 0) > tick) return { ok: false, reason: 'Already active' };
+    const queuedCost = st.pending.filter((c) => c.side === side).reduce((sum, c) => sum + CARD_DEFS[c.type].cost, 0);
+    if (team.momentum - queuedCost < CARD_DEFS[type].cost) return { ok: false, reason: `Needs ${CARD_DEFS[type].cost} Momentum` };
     if (st.pending.some((c) => c.type === type && c.side === side)) return { ok: false, reason: 'Already queued' };
     const command: MatchCommand = { type, side, tick };
     st.pending.push(command);
@@ -187,7 +208,17 @@ export class MatchEngine {
 
   getSnapshot(): MatchSnapshot {
     const st = this.st;
-    const tactic = (side: TeamSide) => ({ activeUntil: { ...st.teams[side].activeUntil }, readyAt: { ...st.teams[side].readyAt } });
+    const tactic = (side: TeamSide) => {
+      const t = st.teams[side];
+      return {
+        momentum: t.momentum,
+        momentumProgress: t.momentum >= MOMENTUM.max ? 0 : t.momentumTicks / MOMENTUM.regenTicks,
+        hand: [...t.hand],
+        next: t.queue[0] ?? null,
+        activeUntil: { ...t.activeUntil },
+        marking: t.marking && (t.activeUntil.MAN_MARK ?? 0) > st.tick ? { ...t.marking } : null,
+      };
+    };
     return {
       tick: st.tick,
       minute: this.minute(),
@@ -280,6 +311,7 @@ export class MatchEngine {
     st.phaseTicks++;
     if (st.phase === 'play' || st.phase === 'restart') {
       st.playTick++;
+      this.regenMomentum();
       if (st.possession) st.stats.possessionTicks[st.possession]++;
     }
     // The whistle waits for a goal celebration, a penalty to be taken and any shot in flight.
@@ -293,32 +325,103 @@ export class MatchEngine {
     if (st.pending.length === 0) return;
     const now = st.pending.filter((c) => c.tick <= st.tick);
     st.pending = st.pending.filter((c) => c.tick > st.tick);
-    for (const c of now) {
-      const team = st.teams[c.side];
-      team.activeUntil[c.type] = st.tick + TACTIC_DURATION_MIN * TICKS_PER_MINUTE;
-      team.readyAt[c.type] = st.tick + TACTIC_COOLDOWN_MIN * TICKS_PER_MINUTE;
-      st.commands.push({ ...c, tick: st.tick });
-      this.emit({ type: 'TACTIC_APPLIED', team: c.side, command: c.type, expiresMinute: Math.min(90, this.minute() + TACTIC_DURATION_MIN) });
+    for (const c of now) this.playCard(c);
+  }
+
+  /** Spend Momentum, cycle the hand and start the card's effect on the simulation. */
+  private playCard(c: MatchCommand): void {
+    const st = this.st;
+    const team = st.teams[c.side];
+    const def = CARD_DEFS[c.type];
+    const slot = team.hand.indexOf(c.type);
+    if (slot < 0 || team.momentum < def.cost) return; // validated at dispatch; defensive
+    team.momentum -= def.cost;
+    // Played card goes to the back of the draw pile; the next card takes its slot.
+    const drawn = team.queue.shift();
+    team.queue.push(c.type);
+    if (drawn !== undefined) team.hand[slot] = drawn;
+    else team.hand.splice(slot, 1, c.type);
+    if (def.shape) {
+      for (const other of ['PARK_BUS', 'ALL_OUT'] as const) if (other !== c.type) delete team.activeUntil[other];
+    }
+    const minutes = def.durationMin > 0 ? def.durationMin : 0;
+    team.activeUntil[c.type] = st.tick + Math.max(1, minutes * TICKS_PER_MINUTE);
+    let extra: { markerId?: string; markedId?: string } = {};
+    if (c.type === 'HAIRDRYER') {
+      for (const p of team.players) p.stamina = Math.min(1, p.stamina + 0.15);
+    }
+    if (c.type === 'MAN_MARK') {
+      const threat = (p: PState) => p.lp.attributes.finishing + p.lp.attributes.dribbling + p.lp.attributes.pace;
+      const guard = (p: PState) => p.lp.attributes.marking * 1.2 + p.lp.attributes.tackling + (p.slot.position === 'DEF' ? 20 : 0);
+      const target = [...st.teams[other(c.side)].players].filter((p) => p.slot.position !== 'GK').sort((a, b) => threat(b) - threat(a) || a.index - b.index)[0];
+      const marker = [...team.players].filter((p) => p.slot.position !== 'GK').sort((a, b) => guard(b) - guard(a) || a.index - b.index)[0];
+      if (target && marker) {
+        team.marking = { markerId: marker.id, targetId: target.id };
+        extra = { markerId: marker.id, markedId: target.id };
+      }
+    }
+    st.commands.push({ ...c, tick: st.tick });
+    this.emit({ type: 'TACTIC_APPLIED', team: c.side, command: c.type, expiresMinute: Math.min(90, this.minute() + minutes), ...extra });
+  }
+
+  /** Momentum fills during play (not during goal celebrations or the break). A full bar wastes regen. */
+  private regenMomentum(): void {
+    for (const side of ['home', 'away'] as const) {
+      const team = this.st.teams[side];
+      if (team.momentum >= MOMENTUM.max) {
+        team.momentumTicks = 0;
+        continue;
+      }
+      if (++team.momentumTicks >= MOMENTUM.regenTicks) {
+        team.momentum++;
+        team.momentumTicks = 0;
+      }
     }
   }
 
-  /** Deterministic AI manager: uses the same chips under the same rules as the player. */
+  /**
+   * Deterministic AI manager: plays the same cards under the same Momentum rules as the
+   * player, reading the score, the clock and its own style.
+   */
   private aiManagers(): void {
     const st = this.st;
-    if (st.tick % 60 !== 0 || st.phase === 'goal') return;
+    if (st.tick % 30 !== 0 || st.phase === 'goal' || st.phase === 'halftime') return;
     for (const side of ['home', 'away'] as const) {
       const team = st.teams[side];
       if (team.controlledBy !== 'ai') continue;
       const minute = this.minute();
       const diff = st.score[side] - st.score[other(side)];
       const style = team.lineup.aiStyle;
-      const ready = (c: TacticCommand) => team.readyAt[c] <= st.tick && team.activeUntil[c] <= st.tick;
-      if (ready('PRESS') && ((diff < 0 && minute > 55) || (style === 'press' && minute > 8 && st.rng.chance(0.45)))) {
-        this.dispatch('PRESS', side);
-      } else if (ready('QUICK_PASS') && ((style === 'passing' && minute > 5 && st.rng.chance(0.4)) || (diff < 0 && minute > 70))) {
-        this.dispatch('QUICK_PASS', side);
+      const tiredness = 1 - team.players.reduce((s, p) => s + p.stamina, 0) / team.players.length;
+      const want = (c: CardId): number => {
+        if (!team.hand.includes(c) || (team.activeUntil[c] ?? 0) > st.tick || team.momentum < CARD_DEFS[c].cost) return -1;
+        switch (c) {
+          case 'ALL_OUT':
+            return diff < 0 && minute > 60 ? 3 : -1;
+          case 'PARK_BUS':
+            return diff > 0 && minute > 70 ? 3 : style === 'counter' && diff >= 0 && minute > 30 ? 1 : -1;
+          case 'HAIRDRYER':
+            return tiredness > 0.22 || (diff < 0 && minute > 45) ? 2 : -1;
+          case 'PRESS':
+            return (diff < 0 && minute > 50 ? 2 : 0) + (style === 'press' && minute > 8 ? 1.5 : 0) + (diff > 1 ? -2 : 0) || (minute > 15 ? 0.4 : -1);
+          case 'QUICK_PASS':
+            return (style === 'passing' ? 1.5 : 0.5) + (diff < 0 && minute > 70 ? 1 : 0);
+          case 'GO_WIDE':
+            return style === 'direct' || style === 'balanced' ? 1 : 0.4;
+          case 'TARGET_MAN':
+            return style === 'direct' ? 1.4 : 0.5;
+          case 'MAN_MARK':
+            return minute > 10 ? (style === 'counter' || style === 'passing' ? 1.3 : 0.6) : -1;
+        }
+      };
+      // Save up a little unless the moment is right; spend when the bar is nearly full.
+      const best = team.hand.map((c) => ({ c, w: want(c) })).filter((x) => x.w > 0).sort((a, b) => b.w - a.w || CARD_DEFS[b.c].cost - CARD_DEFS[a.c].cost)[0];
+      if (!best) continue;
+      const urgency = best.w >= 2 || team.momentum >= 8 ? 0.8 : 0.25;
+      if (st.rng.chance(urgency)) {
+        this.dispatch(best.c, side);
+        this.applyPending();
       }
-      this.applyPending();
     }
   }
 
@@ -710,9 +813,12 @@ export class MatchEngine {
     const a = c.lp.attributes;
     const pressure = pressureAt(st, c.side, c);
     const d = Math.hypot(intended.x - c.x, intended.y - c.y);
-    const quickUnderPress = (isTacticActive(st, c.side, 'QUICK_PASS') && pressure > 0.8 ? 1.25 : 1) * (isTacticActive(st, other(c.side), 'PRESS') ? 1 + pressure * 0.35 : 1);
+    // Quick Pass is the answer to a press: one-touch balls don't give the pressers time to bite.
+    const quick = isTacticActive(st, c.side, 'QUICK_PASS');
+    const quickUnderPress = isTacticActive(st, other(c.side), 'PRESS') ? (quick ? 0.9 : 1 + pressure * 0.35) : 1;
     const weakFoot = c.lp.strongFoot === 'both' || c.traits.has('twoFooted') ? 1 : 1.08;
-    const errRadius = d * (0.015 + ((100 - a.passing) / 100) * 0.17) * (1 + pressure * 0.7) * quickUnderPress * weakFoot * (c.traits.has('needlePass') ? 0.9 : 1);
+    const calm = isTacticActive(st, c.side, 'HAIRDRYER') ? 0.6 : 1;
+    const errRadius = d * (0.015 + ((100 - a.passing) / 100) * 0.17) * (1 + pressure * 0.7 * calm) * quickUnderPress * weakFoot * (c.traits.has('needlePass') ? 0.9 : 1);
     const target = {
       x: clamp(intended.x + st.rng.normal(0, errRadius * 0.6), 1, 99),
       y: clamp(intended.y + st.rng.normal(0, errRadius * 0.6), 1, PITCH_L - 1),
@@ -727,6 +833,10 @@ export class MatchEngine {
   /** Best aerial target in the box for a cross, if anyone is there. */
   private crossTarget(c: PState): PState | undefined {
     const st = this.st;
+    if (isTacticActive(st, c.side, 'TARGET_MAN')) {
+      const tm = this.targetManOf(c.side);
+      if (tm && tm !== c && tm.stumble === 0) return tm;
+    }
     const goalY = attackGoalY(st, c.side);
     return st.teams[c.side].players
       .filter((t) => t !== c && t.slot.position !== 'GK' && t.stumble === 0 && Math.abs(t.y - goalY) < 30 && Math.abs(t.x - 50) < 20)
@@ -787,7 +897,7 @@ export class MatchEngine {
     const dGoal = Math.hypot(50 - c.x, goalY - c.y);
     const style: ShotStyle = forced === 'volley' && st.ball.z < 0.6 && dGoal > 26 ? 'long' : (forced ?? (dGoal > 26 ? 'long' : 'normal'));
     const setPiece = style === 'penalty' || style === 'freeKick';
-    const pressure = setPiece ? 0 : pressureAt(st, side, c);
+    const pressure = setPiece ? 0 : Math.min(1.5, pressureAt(st, side, c) * (isTacticActive(st, side, 'HAIRDRYER') ? 0.6 : 1) + (this.markerNear(c, 5) ? 0.4 : 0));
     const keeperDown = Boolean(keeper && (keeper.stumble > 0 || keeper.action === 'dive'));
     const xg = shotXg({
       from,
@@ -1016,7 +1126,9 @@ export class MatchEngine {
     if (receiver && Math.hypot(receiver.x - b.x, receiver.y - b.y) <= BALL.receiveRadius && receiver.stumble === 0) {
       const pressure = pressureAt(st, receiver.side, receiver);
       const pressedBy = isTacticActive(st, other(receiver.side), 'PRESS') ? 0.1 : 0;
-      const pControl = clamp(0.72 + (receiver.lp.attributes.ballControl / 100) * 0.3 - pressure * (0.16 + pressedBy) - (f.peakZ > 2 ? 0.08 : 0), 0.4, 0.99);
+      const calm = isTacticActive(st, receiver.side, 'HAIRDRYER') ? 0.6 : 1;
+      const shadowed = this.markerNear(receiver, 4) ? 0.1 : 0;
+      const pControl = clamp(0.72 + (receiver.lp.attributes.ballControl / 100) * 0.3 - pressure * (0.16 + pressedBy) * calm - shadowed - (f.peakZ > 2 ? 0.08 : 0), 0.4, 0.99);
       if (st.rng.chance(pControl)) {
         this.emit({ type: 'PASS', fromId: f.kickerId, toId: receiver.id, start, end, outcome: 'complete' });
         st.stats.passesCompleted[f.side]++;
@@ -1062,7 +1174,8 @@ export class MatchEngine {
     const def = near(st.teams[defSide].players.filter((p) => p.slot.position !== 'GK'));
     if (att) {
       const aa = att.lp.attributes;
-      const pWin = def ? clamp(0.48 + (aa.strength - def.lp.attributes.strength) / 140 + (aa.finishing - def.lp.attributes.marking) / 320, 0.15, 0.85) : 0.92;
+      const targetMan = isTacticActive(st, f.side, 'TARGET_MAN') && att === this.targetManOf(f.side) ? 0.12 : 0;
+      const pWin = def ? clamp(0.48 + targetMan + (aa.strength - def.lp.attributes.strength) / 140 + (aa.finishing - def.lp.attributes.marking) / 320, 0.15, 0.88) : 0.92;
       if (st.rng.chance(pWin)) {
         this.emit({ type: 'PASS', fromId: f.kickerId, toId: att.id, start, end, outcome: 'complete', cross: true });
         st.stats.passesCompleted[f.side]++;
@@ -1109,6 +1222,8 @@ export class MatchEngine {
     switch (plan.outcome) {
       case 'goal': {
         st.score[f.side]++;
+        const lifted = st.teams[other(f.side)];
+        lifted.momentum = Math.min(MOMENTUM.max, lifted.momentum + MOMENTUM.concedeBonus);
         st.lastScorerId = f.kickerId;
         this.emit({ type: 'GOAL', scorerId: f.kickerId, team: f.side, shotEventId: plan.eventId, ...(plan.assistId ? { assistId: plan.assistId } : {}) });
         b.state = 'dead';
@@ -1342,6 +1457,7 @@ export class MatchEngine {
       if (dist > range && !runningAway) continue;
       let attempt = pressing ? TACKLE.pressAttemptChance : TACKLE.attemptChance;
       if (style === 'slide') attempt *= 0.45;
+      if (this.isMarking(d, carrier)) attempt = Math.min(0.9, attempt * 1.5);
       if (d.booked) attempt *= 0.6;
       if (!st.rng.chance(attempt)) continue;
 
@@ -1364,7 +1480,8 @@ export class MatchEngine {
         return;
       }
 
-      let p = TACKLE.baseSuccess + (da.tackling - ca.dribbling) / 110 + (da.strength - ca.strength) / 300 + (pressing ? TACKLE.pressSuccessBonus : 0) + (style === 'slide' ? SLIDE.successBonus : 0);
+      const onHisMan = this.isMarking(d, carrier) ? 0.1 : 0;
+      let p = onHisMan + TACKLE.baseSuccess + (da.tackling - ca.dribbling) / 110 + (da.strength - ca.strength) / 300 + (pressing ? TACKLE.pressSuccessBonus : 0) + (style === 'slide' ? SLIDE.successBonus : 0);
       if (d.traits.has('brickWall')) p += 0.04;
       p -= (1 - d.stamina) * 0.15;
       const won = st.rng.chance(clamp(p, 0.12, 0.78));
@@ -1460,10 +1577,31 @@ export class MatchEngine {
     const sprint = Math.max(0, speed / (MOVE.baseSpeed + MOVE.paceSpeed) - 0.55);
     const pressing = isTacticActive(st, p.side, 'PRESS');
     let mult = pressing && st.possession !== p.side ? STAMINA.pressMultiplier : 1;
+    if (isTacticActive(st, p.side, 'ALL_OUT')) mult *= 1.3;
     if (p.traits.has('ironLungs')) mult *= 0.8;
     const fitness = 1.15 - (p.lp.attributes.stamina / 100) * 0.5;
     const base = STAMINA.baseDrain * (pressing ? 1.6 : 1);
     p.stamina = Math.max(0.05, p.stamina - (base + sprint * STAMINA.sprintDrain * mult) * fitness);
+  }
+
+  /** Target Man: the team's best header of the ball (strength first). */
+  private targetManOf(side: TeamSide): PState | undefined {
+    const score = (p: PState) => p.lp.attributes.strength * 0.6 + p.lp.attributes.finishing * 0.4;
+    return [...this.st.teams[side].players].filter((p) => p.slot.position !== 'GK').sort((a, b) => score(b) - score(a) || a.index - b.index)[0];
+  }
+
+  /** Is `d` the Man-Mark shadow assigned to `target`? */
+  private isMarking(d: PState, target: PState): boolean {
+    const t = this.st.teams[d.side];
+    return Boolean(t.marking && isTacticActive(this.st, d.side, 'MAN_MARK') && t.marking.markerId === d.id && t.marking.targetId === target.id);
+  }
+
+  /** The player being man-marked has his shadow within `r` units. */
+  private markerNear(p: PState, r: number): boolean {
+    const opp = this.st.teams[other(p.side)];
+    if (!opp.marking || opp.marking.targetId !== p.id || !isTacticActive(this.st, opp.side, 'MAN_MARK')) return false;
+    const m = findPlayer(this.st, opp.marking.markerId);
+    return Boolean(m && Math.hypot(m.x - p.x, m.y - p.y) < r);
   }
 
   private emit(e: EventInput): FootballEvent {

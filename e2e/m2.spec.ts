@@ -54,9 +54,11 @@ test('cold install → story → first pack → lineup → guided match → upgr
   // The guided tactic prompt appears once we have the ball (or is dismissible); tapping the chip uses it.
   const coach = page.locator('.live__coach');
   await expect(coach).toBeVisible({ timeout: 90_000 });
-  await page.locator('.tchip.coach-target').click();
+  const target = page.locator('.mcard.coach-target');
+  const name = ((await target.locator('.mc__name').textContent()) ?? '').trim();
+  await target.click();
   await expect(coach).toHaveCount(0);
-  await expect(page.locator('.tchip').nth(1)).toHaveClass(/is-active/);
+  await expect(page.locator('.tray__active')).toContainText(new RegExp(name, 'i'));
 
   await page.getByRole('button', { name: /skip to ft/i }).click();
   await page.getByRole('button', { name: /simulate the rest/i }).click();
@@ -122,4 +124,26 @@ test('tutorial can be replayed from More without re-granting rewards', async ({ 
   await expect(page.locator('.club__hud')).toBeVisible();
   await tab(page, 'Scout').click();
   await expect(page.locator('.scout__pack')).toHaveCount(1);
+});
+
+test('manager cards: deck screen edits persist, locked cards explain themselves, deck reaches the match', async ({ page }) => {
+  await startCareerSkippingTutorial(page);
+  await page.goto('/#/match');
+  await page.getByRole('button', { name: /^deck/i }).click();
+  await expect(page.locator('.deck__slots .mc')).toHaveCount(4);
+  // Locked card: tells you the level, changes nothing.
+  await page.getByRole('button', { name: /^man-mark/i }).click();
+  await expect(page.locator('.toasts')).toContainText(/manager level 5/i);
+  // Take Go Wide out (tap it in the deck), reload: still out.
+  await page.locator('.deck__slots').getByRole('button', { name: /^go wide/i }).click();
+  await expect(page.locator('.deck__slots .mc')).toHaveCount(3);
+  await page.reload();
+  await expect(page.locator('.deck__slots .mc')).toHaveCount(3);
+  // Can't go below three.
+  await page.locator('.deck__slots').getByRole('button', { name: /^press/i }).click();
+  await expect(page.locator('.deck__slots .mc')).toHaveCount(3);
+  // The match hand is the deck's first three.
+  await page.goto('/#/match');
+  await page.getByRole('button', { name: /play match/i }).click();
+  await expect(page.locator('.tray__hand .mc__name')).toHaveText([/quick pass/i, /press/i, /park the bus/i]);
 });

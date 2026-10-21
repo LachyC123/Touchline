@@ -12,6 +12,8 @@ import { fixtureFor, opponentSquad, squadAverage } from '../../domain/club/oppon
 import { FORMATION_DEFS } from '../../domain/formations';
 import { overall } from '../../domain/players/rating';
 import { CoachMark } from '../../components/ui/CoachMark';
+import { ManagerCard } from '../../components/manager/ManagerCard';
+import { AI_DECKS, CARD_DEFS, HAND_SIZE } from '../../game/simulation/cards';
 import { UpgradePicker } from './UpgradePicker';
 import './match.css';
 
@@ -136,6 +138,29 @@ export function MatchLobby() {
       )}
 
       {!pending && (
+        <section className="lobby__cards panel" aria-labelledby="lobby-cards">
+          <div className="lobby__team-head">
+            <h2 id="lobby-cards" className="eyebrow">
+              Manager cards
+            </h2>
+            <Button variant="ghost" size="sm" icon="flip" onClick={() => navigate({ name: 'cards' })}>
+              Deck{save.newCards.length ? ` (${save.newCards.length} new)` : ''}
+            </Button>
+          </div>
+          <div className="lobby__deck">
+            {save.deck.map((id, i) => (
+              <div key={id} className={i < HAND_SIZE ? 'is-hand' : ''}>
+                <ManagerCard id={id} variant="hand" />
+              </div>
+            ))}
+          </div>
+          <p className="lobby__note">
+            First {HAND_SIZE} are your opening hand. {club.name}’s bench brings: {AI_DECKS[club.aiStyle].map((c) => CARD_DEFS[c].name).join(', ')}.
+          </p>
+        </section>
+      )}
+
+      {!pending && (
         <section className="lobby__team panel">
           <div className="lobby__team-head">
             <div>
@@ -187,7 +212,7 @@ export function MatchLobby() {
           >
             {busy ? 'Walking out…' : 'Play match'}
           </Button>
-          <p className="lobby__note">About two minutes · use PRESS and QUICK PASS to change the game</p>
+          <p className="lobby__note">About two minutes · spend Momentum on manager cards to change the game</p>
         </div>
       )}
 

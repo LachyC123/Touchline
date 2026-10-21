@@ -175,10 +175,10 @@ describe('club identity', () => {
 describe('migration v2 → v3', () => {
   it('keeps players and marks existing careers as onboarded', () => {
     const v3 = createCareer('mig', 'x');
-    const { packs: _p, onboarding: _o, tipsSeen: _t, ...rest } = v3;
+    const { packs: _p, onboarding: _o, tipsSeen: _t, cardsUnlocked: _c, deck: _d, newCards: _n, ...rest } = v3;
     const v2 = { ...rest, schemaVersion: 2, contentVersion: 'content-2', packInventory: {}, tutorialStep: 'start' };
     const migrated = migrateSave(v2);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.onboarding).toBe('done');
     expect(migrated.packs).toEqual([]);
     expect(migrated.footballers).toEqual(v3.footballers);

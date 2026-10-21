@@ -7,7 +7,7 @@ import { Icon, type IconName } from '../icons/Icon';
 const TABS: { route: Route; label: string; icon: IconName; match: Route['name'][] }[] = [
   { route: { name: 'club' }, label: 'Club', icon: 'club', match: ['club'] },
   { route: { name: 'squad' }, label: 'Squad', icon: 'squad', match: ['squad', 'player'] },
-  { route: { name: 'match' }, label: 'Match', icon: 'whistle', match: ['match', 'lineup', 'result'] },
+  { route: { name: 'match' }, label: 'Match', icon: 'whistle', match: ['match', 'lineup', 'result', 'cards'] },
   { route: { name: 'scout' }, label: 'Scout', icon: 'scout', match: ['scout', 'pack'] },
   { route: { name: 'more' }, label: 'More', icon: 'more', match: ['more', 'lab'] },
 ];
@@ -17,7 +17,7 @@ export function BottomNav({ current }: { current: Route }) {
   const { saveState } = useGame();
   const save = saveState.status === 'ready' ? saveState.save : null;
   const packs = save ? unopenedPacks(save).length : 0;
-  const levelUps = save?.pendingUpgrades.length ?? 0;
+  const levelUps = (save?.pendingUpgrades.length ?? 0) + (save?.newCards.length ?? 0);
   const badges: Partial<Record<string, number>> = { Scout: packs, Match: levelUps };
   return (
     <nav className="bottom-nav" aria-label="Main">

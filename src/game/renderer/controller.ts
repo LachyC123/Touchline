@@ -1,3 +1,4 @@
+import { CARD_DEFS } from '../simulation/cards';
 import { BALL, TICKS_PER_SECOND } from '../simulation/constants';
 import type { MatchEngine } from '../simulation/engine';
 import type { CommandResult, FootballEvent, MatchSnapshot, TacticCommand, TeamLineup, TeamSide } from '../simulation/types';
@@ -27,6 +28,8 @@ export interface ControllerListener {
   onFoul?(e: Extract<FootballEvent, { type: 'FOUL' }>): void;
   onClearance?(e: Extract<FootballEvent, { type: 'CLEARANCE' }>): void;
   onRestart?(e: Extract<FootballEvent, { type: 'RESTART' }>): void;
+  /** A manager card was played (by either bench). */
+  onCard?(e: Extract<FootballEvent, { type: 'TACTIC_APPLIED' }>): void;
   onSave?(e: Extract<FootballEvent, { type: 'SAVE' }>): void;
   onShot?(e: Extract<FootballEvent, { type: 'SHOT' }>): void;
   onTackle?(e: Extract<FootballEvent, { type: 'TACKLE' }>): void;
@@ -282,13 +285,13 @@ export class MatchController {
         case 'PASS':
           if (e.outcome === 'intercepted' && e.interceptedBy && !e.cross) this.say({ text: `Read it! ${this.nameOf(e.interceptedBy)} cuts it out.`, tone: 'info' });
           break;
-        case 'TACTIC_APPLIED':
-          this.say({
-            text: `${this.teamName(e.team)} ${e.command === 'PRESS' ? 'press high' : 'move it quickly'} until ${e.expiresMinute}'.`,
-            tone: 'tactic',
-            side: e.team,
-          });
+        case 'TACTIC_APPLIED': {
+          for (const l of this.listeners) l.onCard?.(e);
+          const def = CARD_DEFS[e.command];
+          const extra = e.command === 'MAN_MARK' && e.markerId && e.markedId ? ` ${this.nameOf(e.markerId)} will shadow ${this.nameOf(e.markedId)}.` : def.durationMin ? ` Until ${e.expiresMinute}'.` : '';
+          this.say({ text: `${this.teamName(e.team)} play ${def.name}${def.name.endsWith('!') ? '' : '!'}${extra}`, tone: 'tactic', side: e.team });
           break;
+        }
         case 'RESTART':
           for (const l of this.listeners) l.onRestart?.(e);
           if (e.kind === 'corner') this.say({ text: `Corner to ${this.teamName(e.team)}.`, tone: 'info', side: e.team });

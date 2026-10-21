@@ -45,6 +45,8 @@ export class MatchScene extends Phaser.Scene {
   private nets: Phaser.GameObjects.Graphics[] = [];
   private scorerId: string | null = null;
   private trailColour = 0xffffff;
+  private tether!: Phaser.GameObjects.Graphics;
+  private feet = new Map<string, { x: number; y: number }>();
 
   constructor(
     private readonly controller: MatchController,
@@ -79,6 +81,7 @@ export class MatchScene extends Phaser.Scene {
     }
 
     this.trail = this.add.graphics().setDepth(PITCH_L * S + 5);
+    this.tether = this.add.graphics().setDepth(1.2);
     this.ballShadow = this.add.ellipse(0, 0, 1.6 * S, 0.7 * S, 0x000000, 0.35).setDepth(1);
     const ballG = this.add.graphics();
     ballG.fillStyle(0xffffff, 1).fillCircle(0, 0, 0.78 * S);
@@ -413,6 +416,7 @@ export class MatchScene extends Phaser.Scene {
         sprint: (this.pace.get(p.id) ?? 0) >= 72 && p.speed > 1.3,
       });
       f.rig.root.setDepth(2 + w.y / S);
+      this.feet.set(p.id, w);
       f.rig.ring.clear();
       if (has || f.isUser) {
         // Our players: lime rings; an opposition carrier gets a white one.
@@ -421,6 +425,24 @@ export class MatchScene extends Phaser.Scene {
       }
       f.label.setVisible(has || (p.action === 'celebrate' && p.id === this.scorerId));
       if (f.label.visible) f.label.setPosition(w.x, w.y - 10.5 * S);
+    }
+
+    // Man-Mark: a dashed tether on the turf between the shadow and his man.
+    this.tether.clear();
+    for (const side of ['home', 'away'] as const) {
+      const m = curr.tactics[side].marking;
+      const a = m && this.feet.get(m.markerId);
+      const b = m && this.feet.get(m.targetId);
+      if (!a || !b) continue;
+      const colour = side === this.controller.userSide ? 0xcbf238 : 0xfff7e9;
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      const n = Math.max(1, Math.floor(d / (1.4 * S)));
+      this.tether.lineStyle(Math.max(1, 0.22 * S), colour, 0.7);
+      for (let i = 0; i < n; i += 2) {
+        const t0 = i / n;
+        const t1 = Math.min(1, (i + 1) / n);
+        this.tether.lineBetween(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0, a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1);
+      }
     }
 
     // Ball (with height): shadow on the turf, ball lifted by z.

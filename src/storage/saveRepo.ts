@@ -1,5 +1,7 @@
 import { advanceOnboarding, applyClubIdentity, type ClubIdentityChoice, type OnboardingEvent } from '../domain/club/onboarding';
 import { createCareer } from '../domain/club/newCareer';
+import { deckProblem } from '../domain/club/manager';
+import type { CardId } from '../game/simulation/cards';
 import { openPackDraft } from '../domain/packs/packs';
 import { assignToSlot, autoLineup, changeFormation } from '../domain/club/lineup';
 import type { FormationId } from '../domain/formations';
@@ -324,5 +326,21 @@ export function setClubIdentity(choice: ClubIdentityChoice, db?: TouchlineDB): P
     const next = applyClubIdentity(s.club, choice);
     s.club = { ...s.club, ...next };
     s.onboarding = advanceOnboarding(s.onboarding, 'clubNamed');
+  }, {}, db);
+}
+
+// ---------------------------------------------------------------------------- manager cards
+
+export function setDeck(deck: CardId[], db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    const problem = deckProblem(deck, s.cardsUnlocked);
+    if (problem) throw new Error(problem);
+    s.deck = [...deck];
+  }, {}, db);
+}
+
+export function markCardsSeen(db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    s.newCards = [];
   }, {}, db);
 }

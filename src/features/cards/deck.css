@@ -1,0 +1,159 @@
+.deck {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.deck .screen-head {
+  margin-bottom: 0;
+}
+
+.deck__level-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+.deck__level-row b {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.deck__bar {
+  height: 10px;
+  margin: 6px 0;
+  overflow: hidden;
+  border-radius: 5px;
+  background: rgb(27 34 53 / 0.15);
+}
+
+.deck__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--pitch), var(--lime));
+}
+
+.deck__level p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.deck__how p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.deck__h {
+  margin-bottom: var(--s-3);
+}
+
+.deck__slots {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 10px 6px 0;
+  list-style: none;
+}
+
+.deck__slots li {
+  position: relative;
+  min-height: 112px;
+  padding: 6px 2px 4px;
+  border-radius: var(--r-md);
+}
+
+.deck__slots li.is-hand {
+  background: rgb(203 242 56 / 0.12);
+}
+
+.deck__empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 100px;
+  border: 2px dashed rgb(255 247 233 / 0.25);
+  border-radius: 12px;
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.deck__hint {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.deck__card {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  transition: translate var(--dur-release) var(--ease-spring);
+}
+
+.deck__card:active {
+  translate: 0 3px;
+}
+
+.deck__card .mc {
+  height: 100%;
+}
+
+.deck__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4) var(--s-3);
+  margin: 0;
+  padding: 10px 6px 0;
+  list-style: none;
+}
+
+.deck__grid li,
+.deck__grid .deck__card,
+.deck__grid .mc {
+  height: 100%;
+}
+
+.deck__card.is-in .mc {
+  outline: 4px solid var(--lime);
+  outline-offset: 2px;
+}
+
+.deck__tick {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--lime);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+@media (max-width: 360px) {
+  .deck__slots {
+    gap: 5px;
+  }
+  .deck__slots .mc__name {
+    font-size: 11px;
+  }
+}
+
+/* Room for the lock label / in-deck tick so they never cover the card's text. */
+.deck__grid .mc {
+  padding-bottom: 36px;
+}

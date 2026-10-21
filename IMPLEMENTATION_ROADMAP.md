@@ -75,6 +75,15 @@ Also added in M2 (needed so the pack system is not a one-off): a **Scout** tab (
 
 **M2.5 known gaps:** no red cards, offsides, injuries or substitutions yet; free-kick curl is drawn as an arc and gold trail rather than a modelled spin; skill and save animations are procedural rig poses, not hand-animated.
 
+## M2.6 Manager cards and Momentum (playtest request)
+- [x] Momentum bar (0–10) replaces chip cooldowns; regen on the match clock, comeback lift after conceding.
+- [x] Eight manager cards with real simulation effects (Quick Pass, Press!, Go Wide, Park the Bus, Hairdryer, Target Man, All-Out Attack, Man-Mark); hand of three with Clash-style cycling; opposition benches play their own decks under the same rules.
+- [x] Unlock-only progression by manager level (club XP); unlock reveal on the result screen; NEW badges.
+- [x] Deck screen (3–5 cards, first three = opening hand), lobby deck preview with the opponent's bench, live card tray with Momentum meter, next card, active effects, opponent card pop-up, Man-Mark tether on the pitch.
+- [x] Tests: hand/Momentum rules, exact replay of every card, paired-seed behaviour tests per card, unlock/deck persistence, v3→v4 migration; E2E for the deck screen and playing a card; balance rows per card.
+
+**M2.6 known gaps:** no drag-to-play (tap only, by design for one-thumb play); no card art beyond the icon set; the AI manager's card logic is rule-based, not adaptive; opponents' decks are fixed per club style.
+
 ## M3. Competitive mode and career attachment
 - [ ] Stable fictional AI club identities and generated opponents with distinct tactics and named captains.
 - [ ] 8-club division fixtures, results, league table, promotion, season archive; AI fixtures simulated consistently.

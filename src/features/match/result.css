@@ -448,3 +448,34 @@
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
+
+.result__unlock {
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-2) 0 var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--navy-700);
+  color: var(--cream);
+  animation: pack-earned 700ms 400ms var(--ease-spring) both;
+}
+
+.result__unlock-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.result__unlock-cards {
+  display: flex;
+  justify-content: center;
+  gap: var(--s-3);
+  padding-top: 8px;
+}
+
+.result__unlock-cards .mc {
+  width: min(180px, 46%);
+}

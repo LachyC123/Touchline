@@ -4,6 +4,8 @@ import { ENGINE_VERSION } from '../../game/simulation/constants';
 import type { CreateMatchArgs } from '../../game/simulation/engine';
 import { possessionShare } from '../../game/simulation/summary';
 import type { FootballEvent, LineupPlayer, MatchResult, TeamLineup, TeamSide } from '../../game/simulation/types';
+import { DECK_MAX } from '../../game/simulation/cards';
+import { cardsUnlockedAt, managerLevel } from '../club/manager';
 import { advanceOnboarding, colourDistance, KIT_CLASH_DISTANCE } from '../club/onboarding';
 import { fixtureFor, opponentLineup } from '../club/opponents';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
@@ -34,7 +36,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
   if (problems.length) throw new Error(problems[0]);
   const fixture = fixtureFor(save.matchNumber);
   const mine = buildTeamLineup(
-    { clubId: 'player-club', name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary, pattern: save.club.kit.pattern }, aiStyle: 'balanced' },
+    { clubId: 'player-club', name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary, pattern: save.club.kit.pattern }, aiStyle: 'balanced', deck: [...save.deck] },
     save.formationId,
     save.lineup,
     save.footballers,
@@ -239,7 +241,15 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     }
   }
   draft.coins += rewards.coins;
+  const levelBefore = managerLevel(draft.clubXp);
   draft.clubXp += rewards.clubXp;
+  // Manager cards unlock with manager level; a new card joins the deck if there is room.
+  const unlockedCards = managerLevel(draft.clubXp) > levelBefore ? cardsUnlockedAt(managerLevel(draft.clubXp)).filter((c) => !draft.cardsUnlocked.includes(c)) : [];
+  for (const c of unlockedCards) {
+    draft.cardsUnlocked.push(c);
+    draft.newCards.push(c);
+    if (draft.deck.length < DECK_MAX) draft.deck.push(c);
+  }
 
   const pair = <T,>(h: T, a: T) => ({ home: h, away: a });
   const potmLine = lines.get(result.playerOfMatchId);
@@ -269,6 +279,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     gains,
     storyHeadline,
     moments: matchMoments(result, pending),
+    ...(unlockedCards.length ? { unlockedCards } : {}),
     ...(pending.number % SCOUT_PACK_EVERY === 0 ? { packId: grantPack(draft, 'local-scout', `match:${pending.matchId}`).id } : {}),
     replay: { home: pending.home, away: pending.away },
   };

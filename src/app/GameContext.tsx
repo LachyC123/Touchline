@@ -5,6 +5,7 @@ import { freshSeed } from '../domain/rng';
 import type { FormationId } from '../domain/formations';
 import type { ClubIdentityChoice, OnboardingEvent } from '../domain/club/onboarding';
 import type { ClubSave, PendingMatch, TipId } from '../domain/save/types';
+import type { CardId } from '../game/simulation/cards';
 import { getDb, MAIN_SLOT } from '../storage/db';
 import { parseSaveFile } from '../storage/exportImport';
 import { migrateSave } from '../storage/migrations';
@@ -24,6 +25,8 @@ import {
   replaceSave,
   replayTutorialTips,
   setClubIdentity as repoSetClubIdentity,
+  setDeck as repoSetDeck,
+  markCardsSeen as repoMarkCardsSeen,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -53,6 +56,8 @@ interface GameApi {
   seeTip: (tip: TipId) => Promise<void>;
   replayTutorial: () => Promise<void>;
   setClubIdentity: (choice: ClubIdentityChoice) => Promise<void>;
+  setDeck: (deck: CardId[]) => Promise<void>;
+  markCardsSeen: () => Promise<void>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -124,6 +129,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       seeTip: async (tip) => void (await markTipSeen(tip)),
       replayTutorial: async () => void (await replayTutorialTips()),
       setClubIdentity: async (choice) => void (await repoSetClubIdentity(choice)),
+      setDeck: async (deck) => void (await repoSetDeck(deck)),
+      markCardsSeen: async () => void (await repoMarkCardsSeen()),
     }),
     [saveState, settings, updateSettings, exportSave],
   );

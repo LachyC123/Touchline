@@ -92,8 +92,15 @@ export interface TeamState {
   side: TeamSide;
   lineup: TeamLineup;
   players: PState[];
-  activeUntil: Record<TacticCommand, number>;
-  readyAt: Record<TacticCommand, number>;
+  /** Tick until which each played card's effect lasts. */
+  activeUntil: Partial<Record<TacticCommand, number>>;
+  momentum: number;
+  /** Play ticks towards the next Momentum point. */
+  momentumTicks: number;
+  hand: TacticCommand[];
+  /** Draw pile: played cards go to the back. */
+  queue: TacticCommand[];
+  marking: { markerId: string; targetId: string } | null;
   controlledBy: 'user' | 'ai';
 }
 
@@ -172,7 +179,7 @@ export function keeperOf(st: EngineState, side: TeamSide): PState | undefined {
 }
 
 export function isTacticActive(st: EngineState, side: TeamSide, cmd: TacticCommand): boolean {
-  return st.teams[side].activeUntil[cmd] > st.tick;
+  return (st.teams[side].activeUntil[cmd] ?? 0) > st.tick;
 }
 
 export function buildPlayers(lineup: TeamLineup, side: TeamSide): PState[] {

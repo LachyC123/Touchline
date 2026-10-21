@@ -2,7 +2,7 @@
  * Named tuning constants for the match engine. Balance scripts import these so reports state
  * exactly which numbers produced them. Units: pitch units (1 ≈ 0.4 m) and ticks (10 per second).
  */
-export const ENGINE_VERSION = 'engine-2';
+export const ENGINE_VERSION = 'engine-3';
 
 export const PITCH_W = 100;
 export const PITCH_L = 150;
@@ -13,8 +13,6 @@ export const TICKS_PER_MINUTE = 12;
 export const HALF_TICKS = 45 * TICKS_PER_MINUTE;
 export const FULL_TICKS = 90 * TICKS_PER_MINUTE;
 
-export const TACTIC_DURATION_MIN = 12;
-export const TACTIC_COOLDOWN_MIN = 18;
 
 export const MOVE = {
   baseSpeed: 1.05,

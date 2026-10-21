@@ -15,7 +15,8 @@ export type Route =
   | { name: 'intro'; replay: boolean }
   | { name: 'scout' }
   | { name: 'pack'; id: string }
-  | { name: 'setup' };
+  | { name: 'setup' }
+  | { name: 'cards' };
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -48,6 +49,8 @@ export function parseHash(hash: string): Route {
       return parts[1] ? { name: 'pack', id: decodeURIComponent(parts[1]) } : { name: 'scout' };
     case 'setup':
       return { name: 'setup' };
+    case 'cards':
+      return { name: 'cards' };
     default:
       return { name: 'title' };
   }

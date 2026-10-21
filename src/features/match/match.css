@@ -213,3 +213,35 @@
 .lobby__coach {
   margin-bottom: var(--s-4);
 }
+
+.lobby__deck {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 4px 2px;
+}
+
+.lobby__deck > div {
+  opacity: 0.75;
+}
+
+.lobby__deck > div.is-hand {
+  opacity: 1;
+}
+
+.lobby__cards .lobby__team-head {
+  align-items: center;
+}
+
+@media (max-width: 400px) {
+  .lobby__deck {
+    gap: 6px;
+  }
+  .lobby__deck .mc__name {
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  .lobby__deck .mc__dur {
+    display: none;
+  }
+}

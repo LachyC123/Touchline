@@ -23,6 +23,7 @@ import {
 } from '../domain/players/types';
 import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
 import { ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
+import { CARD_IDS, DECK_MAX, DECK_MIN } from '../game/simulation/cards';
 
 /**
  * Runtime validation for everything persisted or imported. Mirrors the TypeScript domain
@@ -108,7 +109,8 @@ export const footballerSchema = z.object({
 
 const pair = <T extends z.ZodType>(t: T) => z.object({ home: t, away: t });
 const side = z.enum(['home', 'away']);
-const commandSchema = z.object({ type: z.enum(['PRESS', 'QUICK_PASS']), side, tick: z.number().int().min(0).max(100_000) });
+const cardId = z.enum(CARD_IDS);
+const commandSchema = z.object({ type: cardId, side, tick: z.number().int().min(0).max(100_000) });
 
 const simAttributesSchema = z.object({
   ...(Object.fromEntries(
@@ -125,6 +127,7 @@ const teamLineupSchema = z.object({
   shortName: z.string().min(1).max(6),
   kit: z.object({ primary: hex, secondary: hex, pattern: z.enum(KIT_PATTERNS).optional() }),
   formation: z.enum(FORMATION_IDS),
+  deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX).optional(),
   players: z
     .array(
       z.object({
@@ -198,6 +201,7 @@ const matchRecordSchema = z.object({
     .optional(),
   replay: z.object({ home: teamLineupSchema, away: teamLineupSchema }).optional(),
   packId: z.string().uuid().optional(),
+  unlockedCards: z.array(cardId).max(CARD_IDS.length).optional(),
 });
 
 const ownedPackSchema = z.object({
@@ -242,6 +246,9 @@ export const clubSaveSchema = z
     season: z.number().int().min(1).max(999),
     onboarding: z.enum(ONBOARDING_STEPS),
     tipsSeen: z.array(z.enum(TIP_IDS)).max(TIP_IDS.length),
+    cardsUnlocked: z.array(cardId).min(1).max(CARD_IDS.length),
+    deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX),
+    newCards: z.array(cardId).max(CARD_IDS.length),
     matchNumber: z.number().int().min(0).max(100_000),
     pendingMatch: pendingMatchSchema.nullable(),
     matchRecords: z.array(matchRecordSchema).max(100),
@@ -264,6 +271,8 @@ export const clubSaveSchema = z
     for (const key of Object.keys(save.lineup)) {
       if (!slots.includes(key)) ctx.addIssue({ code: 'custom', message: `lineup slot ${key} is not in formation ${save.formationId}` });
     }
+    if (new Set(save.deck).size !== save.deck.length) ctx.addIssue({ code: 'custom', message: 'a card is in the deck twice' });
+    for (const c of save.deck) if (!save.cardsUnlocked.includes(c)) ctx.addIssue({ code: 'custom', message: `deck card ${c} is not unlocked` });
     for (const pack of save.packs) {
       if ((pack.recruit === null) === (pack.playerId === null)) ctx.addIssue({ code: 'custom', message: `pack ${pack.id} must hold either a recruit or an opened player` });
       if (pack.playerId && !save.footballers[pack.playerId]) ctx.addIssue({ code: 'custom', message: `pack ${pack.id} opened a missing player` });

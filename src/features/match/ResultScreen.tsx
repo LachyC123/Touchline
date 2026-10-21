@@ -12,6 +12,7 @@ import { Crest } from '../../components/club/Crest';
 import { Icon, type IconName } from '../../components/icons/Icon';
 import { Button } from '../../components/ui/Button';
 import { Confetti } from '../../components/ui/Confetti';
+import { ManagerCard } from '../../components/manager/ManagerCard';
 import { useCountUp } from '../../components/ui/useCountUp';
 import { CLUB_BY_ID } from '../../data/clubs';
 import { xpToNext } from '../../domain/players/progression';
@@ -171,6 +172,19 @@ export function ResultScreen({ id }: { id: string }) {
               <small>{pack.playerId ? 'Opened — see the Scout room' : 'Tap to open it now'}</small>
             </span>
           </button>
+        )}
+        {record.unlockedCards && record.unlockedCards.length > 0 && (
+          <div className="result__unlock">
+            <p className="result__unlock-title">Manager level up — new card{record.unlockedCards.length > 1 ? 's' : ''}!</p>
+            <div className="result__unlock-cards">
+              {record.unlockedCards.map((id) => (
+                <ManagerCard key={id} id={id} />
+              ))}
+            </div>
+            <Button variant="blue" size="sm" block icon="flip" onClick={() => navigate({ name: 'cards' })}>
+              {save.deck.some((c) => record.unlockedCards?.includes(c)) ? 'Added to your deck — view deck' : 'Add it to your deck'}
+            </Button>
+          </div>
         )}
         <h3 className="result__xp-title">Player XP</h3>
         <ul className="result__xp">

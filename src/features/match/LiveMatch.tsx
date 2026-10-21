@@ -4,7 +4,6 @@ import { playSfx } from '../../audio/sfx';
 import { useGame, useSave } from '../../app/GameContext';
 import { navigate } from '../../app/router';
 import { Crest } from '../../components/club/Crest';
-import { Icon } from '../../components/icons/Icon';
 import { Button, IconButton } from '../../components/ui/Button';
 import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
@@ -13,7 +12,9 @@ import { useToast } from '../../components/ui/Toast';
 import { CLUB_BY_ID } from '../../data/clubs';
 import { matchArgs } from '../../domain/match/settle';
 import type { PendingMatch } from '../../domain/save/types';
-import { TACTIC_DURATION_MIN, TICKS_PER_MINUTE, TACTIC_COOLDOWN_MIN } from '../../game/simulation/constants';
+import { TICKS_PER_MINUTE } from '../../game/simulation/constants';
+import { CARD_DEFS, MOMENTUM, type CardId } from '../../game/simulation/cards';
+import { ManagerCard } from '../../components/manager/ManagerCard';
 import { replayTo } from '../../game/simulation/replay';
 import { playerLines, possessionShare } from '../../game/simulation/summary';
 import type { FootballEvent, MatchSnapshot, TacticCommand, TeamSide } from '../../game/simulation/types';
@@ -58,11 +59,6 @@ function StaleMatch() {
   );
 }
 
-const CHIPS: { type: TacticCommand; label: string; activeLabel: string; icon: 'bolt' | 'needle'; help: string }[] = [
-  { type: 'PRESS', label: 'Press!', activeLabel: 'Pressing', icon: 'bolt', help: 'Hunt the ball high up. Wins it back more — tires legs and leaves space behind.' },
-  { type: 'QUICK_PASS', label: 'Quick pass', activeLabel: 'Quick passing', icon: 'needle', help: 'One-touch tempo: shorter holds, more short passes. Riskier under pressure.' },
-];
-
 function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const toast = useToast();
   const save = useSave();
@@ -83,6 +79,8 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const [confirmSkip, setConfirmSkip] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [goalHow, setGoalHow] = useState<string | null>(null);
+  const [oppCard, setOppCard] = useState<{ card: CardId; id: number } | null>(null);
+  const oppCardId = useRef(0);
   const [moment, setMoment] = useState<{ title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save'; id: number } | null>(null);
   const momentId = useRef(0);
   const flashMoment = useCallback((m: { title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save' }) => {
@@ -131,6 +129,14 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
         } else if (e.style === 'dive' || e.style === 'fingertip') playSfx('ooh');
       },
       onSkill: () => playSfx('swish'),
+      onCard: (e) => {
+        playSfx(e.team === user ? 'pop' : 'flip');
+        if (e.team !== user) {
+          const id = ++oppCardId.current;
+          setOppCard({ card: e.command, id });
+          window.setTimeout(() => setOppCard((cur) => (cur?.id === id ? null : cur)), 2200);
+        }
+      },
       onFoul: (e) => {
         playSfx('peep');
         if (e.booked) window.setTimeout(() => playSfx('stamp'), 250);
@@ -208,8 +214,8 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
       return;
     }
     playSfx('pop');
-    const chip = CHIPS.find((c) => c.type === type);
-    setBanner(`${chip?.activeLabel.toUpperCase()} ↑ for ${TACTIC_DURATION_MIN}'`);
+    const def = CARD_DEFS[type];
+    setBanner(`${def.name.toUpperCase()}${def.durationMin ? ` · ${def.durationMin}'` : '!'}`);
     window.setTimeout(() => setBanner(null), 2200);
     setSnap(controller.engine.getSnapshot());
     try {
@@ -234,8 +240,10 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
     return { stats, poss: possessionShare(stats), best, bestName };
   }, [hold, controller, pending, snap.score, user, userTeam]);
 
-  // Tutorial: once the user's side has settled on the ball, prompt the first tactic.
-  const quickReady = tactics.activeUntil.QUICK_PASS <= snap.tick && tactics.readyAt.QUICK_PASS <= snap.tick;
+  // Tutorial: once the user's side has settled on the ball, prompt the first card.
+  const playable = (c: CardId) => tactics.momentum >= CARD_DEFS[c].cost && (tactics.activeUntil[c] ?? 0) <= snap.tick;
+  const tipCard = [...tactics.hand].filter(playable).sort((a, b) => CARD_DEFS[a].cost - CARD_DEFS[b].cost)[0];
+  const quickReady = Boolean(tipCard);
   const ourBall = userTeam.players.some((p) => p.id === snap.ball.ownerId);
   // Tick at which the tip appeared; it steps aside after ~10 s of play if ignored (and comes back next match).
   const [tipAt, setTipAt] = useState<number | null>(null);
@@ -246,6 +254,10 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   useEffect(() => {
     if (tipAt !== null) playSfx('pop');
   }, [tipAt]);
+
+  const activeCards = (Object.entries(tactics.activeUntil) as [CardId, number][])
+    .filter(([id, until]) => until > snap.tick && CARD_DEFS[id].durationMin > 0)
+    .map(([id, until]) => ({ id, mins: Math.ceil((until - snap.tick) / TICKS_PER_MINUTE) }));
 
   const crestFor = (side: TeamSide) =>
     side === user ? { name: userTeam.name, shortName: userTeam.shortName, crest: 'shield' as const, kit: { ...userTeam.kit, pattern: 'plain' as const, cut: 'crew' as const } } : { name: oppTeam.name, shortName: oppTeam.shortName, crest: oppClub?.crest ?? ('round' as const), kit: { ...oppTeam.kit, pattern: 'plain' as const, cut: 'crew' as const } };
@@ -278,6 +290,12 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
 
       <div className="live__pitch" ref={canvasRef} data-testid="pitch">
         {banner && <div className="live__banner">{banner}</div>}
+        {oppCard && (
+          <div key={oppCard.id} className="oppcard" role="status" aria-label={`${oppTeam.name} played ${CARD_DEFS[oppCard.card].name}`}>
+            <span className="oppcard__who">{oppTeam.shortName} play</span>
+            <ManagerCard id={oppCard.card} variant="hand" />
+          </div>
+        )}
         {moment && !goal && (
           <div key={moment.id} className={`moment moment--${moment.tone}`} role="status">
             {moment.tone === 'card' && <span className="moment__card" aria-hidden="true" />}
@@ -298,36 +316,65 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
       <footer className="live__controls">
         {showTacticTip && hold === null && (
           <CoachMark className="live__coach" onDismiss={() => void seeTip('tactic')}>
-            We’ve got the ball — tap <b>QUICK PASS!</b> Your players hold it less and pass short and sharp for 12 minutes.
+            {tipCard ? (
+              <>
+                Momentum is building — play <b>{CARD_DEFS[tipCard].name}</b> for {CARD_DEFS[tipCard].cost}. {CARD_DEFS[tipCard].effect}
+              </>
+            ) : (
+              <>Momentum fills as you play. Spend it on a card from your hand.</>
+            )}
           </CoachMark>
         )}
-        <div className="chips-row">
-          {CHIPS.map((c) => {
-            const active = tactics.activeUntil[c.type] > snap.tick;
-            const cooling = !active && tactics.readyAt[c.type] > snap.tick;
-            const remaining = active ? (tactics.activeUntil[c.type] - snap.tick) / (TACTIC_DURATION_MIN * TICKS_PER_MINUTE) : cooling ? (tactics.readyAt[c.type] - snap.tick) / ((TACTIC_COOLDOWN_MIN - TACTIC_DURATION_MIN) * TICKS_PER_MINUTE) : 0;
-            const minsLeft = Math.ceil(((active ? tactics.activeUntil[c.type] : tactics.readyAt[c.type]) - snap.tick) / TICKS_PER_MINUTE);
-            const disabled = active || cooling || snap.phase === 'fulltime' || snap.phase === 'halftime';
-            return (
-              <button
-                key={c.type}
-                type="button"
-                className={`tchip ${active ? 'is-active' : ''} ${cooling ? 'is-cooling' : ''} ${showTacticTip && c.type === 'QUICK_PASS' ? 'coach-target' : ''}`}
-                style={{ '--p': Math.max(0, Math.min(1, remaining)) } as CSSProperties}
-                aria-disabled={disabled}
-                aria-label={`${c.label}. ${active ? `Active for ${minsLeft} more minutes` : cooling ? `Ready in ${minsLeft} minutes` : 'Ready'}. ${c.help}`}
-                onClick={() => (disabled ? toast.show(active ? `${c.activeLabel} for ${minsLeft}' more` : cooling ? `${c.label} ready in ${minsLeft}'` : 'Not now', 'error') : void triggerChip(c.type))}
-              >
-                <span className="tchip__ring" aria-hidden="true">
-                  <Icon name={c.icon} size={22} />
-                </span>
-                <span className="tchip__text">
-                  <span className="tchip__label">{active ? c.activeLabel : c.label}</span>
-                  <span className="tchip__state">{active ? `${minsLeft}' left` : cooling ? `Ready in ${minsLeft}'` : 'Ready'}</span>
-                </span>
-              </button>
-            );
-          })}
+        <div className="tray">
+          <div className="tray__top">
+            <div className="momentum" role="meter" aria-label={`Momentum ${tactics.momentum} of ${MOMENTUM.max}`} aria-valuemin={0} aria-valuemax={MOMENTUM.max} aria-valuenow={tactics.momentum}>
+              <span className="momentum__num">{tactics.momentum}</span>
+              <span className="momentum__track" aria-hidden="true">
+                {Array.from({ length: MOMENTUM.max }, (_, i) => (
+                  <span key={i} className={i < tactics.momentum ? 'is-full' : ''} style={i === tactics.momentum ? ({ '--fill': tactics.momentumProgress } as CSSProperties) : undefined} />
+                ))}
+              </span>
+            </div>
+            {tactics.next && (
+              <span className="tray__next" aria-label={`Next card: ${CARD_DEFS[tactics.next].name}`}>
+                Next <b>{CARD_DEFS[tactics.next].name}</b>
+              </span>
+            )}
+          </div>
+          {activeCards.length > 0 && (
+            <ul className="tray__active" aria-label="Cards in effect">
+              {activeCards.map(({ id, mins }) => (
+                <li key={id}>
+                  {CARD_DEFS[id].name} <b>{mins}'</b>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="tray__hand">
+            {tactics.hand.map((id, slot) => {
+              const def = CARD_DEFS[id];
+              const active = (tactics.activeUntil[id] ?? 0) > snap.tick;
+              const short = Math.max(0, def.cost - tactics.momentum);
+              const closed = snap.phase === 'fulltime' || snap.phase === 'halftime';
+              const disabled = active || short > 0 || closed;
+              return (
+                <button
+                  key={`${slot}-${id}`}
+                  type="button"
+                  className={`mcard ${active ? 'is-active' : ''} ${short > 0 ? 'is-short' : ''} ${showTacticTip && id === tipCard ? 'coach-target' : ''}`}
+                  aria-disabled={disabled}
+                  aria-label={`${def.name}, costs ${def.cost} Momentum. ${def.effect} ${active ? 'Already in effect.' : short > 0 ? `Needs ${short} more Momentum.` : 'Ready to play.'}`}
+                  onClick={() =>
+                    disabled ? toast.show(active ? `${def.name} is already on` : short > 0 ? `${def.name} needs ${def.cost} Momentum (you have ${tactics.momentum})` : 'Not now', 'error') : void triggerChip(id)
+                  }
+                >
+                  <ManagerCard id={id} variant="hand" />
+                  {short > 0 && !active && <span className="mcard__need">+{short}</span>}
+                  {active && <span className="mcard__on">ON</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="live__buttons">
           <IconButton icon="pause" label="Pause" onClick={() => controller.pause()} disabled={hold === 'fulltime'} />
@@ -406,7 +453,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
                 Standout so far: <b>{halftimeInfo.bestName}</b> ({halftimeInfo.best?.rating.toFixed(1)})
               </p>
             )}
-            <p className="ht-tip">Chips refresh on their own timers — the second half is a chance to change it up.</p>
+            <p className="ht-tip">Momentum carries over — you have {tactics.momentum}. The second half is a chance to change it up.</p>
             <Button variant="primary" size="lg" block onClick={() => controller.resume()} sfx="whistle">
               Second half
             </Button>

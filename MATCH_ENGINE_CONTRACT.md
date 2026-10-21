@@ -164,3 +164,27 @@ Everything below is decided by the pure simulation from player attributes and se
 Tests in `engine.test.ts` pin: every incident type occurs over a season of seeds; penalties only follow fouls in the box and are struck from the spot; nobody is booked twice; double saves only follow a save by the same keeper; and **stats show on the pitch** (better dribblers beat their man far more often, better strikers shoot and score more from distance, better keepers save a larger share).
 
 Version handling: replays recorded on `engine-1` are not re-simulated (the replay screen says so); a match paused mid-way on `engine-1` restarts from kick-off with the same seed (nothing had been paid).
+
+## 13. Manager cards and Momentum — `engine-3`
+
+The PRESS / QUICK PASS chips became the first two of eight **manager cards** (`src/game/simulation/cards.ts`). Both benches play under identical rules; the AI managers read score, clock and their club style.
+
+- **Momentum**: 0–10 per team, starts at 4, +1 every 66 play ticks (~5.5 match minutes), +1 to the side that concedes. A full bar wastes regen. No regen during goal celebrations or half-time.
+- **Deck and hand**: each lineup brings a 3–5 card deck (`TeamLineup.deck`, frozen at kick-off). The first three are the hand; a played card goes to the back of the draw pile and the next card takes its slot. A 3-card deck therefore never cycles.
+- **Validation** (`dispatch`): the card must be in hand, affordable (including anything already queued this tick) and not already active. Rejected plays change nothing. Played cards are recorded with their tick like any command, so replays and resumes are exact.
+- **Effects** (all are changes to what simulated players do):
+
+| Card | Cost / length | Engine effect |
+|---|---|---|
+| Quick Pass | 2 / 12' | Shorter holds, short passes preferred; steadier passing against a press (the counter-card) |
+| Press! | 4 / 12' | Extra chasers, tighter marking, wider tackle range, more fouls, stamina drain |
+| Go Wide | 2 / 12' | Width 1.45× in possession, wingers run the line, cross and wide-pass bonuses, fewer central shots |
+| Park the Bus | 4 / 10' | Deep and narrow block, no high chasing, few forward runs, safe passing; ends All-Out Attack |
+| Hairdryer | 4 / 10' | +0.15 stamina now; pressure counts 40% less on passing, control and shooting |
+| Target Man | 3 / 15' | Crosses and long balls go to the best header (strength-led); +12% in his aerial duels |
+| All-Out Attack | 5 / 10' | Line pushed high (defenders to 80% depth), more runs and shots, stamina drain ×1.3; ends Park the Bus |
+| Man-Mark | 5 / 15' | Best marker shadows their biggest threat goal-side: more and better tackles on him, worse first touch, more pressure on his shots |
+
+Paired-seed tests (`engine.test.ts`, "cards change behaviour") pin each card's intended effect: Go Wide → more crosses, Park the Bus → fewer shots conceded and taken, All-Out → more shots and lower stamina, Target Man → more headers, Hairdryer → fresher legs, Man-Mark → their most dangerous player sees less of the ball. The balance report has one row per card.
+
+Cards are **unlock-only** (no upgrades): manager level from club XP (LV2 at 80, LV3 200, LV4 360, LV5 560) unlocks Hairdryer, Target Man, All-Out Attack and Man-Mark. Save schema v4 stores `cardsUnlocked`, `deck` and `newCards`.

@@ -1,4 +1,6 @@
 import { SCHEMA_VERSION, type ClubSave } from '../domain/save/types';
+import { cardsUnlockedAt, managerLevel } from '../domain/club/manager';
+import { DEFAULT_DECK } from '../game/simulation/cards';
 import { clubSaveSchema } from './schema';
 
 export class SaveFormatError extends Error {
@@ -32,6 +34,12 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
   2: (raw) => {
     const { packInventory: _inv, tutorialStep: _step, ...rest } = raw;
     return { ...rest, contentVersion: 'content-3', packs: [], onboarding: 'done', tipsSeen: ['tactic', 'upgrade', 'next-match'] };
+  },
+  // v3 → v4: manager cards. Unlocks follow the club XP already earned; level-1 cards form the deck.
+  3: (raw) => {
+    const level = managerLevel(typeof raw.clubXp === 'number' ? raw.clubXp : 0);
+    const unlocked = cardsUnlockedAt(level);
+    return { ...raw, contentVersion: 'content-4', cardsUnlocked: unlocked, deck: [...DEFAULT_DECK], newCards: unlocked.filter((c) => !DEFAULT_DECK.includes(c)) };
   },
 };
 

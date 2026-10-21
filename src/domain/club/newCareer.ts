@@ -3,7 +3,9 @@ import { FORMATION_DEFS } from '../formations';
 import { overallAt } from '../players/rating';
 import { autoLineup } from './lineup';
 import type { Footballer, Position, Tier } from '../players/types';
+import { DEFAULT_DECK } from '../../game/simulation/cards';
 import { grantPack } from '../packs/packs';
+import { cardsUnlockedAt } from './manager';
 import { seededUuid } from '../rng';
 import { CONTENT_VERSION, ENGINE_VERSION, SCHEMA_VERSION, type ClubSave } from '../save/types';
 import { DEFAULT_CLUB, type ClubIdentity } from './types';
@@ -97,6 +99,9 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     season: 1,
     onboarding: 'intro',
     tipsSeen: [],
+    cardsUnlocked: cardsUnlockedAt(1),
+    deck: [...DEFAULT_DECK],
+    newCards: [],
     matchNumber: 0,
     pendingMatch: null,
     matchRecords: [],

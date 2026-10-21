@@ -1,5 +1,6 @@
 import { CLUB_BY_ID, FIXTURE_ORDER, type ClubDef } from '../../data/clubs';
 import { FORMATION_DEFS } from '../formations';
+import { AI_DECKS } from '../../game/simulation/cards';
 import { buildTeamLineup } from '../../game/simulation/fromSquad';
 import type { TeamLineup } from '../../game/simulation/types';
 import { generateFootballer } from '../players/generator';
@@ -42,7 +43,14 @@ export function opponentLineup(careerSeed: string, fixture: Fixture): { lineup: 
   const byId = Object.fromEntries(squad.map((p) => [p.id, p]));
   const slots = Object.fromEntries(FORMATION_DEFS[fixture.club.formation].slots.map((s, i) => [s.id, (squad[i] as Footballer).id]));
   const lineup = buildTeamLineup(
-    { clubId: fixture.club.id, name: fixture.club.name, shortName: fixture.club.shortName, kit: { primary: fixture.club.kit.primary, secondary: fixture.club.kit.secondary, pattern: fixture.club.kit.pattern }, aiStyle: fixture.club.aiStyle },
+    {
+      clubId: fixture.club.id,
+      name: fixture.club.name,
+      shortName: fixture.club.shortName,
+      kit: { primary: fixture.club.kit.primary, secondary: fixture.club.kit.secondary, pattern: fixture.club.kit.pattern },
+      aiStyle: fixture.club.aiStyle,
+      deck: [...AI_DECKS[fixture.club.aiStyle]],
+    },
     fixture.club.formation,
     slots,
     byId,

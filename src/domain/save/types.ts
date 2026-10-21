@@ -1,10 +1,11 @@
 import type { ClubIdentity } from '../club/types';
 import type { FormationId } from '../formations';
 import type { Footballer, Tier } from '../players/types';
+import type { CardId } from '../../game/simulation/cards';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
-export const SCHEMA_VERSION = 3;
-export const CONTENT_VERSION = 'content-3';
+export const SCHEMA_VERSION = 4;
+export const CONTENT_VERSION = 'content-4';
 export { ENGINE_VERSION } from '../../game/simulation/constants';
 
 export type { FormationId };
@@ -84,6 +85,8 @@ export interface MatchRecord {
   gains: PlayerGain[];
   /** Scout pack earned by this match, if any. */
   packId?: string;
+  /** Manager cards unlocked by the club XP from this match. */
+  unlockedCards?: CardId[];
   storyHeadline: string;
   /** Notable non-routine incidents (screamers, double saves, penalties, skills, bookings). */
   moments?: MatchMoment[];
@@ -158,6 +161,12 @@ export interface ClubSave {
   season: number;
   onboarding: OnboardingStep;
   tipsSeen: TipId[];
+  /** Manager cards unlocked by manager level (unlock-only: no upgrades). */
+  cardsUnlocked: CardId[];
+  /** Cards taken into matches, in draw order (3–5). */
+  deck: CardId[];
+  /** Unlocked cards the player has not looked at yet. */
+  newCards: CardId[];
   /** Completed matches (also the index of the next fixture). */
   matchNumber: number;
   pendingMatch: PendingMatch | null;

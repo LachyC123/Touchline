@@ -10,6 +10,7 @@ import { resultOf } from '../src/game/simulation/replay';
 import { possessionShare } from '../src/game/simulation/summary';
 import type { MatchResult, TacticCommand, TeamLineup } from '../src/game/simulation/types';
 import { makeTeam, mirrorOf } from '../src/test/fixtures/teams';
+import { CARD_DEFS, CARD_IDS, MOMENTUM, type CardId } from '../src/game/simulation/cards';
 
 const nArg = process.argv.indexOf('--n');
 const N = nArg > 0 ? Number(process.argv[nArg + 1]) : 1000;
@@ -59,11 +60,11 @@ function add(agg: Agg, r: MatchResult, focus: 'home' | 'away', ticks: number) {
   agg.ticks += ticks;
 }
 
-function run(home: TeamLineup, away: TeamLineup, seed: string, policy?: { side: 'home' | 'away'; cmd: TacticCommand }): { r: MatchResult; ticks: number } {
+function run(home: TeamLineup, away: TeamLineup, seed: string, policy?: { side: 'home' | 'away'; cmd: TacticCommand | null }): { r: MatchResult; ticks: number } {
   const args: CreateMatchArgs = { matchId: seed, seed, home, away, userSide: policy?.side ?? null };
   const e = createMatch(args);
   while (!e.isFinished()) {
-    if (policy) e.dispatch(policy.cmd, policy.side);
+    if (policy?.cmd) e.dispatch(policy.cmd, policy.side);
     e.advanceTicks(1);
   }
   return { r: resultOf(e, args), ticks: e.tick };
@@ -103,14 +104,14 @@ const t0 = Date.now();
 const sections: string[] = [];
 const json: Record<string, Agg & { n: number }> = {};
 
-function scenario(key: string, label: string, focusTeam: TeamLineup, oppTeam: TeamLineup, policy?: TacticCommand): string {
+function scenario(key: string, label: string, focusTeam: TeamLineup, oppTeam: TeamLineup, policy?: TacticCommand | 'none'): string {
   const agg = empty();
   for (let i = 0; i < N; i++) {
     const focusHome = i % 2 === 0;
     const home = focusHome ? focusTeam : oppTeam;
     const away = focusHome ? oppTeam : focusTeam;
     const side = focusHome ? 'home' : 'away';
-    const { r, ticks } = run(home, away, `${key}-${i}`, policy ? { side, cmd: policy } : undefined);
+    const { r, ticks } = run(home, away, `${key}-${i}`, policy ? { side, cmd: policy === 'none' ? null : policy } : undefined);
     add(agg, r, side, ticks);
     if (key === 'mirror') tallyIncidents(r);
   }
@@ -139,9 +140,16 @@ const fortress = makeTeam('bal-321', 55, '3-2-1');
 const balanced = makeTeam('bal-222', 55, '2-2-2');
 sections.push(`## Formations\n\n${header}\n${scenario('f321', '3-2-1 Fortress vs 2-2-2', fortress, balanced)}\n${scenario('f222', '2-2-2 Balanced vs 2-2-2 (control)', balanced, mirrorOf(balanced))}`);
 
-// 4. Tactics (always re-activated when allowed, vs a mirror that never uses chips)
+// 4. Manager cards: the focus team (user-managed) plays one card whenever it is affordable, from a
+// 3-card deck so that card never cycles out; the opponent is the normal AI bench.
+const control = { ...base, deck: ['QUICK_PASS', 'GO_WIDE', 'PRESS'] as CardId[] };
+const cardRows = [scenario('cards-none', 'Never plays a card (control)', control, mirror, 'none')];
+for (const card of CARD_IDS) {
+  const deck = [card, ...(['QUICK_PASS', 'GO_WIDE', 'PRESS'] as CardId[]).filter((c) => c !== card)].slice(0, 3);
+  cardRows.push(scenario(`card-${card}`, `${CARD_DEFS[card].name} whenever affordable`, { ...base, deck }, mirror, card));
+}
 sections.push(
-  `## Tactics (chip re-used whenever ready)\n\n${header}\n${row('No chips (control)', json.mirror!, N)}\n${scenario('press', 'PRESS whenever ready', base, mirror, 'PRESS')}\n${scenario('quick', 'QUICK PASS whenever ready', base, mirror, 'QUICK_PASS')}`,
+  `## Manager cards (focus team plays one card whenever it can; opponent is the AI bench)\n\nMomentum: start ${MOMENTUM.start}, +1 every ${MOMENTUM.regenTicks} play ticks, max ${MOMENTUM.max}.\n\n${header}\n${cardRows.join('\n')}`,
 );
 
 sections.push(
@@ -157,14 +165,14 @@ const md = `# TOUCHLINE! balance report
 - Engine: \`${C.ENGINE_VERSION}\`
 - Matches per scenario: ${N} (home/away alternated, fixed seeds)
 - Generated in ${secs}s on ${new Date().toISOString().slice(0, 10)}
-- Key constants: tactic ${C.TACTIC_DURATION_MIN}' active / ${C.TACTIC_COOLDOWN_MIN}' cooldown; ${C.TICKS_PER_MINUTE} ticks per minute; shot range ${C.DECISION.shootRange} units.
+- Key constants: ${C.TICKS_PER_MINUTE} ticks per minute; shot range ${C.DECISION.shootRange} units; ${CARD_IDS.length} manager cards.
 
 ${sections.join('\n\n')}
 
 ## How to read this
 - *Mirror* checks engine fairness: the same team against itself should split wins and losses evenly.
 - *Power gaps* should show a clear, rising edge for the stronger team without guaranteed wins.
-- *Tactics*: PRESS should raise tackles/turnovers won and lower end stamina; QUICK PASS should raise pass volume.
+- *Manager cards*: each row is the focus team playing that one card whenever it can afford it, against the control that never plays a card. A card should move its own stats (PRESS: tackles up, stamina down; QUICK PASS: passes up; PARK THE BUS: GA down; ALL-OUT: shots up, stamina down) without being an automatic win.
 `;
 
 mkdirSync('reports', { recursive: true });

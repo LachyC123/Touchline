@@ -34,6 +34,7 @@ export interface TeamIdentity {
   shortName: string;
   kit: TeamLineup['kit'];
   aiStyle: AiStyle;
+  deck?: TeamLineup['deck'];
 }
 
 /**
@@ -61,7 +62,8 @@ export function buildTeamLineup(identity: TeamIdentity, formation: FormationId, 
       celebrationId: p.celebrationId,
     };
   });
-  return { ...identity, formation, players };
+  const { deck, ...rest } = identity;
+  return { ...rest, formation, players, ...(deck ? { deck: [...deck] } : {}) };
 }
 
 export function teamRating(t: TeamLineup): number {

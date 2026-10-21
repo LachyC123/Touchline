@@ -1,0 +1,137 @@
+/* Manager cards: a different family from footballer cards — a tactics-board clipboard with a
+   Momentum gem. The card colour is one cue among icon, name and cost. */
+.mc {
+  --mc: var(--royal);
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  justify-items: center;
+  gap: 2px;
+  padding: 12px 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background:
+    linear-gradient(160deg, rgb(255 255 255 / 0.28), transparent 40%),
+    linear-gradient(180deg, color-mix(in srgb, var(--mc) 85%, white), var(--mc));
+  color: var(--ink);
+  text-align: center;
+  box-shadow:
+    0 4px 0 color-mix(in srgb, var(--mc) 55%, black),
+    2px 8px 16px rgb(0 0 0 / 0.3);
+}
+
+.mc__cost {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--ink);
+  border-radius: 50% 50% 50% 8px;
+  background: radial-gradient(circle at 35% 30%, #fff 0 12%, var(--lime) 13% 100%);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  line-height: 1;
+  box-shadow: 0 2px 0 rgb(0 0 0 / 0.35);
+}
+
+.mc__art {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--cream);
+  color: var(--ink);
+}
+
+.mc__name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-md);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.mc__dur {
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: rgb(27 34 53 / 0.85);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xs);
+}
+
+.mc__effect {
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mc__catch {
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.mc.is-locked {
+  filter: grayscale(0.9) brightness(0.7);
+}
+
+.mc__lock {
+  position: absolute;
+  inset: auto 6px 6px;
+  padding: 2px 4px;
+  border-radius: var(--r-xs);
+  background: var(--ink);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xs);
+}
+
+.mc__new {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  padding: 2px 6px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-pill);
+  background: var(--gold);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 11px;
+  rotate: 8deg;
+}
+
+/* Compact card in the match tray. */
+.mc--hand {
+  gap: 1px;
+  padding: 8px 4px 6px;
+  border-radius: 12px;
+}
+
+.mc--hand .mc__art {
+  width: 36px;
+  height: 36px;
+  border-width: 2px;
+}
+
+.mc--hand .mc__name {
+  font-size: 13px;
+}
+
+.mc--hand .mc__cost {
+  top: -8px;
+  left: -6px;
+  width: 26px;
+  height: 26px;
+  font-size: var(--text-md);
+}
