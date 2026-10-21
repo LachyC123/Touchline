@@ -844,3 +844,34 @@
 .result__offer b {
   color: var(--gold);
 }
+
+.result__grudges ul {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result__grudges li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgb(200 48 43 / 0.14);
+  border: 1px solid rgb(200 48 43 / 0.4);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.result__grudges li.is-nemesisQuiet,
+.result__grudges li.is-exQuiet {
+  background: rgb(203 242 56 / 0.1);
+  border-color: rgb(203 242 56 / 0.35);
+}
+
+.result__grudges li.is-newNemesis {
+  background: rgb(200 48 43 / 0.3);
+  border-color: #c8302b;
+}

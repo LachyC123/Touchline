@@ -16,6 +16,7 @@ import { fixtureStorylines } from '../../domain/league/stories';
 import { CUP_NAME, cupRoundName } from '../../domain/cup/cup';
 import { TrophyCabinet } from './TrophyCabinet';
 import { GroundPanel } from './GroundPanel';
+import { RivalryPanel } from './RivalryPanel';
 import { attendance, groundOf, repTier } from '../../domain/club/reputation';
 import { DressingRoomPanel } from '../dressing/DressingRoomPanel';
 import './club.css';
@@ -165,6 +166,8 @@ export function ClubScreen() {
       )}
 
       <GroundPanel />
+
+      <RivalryPanel />
 
       <TrophyCabinet seasons={save.seasons} division={save.league.division} kit={save.club.kit} cup={save.cup} world={save.world} />
 

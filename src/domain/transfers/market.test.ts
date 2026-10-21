@@ -47,7 +47,7 @@ describe('the transfer market', () => {
     expect(s.world.departed).toContain(p.id);
     expect(marketListings(s).some((x) => x.id === l.id)).toBe(false);
     const club = clubOf(s.world, l.fromClubId!)!;
-    expect(opponentSquad(s.careerSeed, club, strengthLap(s.season), s.world.departed).some((x) => x.id === p.id)).toBe(false);
+    expect(opponentSquad(s.careerSeed, club, strengthLap(s.season), s.world).some((x) => x.id === p.id)).toBe(false);
     expect(() => buyListing(s, l.id)).toThrow(/no longer/);
   });
 

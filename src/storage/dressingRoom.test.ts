@@ -56,7 +56,7 @@ describe('dressing room (persisted)', () => {
     const v7 = createCareer('room-mig', 'x');
     const { dressingRoom: _d, captainId: _c, penaltyTakerId: _p, ...rest } = v7;
     const m = migrateSave({ ...rest, schemaVersion: 6, contentVersion: 'content-6' });
-    expect(m.schemaVersion).toBe(9);
+    expect(m.schemaVersion).toBe(10);
     expect(m.dressingRoom).toEqual({ events: [], promises: [], away: [], lastEventMatch: 0, backed: [] });
     expect(m.captainId).toBeNull();
     expect(m.footballers[m.anchorPlayerId]!.morale).toBe(v7.footballers[v7.anchorPlayerId]!.morale);

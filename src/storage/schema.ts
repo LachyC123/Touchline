@@ -321,6 +321,7 @@ const matchRecordSchema = z.object({
   repGain: z.number().int().min(0).max(1000).optional(),
   repTier: z.string().max(20).optional(),
   objectives: z.array(objectiveSchema.extend({ done: z.boolean() })).max(3).optional(),
+  rivalry: z.array(z.object({ kind: z.enum(['newNemesis', 'nemesisAgain', 'nemesisQuiet', 'exHaunts', 'exQuiet']), playerId: z.string().max(80), name: z.string().max(80), text: z.string().max(200) })).max(6).optional(),
   injuries: z.array(z.object({ playerId: z.string().uuid(), name: z.string().max(80), kind: z.enum(INJURY_KIND_IDS), minute: z.number().int().min(0).max(130), byName: z.string().max(80), outFor: z.number().int().min(0).max(20) })).max(4).optional(),
 });
 
@@ -408,6 +409,7 @@ const worldSchema = z
     divisions: z.array(z.object({ name: z.string().max(60), clubIds: z.array(z.string().max(40)).min(1).max(20), promote: z.number().int().min(0).max(8), relegate: z.number().int().min(0).max(8) })).min(1).max(8),
     cupGuestIds: z.array(z.string().max(40)).max(8),
     departed: z.array(z.string().uuid()).max(2000),
+    arrivals: z.array(z.object({ clubId: z.string().max(40), player: footballerSchema, atMatch: z.number().int().min(0).max(100_000) })).max(80),
   })
   .superRefine((w, ctx) => {
     const ids = new Set(w.clubs.map((c) => c.id));
@@ -454,6 +456,7 @@ export const clubSaveSchema = z
     deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX),
     newCards: z.array(cardId).max(CARD_IDS.length),
     injuries: z.array(injurySchema).max(60),
+    foes: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(80), clubId: z.string().max(40), goals: z.number().int().min(0).max(10_000), lastMatch: z.number().int().min(0).max(100_000), former: z.boolean().optional() })).max(60),
     transfers: transfersSchema,
     world: worldSchema,
     league: leagueSchema,

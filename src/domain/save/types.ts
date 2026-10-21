@@ -8,8 +8,8 @@ import type { MilestoneKind } from '../players/milestones';
 import type { ShootoutResult } from '../cup/shootout';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
-export const SCHEMA_VERSION = 9;
-export const CONTENT_VERSION = 'content-9';
+export const SCHEMA_VERSION = 10;
+export const CONTENT_VERSION = 'content-10';
 export { ENGINE_VERSION } from '../../game/simulation/constants';
 
 export type { FormationId };
@@ -121,6 +121,8 @@ export interface MatchRecord {
   repTier?: string;
   /** The match objectives and whether each was met. */
   objectives?: (Objective & { done: boolean })[];
+  /** Rivalry moments: a new nemesis, the nemesis again, kept quiet, an old boy haunting us. */
+  rivalry?: { kind: 'newNemesis' | 'nemesisAgain' | 'nemesisQuiet' | 'exHaunts' | 'exQuiet'; playerId: string; name: string; text: string }[];
   /** Injuries picked up in this match. */
   injuries?: { playerId: string; name: string; kind: string; minute: number; byName: string; outFor: number }[];
   /** Dreams that came true in this match. */
@@ -355,6 +357,17 @@ export interface Transfers {
   log: TransferLogEntry[];
 }
 
+/** An opposition player's record against the club. */
+export interface Foe {
+  playerId: string;
+  name: string;
+  clubId: string;
+  goals: number;
+  lastMatch: number;
+  /** One of ours once (sold to them). */
+  former?: boolean;
+}
+
 export interface PendingUpgrade {
   playerId: string;
   level: number;
@@ -398,6 +411,8 @@ export interface ClubSave {
   newCards: CardId[];
   /** The transfer market: bought listings, haggles, our listed players, offers, history. */
   transfers: Transfers;
+  /** Opposition players who have scored against the club (the nemesis is the worst of them). */
+  foes: Foe[];
   /** Injuries, newest first (recent history kept for the scrapbook and physio). */
   injuries: Injury[];
   /** The other clubs, their towns and rivals: generated once per career. */

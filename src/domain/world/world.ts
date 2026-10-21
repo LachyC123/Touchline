@@ -1,3 +1,4 @@
+import type { Footballer } from '../players/types';
 import { CLUBS, CUP_GUEST_CLUBS, DIVISION_NAMES, DIVISION_ONE_CLUBS, DIVISION_RULES, type ClubDef, type DivisionDef } from '../../data/clubs';
 
 /**
@@ -31,6 +32,14 @@ export interface World {
   cupGuestIds: string[];
   /** Players who have left their club (signed by the player's club); replaced at the club. */
   departed: string[];
+  /** Players the player's club sold, now in their new club's squad (as they were when sold). */
+  arrivals: Arrival[];
+}
+
+export interface Arrival {
+  clubId: string;
+  player: Footballer;
+  atMatch: number;
 }
 
 interface Index {
@@ -83,5 +92,6 @@ export function classicWorld(): World {
     divisions: tiers.map((clubs, n) => ({ name: DIVISION_NAMES[n] as string, clubIds: clubs.map((c) => c.id), ...(DIVISION_RULES[n] as { promote: number; relegate: number }) })),
     cupGuestIds: CUP_GUEST_CLUBS.map((c) => c.id),
     departed: [],
+    arrivals: [],
   };
 }

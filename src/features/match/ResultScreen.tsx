@@ -326,6 +326,22 @@ function ResultView({ id }: { id: string }) {
         </section>
       )}
 
+      {record.rivalry && record.rivalry.length > 0 && (
+        <section className="result__grudges" aria-labelledby="grudges-title">
+          <h2 id="grudges-title" className="eyebrow">
+            Grudge match
+          </h2>
+          <ul>
+            {record.rivalry.map((r) => (
+              <li key={`${r.kind}-${r.playerId}`} className={`is-${r.kind}`}>
+                <span aria-hidden="true">{r.kind === 'nemesisQuiet' || r.kind === 'exQuiet' ? '🛡' : r.kind === 'newNemesis' ? '☠' : '⚡'}</span>
+                {r.text}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {record.repTier && <RepTierUp tierId={record.repTier} rep={save.club.reputation} stadiumLevel={save.club.stadiumLevel} animate={fresh && !reduced} colours={[save.club.kit.primary, save.club.kit.secondary]} />}
 
       {record.milestones && record.milestones.length > 0 && (

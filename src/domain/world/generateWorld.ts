@@ -134,6 +134,7 @@ export function generateWorld(careerSeed: string): { world: World; identity: Clu
       divisions,
       cupGuestIds: [guest.id],
       departed: [],
+      arrivals: [],
     },
     identity,
   };

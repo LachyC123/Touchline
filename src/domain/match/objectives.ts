@@ -1,5 +1,6 @@
 import type { FootballEvent, TeamSide } from '../../game/simulation/types';
 import { stream } from '../rng';
+import { nemesisOf } from '../club/rivalry';
 import type { ClubSave } from '../save/types';
 
 /**
@@ -8,7 +9,7 @@ import type { ClubSave } from '../save/types';
  * events, so the live HUD and settlement can never disagree. Stars pay coins at full time.
  */
 
-export const OBJECTIVE_IDS = ['winBy2', 'cleanSheet', 'header', 'longShot', 'cards2', 'subScores', 'captainScores', 'playerScores', 'playerAssists', 'early', 'threeGoals', 'onTarget6'] as const;
+export const OBJECTIVE_IDS = ['winBy2', 'cleanSheet', 'header', 'longShot', 'cards2', 'subScores', 'captainScores', 'playerScores', 'playerAssists', 'early', 'threeGoals', 'onTarget6', 'stopNemesis'] as const;
 export type ObjectiveId = (typeof OBJECTIVE_IDS)[number];
 
 export interface Objective {
@@ -29,11 +30,13 @@ interface Facts {
   cardsPlayed: number;
   onTarget: number;
   subsIn: Set<string>;
+  /** Who scored against us. */
+  conceded: string[];
 }
 
 export function factsFrom(events: readonly FootballEvent[], side: TeamSide, final: boolean): Facts {
   const shots = new Map<number, Extract<FootballEvent, { type: 'SHOT' }>>();
-  const f: Facts = { final, minute: final ? 999 : (events.at(-1)?.minute ?? 0), gf: 0, ga: 0, goals: [], cardsPlayed: 0, onTarget: 0, subsIn: new Set() };
+  const f: Facts = { final, minute: final ? 999 : (events.at(-1)?.minute ?? 0), gf: 0, ga: 0, goals: [], cardsPlayed: 0, onTarget: 0, subsIn: new Set(), conceded: [] };
   for (const e of events) {
     if (e.type === 'SHOT') {
       shots.set(e.id, e);
@@ -42,7 +45,10 @@ export function factsFrom(events: readonly FootballEvent[], side: TeamSide, fina
       if (e.team === side) {
         f.gf++;
         f.goals.push({ scorerId: e.scorerId, ...(e.assistId ? { assistId: e.assistId } : {}), minute: e.minute, style: shots.get(e.shotEventId)?.style ?? 'normal' });
-      } else f.ga++;
+      } else {
+        f.ga++;
+        f.conceded.push(e.scorerId);
+      }
     } else if (e.type === 'TACTIC_APPLIED' && e.team === side) f.cardsPlayed++;
     else if (e.type === 'SUB' && e.team === side) f.subsIn.add(e.inId);
   }
@@ -77,17 +83,25 @@ export function judge(o: Objective, f: Facts): boolean | null {
       return yes(f.gf >= 3);
     case 'onTarget6':
       return yes(f.onTarget >= 6);
+    case 'stopNemesis':
+      return f.conceded.includes(o.playerId ?? '') ? false : f.final ? true : null;
   }
 }
 
 /** This match's three objectives (pure: same squad and match number, same three). */
-export function objectivesFor(save: Pick<ClubSave, 'careerSeed' | 'matchNumber' | 'lineup' | 'footballers' | 'captainId'>): Objective[] {
+export function objectivesFor(save: Pick<ClubSave, 'careerSeed' | 'matchNumber' | 'lineup' | 'footballers' | 'captainId' | 'foes' | 'squadIds'>, opponentIds: ReadonlySet<string> = new Set()): Objective[] {
   const rng = stream(`${save.careerSeed}:objectives:${save.matchNumber + 1}`, 'reward');
   const starters = Object.values(save.lineup).flatMap((id) => (save.footballers[id] ? [save.footballers[id]] : []));
   const attackers = starters.filter((p) => p.primaryPosition === 'FWD' || p.primaryPosition === 'MID').sort((a, b) => a.id.localeCompare(b.id));
   const captain = save.captainId ? starters.find((p) => p.id === save.captainId && p.primaryPosition !== 'GK') : undefined;
   const scorer = attackers.length ? rng.pick(attackers) : undefined;
   const creator = attackers.filter((p) => p !== scorer).length ? rng.pick(attackers.filter((p) => p !== scorer)) : undefined;
+  // Your nemesis is in their team: stopping him is today's personal objective.
+  const nemesis = nemesisOf(save);
+  if (nemesis && opponentIds.has(nemesis.playerId)) {
+    const first: Objective = { id: 'stopNemesis', text: `Keep your nemesis ${nemesis.name} off the scoresheet`, playerId: nemesis.playerId };
+    return [first, ...objectivesFor({ ...save, foes: [] }).filter((o) => !o.playerId).slice(0, 2)];
+  }
   const pool: (readonly [Objective, number])[] = [
     [{ id: 'winBy2', text: 'Win by two goals or more' }, 2],
     [{ id: 'cleanSheet', text: 'Keep a clean sheet' }, 2],

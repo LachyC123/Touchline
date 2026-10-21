@@ -112,8 +112,8 @@ export function simulateTie(careerSeed: string, world: World, season: number, ro
   const ac = clubOf(world, tie.away);
   if (!hc || !ac) throw new Error('Unknown club in the cup draw');
   const lap = strengthLap(season);
-  const home = opponentLineup(careerSeed, { number: 100 + round, club: hc, lap, home: true }, world.departed).lineup;
-  const away = opponentLineup(careerSeed, { number: 100 + round, club: ac, lap, home: false }, world.departed).lineup;
+  const home = opponentLineup(careerSeed, { number: 100 + round, club: hc, lap, home: true }, world).lineup;
+  const away = opponentLineup(careerSeed, { number: 100 + round, club: ac, lap, home: false }, world).lineup;
   const seed = `${careerSeed}:s${season}:cup${round}:${tie.home}-v-${tie.away}`;
   const result = replayMatch({ matchId: seed, seed, home, away, userSide: null }, []);
   const shootout = result.score.home === result.score.away ? penaltyShootout(seed, lineupAtFullTime(home, 'home', result.events), lineupAtFullTime(away, 'away', result.events)) : null;

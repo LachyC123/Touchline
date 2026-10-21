@@ -17,6 +17,7 @@ import { dressingRoomAfterMatch } from '../club/dressingRoom';
 import { injuriesAfterMatch, unavailableFor } from '../players/injuries';
 import { offersAfterMatch } from '../transfers/market';
 import { objectivesFor, settleObjectives } from './objectives';
+import { rivalryAfterMatch } from '../club/rivalry';
 import { gateMoney, matchAttendance, REP_GAIN, repTier } from '../club/reputation';
 import { dreamsAfterMatch } from '../players/dreams';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
@@ -56,7 +57,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     save.footballers,
     benchFor(save),
   );
-  const theirs = opponentLineup(save.careerSeed, fixture, save.world.departed).lineup;
+  const theirs = opponentLineup(save.careerSeed, fixture, save.world).lineup;
   const number = save.matchNumber + 1;
   const home = fixture.home ? mine : theirs;
   const away = fixture.home ? theirs : mine;
@@ -73,7 +74,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     checkpointTick: 0,
     season: save.season,
     ...(fx.competition === 'cup' ? { competition: 'cup' as const, cupRound: fx.cupRound ?? 0 } : { round: fx.round }),
-    objectives: objectivesFor(save),
+    objectives: objectivesFor(save, new Set(theirs.players.map((p) => p.id))),
   };
 }
 
@@ -414,9 +415,12 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   // Knocks taken on the pitch: did anyone pick up an injury?
   const hurt = injuriesAfterMatch(draft, { matchId: pending.matchId, number: pending.number, side, events: result.events, played: new Set([...starters, ...subRole.keys()]), nameOf });
   const injuries = hurt.map((i) => ({ playerId: i.playerId, name: nameOf(i.playerId), kind: i.kind, minute: i.minute, byName: i.byName, outFor: i.outFor }));
+  // Rivalries: who scored against us, the nemesis, old boys in their colours.
+  const theirOnPitch = new Set([...theirs.players.map((p) => p.id), ...result.events.flatMap((e) => (e.type === 'SUB' && e.team === opp ? [e.inId] : []))]);
+  const rivalry = rivalryAfterMatch(draft, { events: result.events, side, opponentId: pending.opponentId, number: pending.number, theirPlayers: theirOnPitch, nameOf });
   // The market moves: bids for listed players, interest in stars.
   offersAfterMatch(draft);
-  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}), ...(dreams.length ? { dreams } : {}), ...(injuries.length ? { injuries } : {}) };
+  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}), ...(dreams.length ? { dreams } : {}), ...(injuries.length ? { injuries } : {}), ...(rivalry.length ? { rivalry } : {}) };
   draft.matchRecords[0] = withMorale;
   return withMorale;
 }

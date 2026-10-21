@@ -1,4 +1,5 @@
 import { DIVISION_RULES, type DivisionDef } from '../../data/clubs';
+import { exPlayersAt, nemesisOf } from '../club/rivalry';
 import { clubOf, divisionIndexOf, type World } from '../world/world';
 import { PLAYER_CLUB_ID, type ClubSave, type LeagueResult, type LeagueState } from '../save/types';
 import { upcomingMilestones } from '../players/milestones';
@@ -162,7 +163,7 @@ export function roundSealed(league: Pick<LeagueState, 'rounds' | 'results' | 'di
 
 // ── Pre-match storylines ───────────────────────────────────────────────────────────────────
 
-export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer' | 'milestone' | 'hotStreak' | 'cupRound' | 'cupFinal' | 'giantKilling' | 'bananaSkin' | 'knockout' | 'dream';
+export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer' | 'milestone' | 'hotStreak' | 'cupRound' | 'cupFinal' | 'giantKilling' | 'bananaSkin' | 'knockout' | 'dream' | 'nemesis' | 'oldBoy';
 
 export interface Storyline {
   kind: StoryKind;
@@ -258,6 +259,9 @@ export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords
   if (next) add('milestone', 'hype', next.text, next.weight + 20);
   const hot = scoringRuns(save)[0];
   if (hot && hot.games >= 2 && starters.some((p) => p.id === hot.playerId)) add('hotStreak', 'hype', `${hot.name} has scored in ${hot.games === 2 ? 'both' : `each`} of his last ${hot.games === 2 ? 'two' : hot.games} games.`, 46 + hot.games * 3);
+
+  // Personal grudges: the nemesis, and old boys now playing for them.
+  for (const line of grudgeStorylines(save, opp.id)) add(line.kind, line.tone, line.text, line.weight);
 
   // A starter whose dream this game could make come true.
   if (opp.rival) {
@@ -364,6 +368,7 @@ export function cupStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | '
   else add('meeting', 'info', `A league rival in the cup: you meet ${them} in ${divisionOf(save.world, ours).name} too.`, 45);
   const last = headToHead(save, fixture.club.id)[0];
   if (last && last.gf < last.ga) add('revenge', 'hype', `They beat you ${last.ga}–${last.gf} last time. Revenge is on the menu.`, 65);
+  for (const line of grudgeStorylines(save, fixture.club.id)) add(line.kind, line.tone, line.text, line.weight);
   const starters = Object.values(save.lineup ?? {}).flatMap((id) => (save.footballers?.[id] ? [save.footballers[id]] : []));
   const next = upcomingMilestones(starters)[0];
   if (next) add('milestone', 'hype', next.text, next.weight + 20);
@@ -373,4 +378,20 @@ export function cupStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | '
 /** The right build-up for whichever competition the fixture is in. */
 export function fixtureStorylines(save: Parameters<typeof preMatchStorylines>[0], fixture: UserFixture, limit = 3): Storyline[] {
   return fixture.competition === 'cup' ? cupStorylines(save, fixture, limit) : preMatchStorylines(save, fixture, limit);
+}
+
+/** The nemesis (if he plays for this club now) and players the club sold to them. */
+export function grudgeStorylines(save: Partial<Pick<ClubSave, 'foes' | 'squadIds' | 'world'>>, clubId: string): Storyline[] {
+  const out: Storyline[] = [];
+  const nemesis = save.foes && save.squadIds ? nemesisOf({ foes: save.foes, squadIds: save.squadIds }) : null;
+  const sold = save.world ? exPlayersAt({ world: save.world }, clubId) : [];
+  if (nemesis && nemesis.clubId === clubId && !sold.some((a) => a.player.id === nemesis.playerId)) {
+    out.push({ kind: 'nemesis', tone: 'warn', text: `Nemesis alert: ${nemesis.name} has scored ${nemesis.goals} against you. Man-mark him?`, weight: 92 });
+  }
+  for (const a of sold.slice(-2)) {
+    const p = a.player;
+    const scored = save.foes?.find((f) => f.playerId === p.id)?.goals ?? 0;
+    out.push({ kind: 'oldBoy', tone: 'warn', text: scored ? `${p.firstName} ${p.lastName} has already scored ${scored} against his old club. He’ll be up for this.` : `${p.firstName} ${p.lastName} faces his old club for the first time since you sold him.`, weight: scored ? 90 : 80 });
+  }
+  return out;
 }

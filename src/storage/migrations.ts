@@ -63,6 +63,11 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
   },
   // v8 → v9: generated worlds. An existing career keeps the clubs it has been playing against.
   8: (raw) => ({ ...raw, contentVersion: 'content-9', world: classicWorld(), injuries: [], transfers: emptyTransfers() }),
+  // v9 → v10: rivalries. Nobody has a nemesis yet; nobody sold has turned up anywhere yet.
+  9: (raw) => {
+    const world = (raw.world ?? {}) as Record<string, unknown>;
+    return { ...raw, contentVersion: 'content-10', foes: [], world: { ...world, arrivals: Array.isArray(world.arrivals) ? world.arrivals : [] } };
+  },
 };
 
 export function migrateSave(input: unknown): ClubSave {

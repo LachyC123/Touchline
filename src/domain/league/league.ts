@@ -134,8 +134,8 @@ export function simulateOtherFixtures(careerSeed: string, world: World, season: 
     const hc = clubOf(world, f.home);
     const ac = clubOf(world, f.away);
     if (!hc || !ac) continue;
-    const home = opponentLineup(careerSeed, { number: round, club: hc, lap, home: true }, world.departed).lineup;
-    const away = opponentLineup(careerSeed, { number: round, club: ac, lap, home: false }, world.departed).lineup;
+    const home = opponentLineup(careerSeed, { number: round, club: hc, lap, home: true }, world).lineup;
+    const away = opponentLineup(careerSeed, { number: round, club: ac, lap, home: false }, world).lineup;
     const seed = `${careerSeed}:s${season}:r${round}:${f.home}-v-${f.away}`;
     const result = replayMatch({ matchId: seed, seed, home, away, userSide: null }, []);
     const names = new Map([...matchSquad(home), ...matchSquad(away)].map((p) => [p.id, p.name] as const));

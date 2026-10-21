@@ -76,3 +76,33 @@ test('inside claude.ai the club is backed up to the account and comes back on a 
   await expect(p2.getByRole('heading', { level: 1 })).toHaveText(name, { timeout: 15_000 });
   await tablet.close();
 });
+
+test('rivalries: the nemesis shows on the hub and the build-up warns about him', async ({ page }) => {
+  await startCareerSkippingTutorial(page);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const req = indexedDB.open('touchline');
+        req.onsuccess = () => {
+          const tx = req.result.transaction('saves', 'readwrite');
+          const st = tx.objectStore('saves');
+          const get = st.get('main');
+          get.onsuccess = () => {
+            const row = get.result;
+            const s = row.save;
+            const f = s.league.rounds[s.league.round].find((x: { home: string; away: string }) => x.home === 'player-club' || x.away === 'player-club');
+            const opp = f.home === 'player-club' ? f.away : f.home;
+            s.foes = [{ playerId: 'foe-1', name: 'Gary Striker', clubId: opp, goals: 3, lastMatch: 0 }];
+            st.put(row);
+          };
+          tx.oncomplete = () => resolve();
+        };
+      }),
+  );
+  await page.reload();
+  await page.goto('/#/club');
+  await expect(page.getByRole('region', { name: 'Rivalries' })).toContainText(/Gary Striker/);
+  await expect(page.getByRole('region', { name: 'Rivalries' })).toContainText(/3 goals against you/);
+  await page.goto('/#/match');
+  await expect(page.locator('.lobby__buildup')).toContainText(/Nemesis alert: Gary Striker has scored 3 against you/);
+});

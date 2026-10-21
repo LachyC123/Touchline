@@ -116,6 +116,7 @@ export function createCareer(careerSeed: string, nowIso: string, opts: { identit
     deck: [...DEFAULT_DECK],
     newCards: [],
     injuries: [],
+    foes: [],
     transfers: emptyTransfers(),
     world,
     league: newLeague(careerSeed, world, 1, 0),

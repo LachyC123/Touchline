@@ -1,0 +1,68 @@
+.rivalry {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.rivalry__nemesis {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2);
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, rgb(200 48 43 / 0.28), rgb(200 48 43 / 0.06));
+  border: 1px solid rgb(200 48 43 / 0.5);
+}
+
+.rivalry__card {
+  width: 64px;
+}
+
+.rivalry__tag {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ff8a7a;
+}
+
+.rivalry__name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rivalry__line,
+.rivalry__empty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rivalry__sold {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rivalry__sold button {
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: rgb(0 0 0 / 0.2);
+  color: inherit;
+  text-align: left;
+  font-size: var(--text-sm);
+}
+
+.rivalry__haunt {
+  color: var(--orange);
+  font-weight: 800;
+}

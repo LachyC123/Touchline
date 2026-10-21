@@ -1,6 +1,7 @@
 import type { ClubDef } from '../../data/clubs';
 import { opponentSquad } from '../club/opponents';
 import { MAX_SQUAD } from '../packs/packs';
+import { NEMESIS_AT } from '../club/rivalry';
 import { REP_TIERS, repTier } from '../club/reputation';
 import { generateFootballer } from '../players/generator';
 import { clampMorale } from '../players/morale';
@@ -94,7 +95,7 @@ export function marketListings(save: Pick<ClubSave, 'careerSeed' | 'matchNumber'
   for (let i = 0; i < MARKET.fromClubs * 3 && out.filter((l) => l.fromClubId).length < MARKET.fromClubs; i++) {
     const stretch = above.length > 0 && out.filter((l) => l.fromClubId).length === MARKET.fromClubs - 1;
     const club = rng.pick(stretch ? above : home);
-    const squad = opponentSquad(save.careerSeed, club, lap, save.world.departed);
+    const squad = opponentSquad(save.careerSeed, club, lap, save.world);
     const p = structuredClone(rng.pick(squad));
     if (seen.has(p.id) || save.footballers[p.id]) continue;
     seen.add(p.id);
@@ -161,12 +162,17 @@ export function buyListing(draft: ClubSave, listingId: string): Footballer {
   p.isNew = true;
   p.morale = clampMorale(Math.max(p.morale, MARKET.signingMorale));
   const from = l.fromClubId ? clubOf(draft.world, l.fromClubId) : undefined;
+  const haunted = draft.foes.find((f) => f.playerId === p.id);
   p.history.push({
     id: seededUuid(`${draft.careerSeed}:history:${draft.nextSeq}`),
     kind: 'signed',
     season: draft.season,
     order: draft.nextSeq++,
-    headline: from ? `Signed from ${from.name} for ${price} coins.` : `Signed as a free agent (${price} coins).`,
+    headline: haunted && haunted.goals >= NEMESIS_AT
+      ? `Signed from ${from?.name ?? 'his club'} for ${price} coins: the man who scored ${haunted.goals} against us is ours now.`
+      : from
+        ? `Signed from ${from.name} for ${price} coins.`
+        : `Signed as a free agent (${price} coins).`,
   });
   draft.coins -= price;
   draft.footballers[p.id] = p;
@@ -246,6 +252,8 @@ export function acceptOffer(draft: ClubSave, offerId: string): string {
   const club = clubOf(draft.world, o.clubId);
   draft.coins += o.fee;
   draft.squadIds = draft.squadIds.filter((id) => id !== p.id);
+  // He turns up in their squad: the same face, ready to play against you.
+  draft.world.arrivals = [...draft.world.arrivals, { clubId: o.clubId, player: structuredClone(p), atMatch: draft.matchNumber }].slice(-60);
   for (const [slot, id] of Object.entries(draft.lineup)) if (id === p.id) delete draft.lineup[slot];
   if (draft.captainId === p.id) draft.captainId = null;
   if (draft.penaltyTakerId === p.id) draft.penaltyTakerId = null;
