@@ -72,7 +72,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
     let handle: { destroy(): void } | null = null;
     const el = canvasRef.current;
     if (!el) return;
-    createMatchGame(el, controller, { reducedMotion: isReducedMotion(), homeKitHighlight: '#CBF238', viewWidth: 74 })
+    createMatchGame(el, controller, { reducedMotion: isReducedMotion(), homeKitHighlight: '#CBF238', viewWidth: 68 })
       .then((h) => {
         if (cancelled) h.destroy();
         else handle = h;

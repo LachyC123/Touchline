@@ -21,7 +21,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
   if (problems.length) throw new Error(problems[0]);
   const fixture = fixtureFor(save.matchNumber);
   const mine = buildTeamLineup(
-    { clubId: 'player-club', name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary }, aiStyle: 'balanced' },
+    { clubId: 'player-club', name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary, pattern: save.club.kit.pattern }, aiStyle: 'balanced' },
     save.formationId,
     save.lineup,
     save.footballers,

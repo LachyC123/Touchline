@@ -48,6 +48,9 @@ export interface LineupPlayer {
   strongFoot: 'left' | 'right' | 'both';
   /** For the renderer only — never read by the simulation. */
   appearance: Appearance;
+  /** Renderer only: gait and signature celebration from the player's stored identity. */
+  runningStyleId?: string;
+  celebrationId?: string;
 }
 
 export type AiStyle = 'balanced' | 'press' | 'passing' | 'counter' | 'direct';
@@ -58,7 +61,7 @@ export interface TeamLineup {
   aiStyle: AiStyle;
   name: string;
   shortName: string;
-  kit: { primary: string; secondary: string };
+  kit: { primary: string; secondary: string; pattern?: 'plain' | 'stripes' | 'hoops' | 'sash' | 'halves' };
   formation: FormationId;
   players: LineupPlayer[];
 }

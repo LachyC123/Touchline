@@ -121,7 +121,7 @@ const teamLineupSchema = z.object({
   aiStyle: z.enum(['balanced', 'press', 'passing', 'counter', 'direct']),
   name: z.string().min(1).max(60),
   shortName: z.string().min(1).max(6),
-  kit: z.object({ primary: hex, secondary: hex }),
+  kit: z.object({ primary: hex, secondary: hex, pattern: z.enum(KIT_PATTERNS).optional() }),
   formation: z.enum(FORMATION_IDS),
   players: z
     .array(
@@ -137,6 +137,8 @@ const teamLineupSchema = z.object({
         traitIds: z.array(z.string().max(40)).max(4),
         strongFoot: z.enum(['left', 'right', 'both']),
         appearance: appearanceSchema,
+        runningStyleId: z.enum(RUNNING_STYLE_IDS).optional(),
+        celebrationId: z.enum(CELEBRATION_IDS).optional(),
       }),
     )
     .length(7),

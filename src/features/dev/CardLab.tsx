@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../../app/GameContext';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
@@ -114,6 +114,7 @@ export function CardLab() {
       </div>
 
       {saveState.status === 'ready' && saveState.save && <MatchLab />}
+      {saveState.status === 'ready' && saveState.save && <PoseLab />}
 
       <h2 className="eyebrow lab__h">Portrait variety</h2>
       <div className="lab__gallery">
@@ -173,6 +174,43 @@ function MatchLab() {
       <p className="lab__meta">
         Claims: {claims.length} · duplicates: {dupes.length} · settled matches missing a claim: {missing.length}
       </p>
+    </section>
+  );
+}
+
+/** Pitch figures in every pose, rendered by the real match rig (DEV_DEBUG only). */
+function PoseLab() {
+  const { saveState } = useGame();
+  const save = saveState.status === 'ready' ? saveState.save : null;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !save) return;
+    let game: { destroy(b: boolean): void } | null = null;
+    let cancelled = false;
+    void Promise.all([import('phaser'), import('../../game/renderer/PoseLabScene'), import('../../domain/match/settle')]).then(([{ default: Phaser }, { PoseLabScene }, { prepareMatch }]) => {
+      if (cancelled) return;
+      const pm = save.pendingMatch ?? prepareMatch(save);
+      const team = pm.userSide === 'home' ? pm.home : pm.away;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      game = new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: el,
+        banner: false,
+        audio: { noAudio: true },
+        scale: { mode: Phaser.Scale.NONE, width: el.clientWidth * dpr, height: el.clientHeight * dpr, zoom: 1 / dpr },
+        scene: [new PoseLabScene(team)],
+      });
+    });
+    return () => {
+      cancelled = true;
+      game?.destroy(true);
+    };
+  }, [save]);
+  return (
+    <section className="lab__poses">
+      <h2 className="eyebrow lab__h">Pitch figures</h2>
+      <div ref={ref} className="lab__pose-canvas" data-testid="pose-lab" />
     </section>
   );
 }

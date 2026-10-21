@@ -80,3 +80,10 @@
   justify-items: start;
   margin-top: var(--s-5);
 }
+
+.lab__pose-canvas {
+  width: 100%;
+  aspect-ratio: 4 / 3.4;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}

@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { HAIR, SKIN } from '../../components/portrait/palette';
 import { PITCH_L, PITCH_W } from '../simulation/constants';
-import type { LineupPlayer, MatchSnapshot, PlayerSnapshot, TeamSide } from '../simulation/types';
+import type { LineupPlayer, MatchSnapshot, PlayerSnapshot, TeamLineup, TeamSide } from '../simulation/types';
 import type { MatchController } from './controller';
+import { FootballerRig } from './footballerRig';
 
 /**
  * Phaser presentation of the pure simulation. It interpolates between engine snapshots and
@@ -22,15 +22,9 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 interface Figure {
   id: string;
   side: TeamSide;
-  root: Phaser.GameObjects.Container;
-  body: Phaser.GameObjects.Container;
-  legL: Phaser.GameObjects.Graphics;
-  legR: Phaser.GameObjects.Graphics;
-  ring: Phaser.GameObjects.Graphics;
+  rig: FootballerRig;
   label: Phaser.GameObjects.Text;
-  phase: number;
   isUser: boolean;
-  isKeeper: boolean;
 }
 
 export class MatchScene extends Phaser.Scene {
@@ -45,6 +39,7 @@ export class MatchScene extends Phaser.Scene {
   private baseZoom = 1;
   private unsubscribe: (() => void) | null = null;
   private nets: Phaser.GameObjects.Graphics[] = [];
+  private scorerId: string | null = null;
 
   constructor(
     private readonly controller: MatchController,
@@ -89,7 +84,10 @@ export class MatchScene extends Phaser.Scene {
     this.cameras.main.centerOn(b.x, b.y);
 
     this.unsubscribe = this.controller.subscribe({
-      onGoal: (e) => this.goalFx(e.team),
+      onGoal: (e) => {
+        this.scorerId = e.scorerId;
+        this.goalFx(e.team);
+      },
       onSave: (e) => this.burst(e.at.x, e.at.y, 0xcbf238, 'SAVE!'),
       onTackle: (e) => {
         if (e.won) this.burst(e.at.x, e.at.y, 0xfff7e9);
@@ -160,58 +158,10 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
-  private makeFigure(p: LineupPlayer, side: TeamSide, kit: { primary: string; secondary: string }): Figure {
+  private makeFigure(p: LineupPlayer, side: TeamSide, kit: TeamLineup['kit']): Figure {
     const S = this.S;
     const isUser = side === this.controller.userSide;
-    const isKeeper = p.role === 'GK';
-    const skin = SKIN[p.appearance.skinId];
-    const hair = HAIR[p.appearance.hairColour];
-    const ink = 0x1b2235;
-    const shirt = isKeeper ? (isUser ? 0xcbf238 : 0xf4c653) : hex(kit.primary);
-    const trim = isKeeper ? ink : hex(kit.secondary);
-    const ow = Math.max(1, 0.2 * S);
-
-    const ring = this.add.graphics();
-    const shadow = this.add.ellipse(0, 0, 3.2 * S, 1.1 * S, 0x000000, 0.32);
-
-    const legL = this.add.graphics();
-    const legR = this.add.graphics();
-    for (const [g, x] of [[legL, -0.65], [legR, 0.65]] as const) {
-      g.fillStyle(trim, 1).fillRoundedRect((x - 0.45) * S, -2.2 * S, 0.9 * S, 1.7 * S, 0.3 * S);
-      g.fillStyle(ink, 1).fillRoundedRect((x - 0.5) * S, -0.7 * S, 1.0 * S, 0.7 * S, 0.3 * S);
-    }
-
-    const torso = this.add.graphics();
-    // shorts
-    torso.fillStyle(isKeeper ? ink : trim === 0xfff7e9 ? 0x1b2235 : trim, 1).fillRoundedRect(-1.3 * S, -3.1 * S, 2.6 * S, 1.2 * S, 0.35 * S);
-    // shirt
-    torso.fillStyle(shirt, 1).fillRoundedRect(-1.55 * S, -5.4 * S, 3.1 * S, 2.6 * S, 0.7 * S);
-    torso.lineStyle(ow, ink, 1).strokeRoundedRect(-1.55 * S, -5.4 * S, 3.1 * S, 2.6 * S, 0.7 * S);
-    torso.fillStyle(trim, 1).fillRect(-1.55 * S, -4.0 * S, 3.1 * S, 0.35 * S);
-    // arms
-    torso.fillStyle(hex(skin.base), 1).fillCircle(-1.85 * S, -3.7 * S, 0.45 * S).fillCircle(1.85 * S, -3.7 * S, 0.45 * S);
-    torso.fillStyle(shirt, 1).fillCircle(-1.7 * S, -4.6 * S, 0.55 * S).fillCircle(1.7 * S, -4.6 * S, 0.55 * S);
-
-    const head = this.add.graphics();
-    const hy = -6.6 * S;
-    const r = 1.25 * S;
-    if (p.appearance.hairId === 'afro') head.fillStyle(hex(hair.base), 1).fillCircle(0, hy - 0.3 * S, r * 1.45);
-    if (p.appearance.hairId === 'manBun') head.fillStyle(hex(hair.base), 1).fillCircle(0.2 * S, hy - r * 1.05, r * 0.5);
-    head.fillStyle(hex(skin.base), 1).fillCircle(0, hy, r);
-    head.lineStyle(ow, ink, 1).strokeCircle(0, hy, r);
-    if (p.appearance.hairId !== 'bald') {
-      head.fillStyle(hex(hair.base), 1);
-      head.beginPath();
-      head.arc(0, hy, r * (p.appearance.hairId === 'buzz' ? 1.0 : 1.08), Math.PI * 1.02, Math.PI * 1.98, false);
-      head.closePath();
-      head.fillPath();
-    }
-    if (p.appearance.facialHairId === 'beard') head.fillStyle(hex(hair.base), 1).fillEllipse(0, hy + 0.75 * S, r * 1.4, r * 0.7);
-    // tiny eye dots looking in the facing direction
-    head.fillStyle(ink, 1).fillCircle(0.35 * S, hy + 0.1 * S, 0.17 * S).fillCircle(0.85 * S, hy + 0.1 * S, 0.17 * S);
-
-    const body = this.add.container(0, 0, [legL, legR, torso, head]);
-    const root = this.add.container(0, 0, [ring, shadow, body]);
+    const rig = new FootballerRig(this, p, kit, S, isUser, this.opts.reducedMotion);
     const label = this.add
       .text(0, 0, p.shortName.toUpperCase(), {
         fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif',
@@ -224,7 +174,7 @@ export class MatchScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setVisible(false)
       .setDepth(PITCH_L * S + 10);
-    return { id: p.id, side, root, body, legL, legR, ring, label, phase: 0, isUser, isKeeper };
+    return { id: p.id, side, rig, label, isUser };
   }
 
   private burst(x: number, y: number, colour: number, text?: string): void {
@@ -288,56 +238,36 @@ export class MatchScene extends Phaser.Scene {
     const S = this.S;
     const carrierId = curr.ball.ownerId;
 
+    const ballNow = this.toWorld(curr.ball.x, curr.ball.y, flip);
     for (const p of curr.players) {
       const f = this.figures.get(p.id);
       if (!f) continue;
       const pp: PlayerSnapshot = this.flip(prev) === flip ? (prevById.get(p.id) ?? p) : p;
       const w = this.toWorld(lerp(pp.x, p.x, t), lerp(pp.y, p.y, t), flip);
-      f.root.setPosition(w.x, w.y).setDepth(2 + w.y / S);
       const facing = (flip ? -p.facing : p.facing) as 1 | -1;
-      f.body.scaleX = facing;
-      // Run cycle scaled by speed.
-      const moving = p.speed > 0.12 && p.action !== 'dive';
-      f.phase += moving ? delta * 0.018 * Math.min(1.6, p.speed) : 0;
-      const swing = moving ? Math.sin(f.phase) * 0.45 * S : 0;
-      f.legL.y = swing;
-      f.legR.y = -swing;
-      let rot = 0;
-      let bob = moving ? -Math.abs(Math.sin(f.phase)) * 0.35 * S : 0;
-      switch (p.action) {
-        case 'kick':
-          f.legR.y = -0.9 * S;
-          f.legR.x = 0.6 * S;
-          rot = 0.12;
-          break;
-        case 'tackle':
-          rot = 0.45;
-          break;
-        case 'dive':
-          rot = 1.25;
-          bob = -1.2 * S;
-          break;
-        case 'stumble':
-          rot = Math.sin(this.time.now * 0.03) * 0.25;
-          break;
-        case 'celebrate':
-          bob = -Math.abs(Math.sin(this.time.now * 0.012)) * 1.4 * S;
-          break;
-        default:
-          f.legR.x = 0;
-      }
-      if (p.action !== 'kick') f.legR.x = 0;
-      f.body.rotation = rot * facing;
-      f.body.y = bob;
-
-      f.ring.clear();
       const has = p.id === carrierId;
+      f.rig.update({
+        x: w.x,
+        y: w.y,
+        facing,
+        speed: this.controller.isRunning() ? p.speed : 0,
+        action: p.action,
+        isCarrier: has,
+        ballDx: (ballNow.x - w.x) / S,
+        ballDist: Math.hypot(ballNow.x - w.x, ballNow.y - w.y) / S,
+        isScorer: p.id === this.scorerId,
+        dtMs: this.controller.isRunning() || p.action === 'celebrate' ? delta : 0,
+        now: this.time.now,
+      });
+      f.rig.root.setDepth(2 + w.y / S);
+      f.rig.ring.clear();
       if (has || f.isUser) {
-        f.ring.lineStyle(Math.max(1.5, (has ? 0.45 : 0.25) * S), has ? 0xcbf238 : 0xcbf238, has ? 1 : 0.55);
-        f.ring.strokeEllipse(0, 0, (has ? 4.2 : 3.4) * S, (has ? 1.7 : 1.3) * S);
+        // Our players: lime rings; an opposition carrier gets a white one.
+        f.rig.ring.lineStyle(Math.max(1.5, (has ? 0.45 : 0.25) * S), f.isUser ? 0xcbf238 : 0xfff7e9, has ? 1 : 0.55);
+        f.rig.ring.strokeEllipse(0, 0, (has ? 4.4 : 3.6) * S, (has ? 1.8 : 1.35) * S);
       }
-      f.label.setVisible(has || p.action === 'celebrate');
-      if (f.label.visible) f.label.setPosition(w.x, w.y - 9 * S);
+      f.label.setVisible(has || (p.action === 'celebrate' && p.id === this.scorerId));
+      if (f.label.visible) f.label.setPosition(w.x, w.y - 10.5 * S);
     }
 
     // Ball (with height): shadow on the turf, ball lifted by z.

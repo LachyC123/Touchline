@@ -31,7 +31,7 @@ export interface TeamIdentity {
   clubId: string;
   name: string;
   shortName: string;
-  kit: { primary: string; secondary: string };
+  kit: TeamLineup['kit'];
   aiStyle: AiStyle;
 }
 
@@ -56,6 +56,8 @@ export function buildTeamLineup(identity: TeamIdentity, formation: FormationId, 
       traitIds: [...p.traitIds],
       strongFoot: p.strongFoot,
       appearance: p.appearance,
+      runningStyleId: p.runningStyleId,
+      celebrationId: p.celebrationId,
     };
   });
   return { ...identity, formation, players };
