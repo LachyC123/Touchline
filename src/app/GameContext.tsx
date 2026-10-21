@@ -44,6 +44,7 @@ import {
   toggleFavourite,
 } from '../storage/saveRepo';
 import { DEFAULT_SETTINGS, type Settings } from '../storage/schema';
+import { askPersistentStorage, flushSaves, forgetCopies, noteSaved } from '../storage/sync';
 
 type SaveState = { status: 'loading' } | { status: 'ready'; save: ClubSave | null } | { status: 'corrupt'; message: string };
 
@@ -101,6 +102,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const settings = useLiveQuery(() => loadSettings(), []) ?? DEFAULT_SETTINGS;
 
+  // Every new save is copied (local mirror now, cloud shortly after); flush when hidden.
+  const liveSave = saveState.status === 'ready' ? saveState.save : null;
+  useEffect(() => {
+    if (liveSave) noteSaved(liveSave);
+  }, [liveSave]);
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden') flushSaves();
+    };
+    document.addEventListener('visibilitychange', flush);
+    window.addEventListener('pagehide', flushSaves);
+    return () => {
+      document.removeEventListener('visibilitychange', flush);
+      window.removeEventListener('pagehide', flushSaves);
+    };
+  }, []);
+
   // Apply presentation settings globally.
   useEffect(() => {
     const root = document.documentElement;
@@ -135,14 +153,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
     () => ({
       saveState,
       settings,
-      startCareer: () => startNewCareer(freshSeed()),
+      startCareer: async () => {
+        const save = await startNewCareer(freshSeed());
+        void askPersistentStorage();
+        return save;
+      },
       toggleFavourite: async (id) => void (await toggleFavourite(id)),
       markInspected: async (id) => void (await markInspected(id)),
       updateSettings,
       exportSave,
       readImportFile: async (file) => parseSaveFile(await file.text()),
       confirmImport: (save) => replaceSave(save),
-      resetCareer: () => deleteCareer(),
+      resetCareer: async () => {
+        await deleteCareer();
+        await forgetCopies();
+      },
       setFormation: async (f) => void (await repoSetFormation(f)),
       assignPlayer: async (slot, id) => void (await repoAssignPlayer(slot, id)),
       autoPick: async () => void (await autoPickLineup()),

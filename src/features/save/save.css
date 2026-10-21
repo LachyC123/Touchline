@@ -1,0 +1,61 @@
+.save-pill {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  right: 12px;
+  z-index: 70;
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--lime);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+  pointer-events: none;
+}
+
+.save-pill.is-on {
+  opacity: 1;
+  transform: none;
+}
+
+.save-pill:empty {
+  padding: 0;
+}
+
+.newer-save {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  background: rgb(11 21 38 / 0.85);
+}
+
+.newer-save__panel {
+  display: grid;
+  gap: var(--s-3);
+  width: min(100%, 380px);
+  text-align: center;
+}
+
+.boot__loading {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}

@@ -65,7 +65,14 @@ export function isMemoryOnly(): boolean {
  */
 export async function switchToMemoryDb(): Promise<TouchlineDB> {
   const { IDBFactory, IDBKeyRange } = await import('fake-indexeddb');
-  const db = new TouchlineDB('touchline-memory', { indexedDB: new IDBFactory(), IDBKeyRange });
+  const factory = new IDBFactory();
+  // Dexie's live queries stay silent when the browser has no IndexedDB of its own; point its
+  // global dependencies at the stand-in too, or the game would never see its save.
+  if (!Dexie.dependencies.indexedDB) {
+    Dexie.dependencies.indexedDB = factory;
+    Dexie.dependencies.IDBKeyRange = IDBKeyRange as unknown as typeof Dexie.dependencies.IDBKeyRange;
+  }
+  const db = new TouchlineDB('touchline-memory', { indexedDB: factory, IDBKeyRange });
   await db.open();
   instance = db;
   memoryOnly = true;

@@ -108,3 +108,31 @@
   font-size: 11px;
   resize: vertical;
 }
+
+.more__copies {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 var(--s-3);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.more__copies li::before {
+  display: inline-block;
+  width: 1.4em;
+  font-weight: 900;
+}
+
+.more__copies li.is-on::before {
+  content: '✓';
+  color: var(--lime);
+}
+
+.more__copies li.is-off {
+  color: var(--text-muted);
+}
+
+.more__copies li.is-off::before {
+  content: '–';
+}

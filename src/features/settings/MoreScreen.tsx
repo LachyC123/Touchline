@@ -10,6 +10,8 @@ import { parseSaveFile } from '../../storage/exportImport';
 import { exportCurrentSave } from '../../storage/saveRepo';
 import { playSfx } from '../../audio/sfx';
 import './more.css';
+import { useSyncStatus } from '../../storage/sync';
+import { isMemoryOnly } from '../../storage/db';
 
 function Row({ icon, title, hint, children }: { icon: IconName; title: string; hint?: string; children: ReactNode }) {
   return (
@@ -27,6 +29,7 @@ function Row({ icon, title, hint, children }: { icon: IconName; title: string; h
 }
 
 export function MoreScreen() {
+  const sync = useSyncStatus();
   const { settings, updateSettings, exportSave, readImportFile, confirmImport, resetCareer, saveState, replayTutorial } = useGame();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -179,10 +182,22 @@ export function MoreScreen() {
         <p className="more__note">
           <Icon name="info" size={18} />
           <span>
-            Your career lives in this browser only. Clearing site data or private browsing can erase it — export a copy now and then.
+            {sync.savedAt ? `Saved automatically after every action (last: ${new Date(sync.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}). ` : 'Saved automatically after every action. '}
+            {sync.cloud === 'on'
+              ? 'A backup copy is also kept in your Claude account, so the club comes back on another device or if this browser’s data is cleared.'
+              : sync.cloud === 'connecting'
+                ? 'Connecting to your Claude account backup…'
+                : sync.mirror
+                  ? 'A second copy is kept in this browser in case its main storage is lost. Clearing all site data erases both — export a copy now and then.'
+                  : 'Your career lives in this browser only. Clearing site data or private browsing can erase it — export a copy now and then.'}
             {lastExport ? ` Last export: ${lastExport}.` : ' You haven’t exported yet.'}
           </span>
         </p>
+        <ul className="more__copies" aria-label="Where your club is saved">
+          <li className={isMemoryOnly() ? 'is-off' : 'is-on'}>This browser {isMemoryOnly() ? '(blocked)' : ''}</li>
+          <li className={sync.mirror ? 'is-on' : 'is-off'}>Backup copy on this page</li>
+          <li className={sync.cloud === 'on' ? 'is-on' : 'is-off'}>Claude account backup {sync.cloud === 'error' ? '(couldn’t save — will retry)' : sync.cloud === 'off' ? '(only inside claude.ai)' : sync.cloud === 'ready' || sync.cloud === 'connecting' ? '(connecting…)' : ''}</li>
+        </ul>
         <div className="more__buttons">
           {canDownload && (
             <Button

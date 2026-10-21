@@ -22,12 +22,14 @@ import { MoreScreen } from '../features/settings/MoreScreen';
 import { PlayerScreen } from '../features/squad/PlayerScreen';
 import { SquadScreen } from '../features/squad/SquadScreen';
 import { TitleScreen } from '../features/title/TitleScreen';
-import { isMemoryOnly, switchToMemoryDb } from '../storage/db';
+import { switchToMemoryDb } from '../storage/db';
 import { openStorage } from '../storage/saveRepo';
 import { GameProvider, useGame } from './GameContext';
 import { PwaPrompt } from './PwaPrompt';
 import { DEV_TOOLS_ENABLED, navigate, useRoute } from './router';
 import { MarketScreen } from '../features/market/MarketScreen';
+import { restoreNewestCopy } from '../storage/sync';
+import { MemoryBanner, NewerSaveDialog, SaveIndicator } from '../features/save/SaveStatus';
 import { RoadScreen } from '../features/club/RoadScreen';
 
 // Developer tooling is code-split so it never ships in the main bundle.
@@ -39,16 +41,19 @@ export function App() {
   const [boot, setBoot] = useState<Boot>({ status: 'opening' });
 
   useEffect(() => {
+    // Open storage (or the in-memory stand-in), then bring back the newest saved copy of the
+    // club: IndexedDB, the local mirror, or the claude.ai cloud copy.
     openStorage()
-      .then(() => setBoot({ status: 'ok' }))
       .catch(async (err: unknown) => {
         try {
           await switchToMemoryDb();
-          setBoot({ status: 'ok' });
         } catch {
-          setBoot({ status: 'failed', message: err instanceof Error ? err.message : String(err) });
+          throw err;
         }
-      });
+      })
+      .then(() => restoreNewestCopy().catch(() => 'none'))
+      .then(() => setBoot({ status: 'ok' }))
+      .catch((err: unknown) => setBoot({ status: 'failed', message: err instanceof Error ? err.message : String(err) }));
     // Browsers only allow audio after a gesture; unlock on the first touch/click.
     const unlock = () => unlockAudio();
     window.addEventListener('pointerdown', unlock, { passive: true });
@@ -74,19 +79,24 @@ export function App() {
       </div>
     );
   }
-  if (boot.status === 'opening') return <div className="app-bg" />;
+  if (boot.status === 'opening')
+    return (
+      <div className="app-bg">
+        <p className="boot__loading" role="status">
+          Loading your club…
+        </p>
+      </div>
+    );
 
   return (
     <ToastProvider>
       <GameProvider>
         <div className="app-bg">
           <div className="shell">
-            {isMemoryOnly() && (
-              <p className="memory-banner" role="status">
-                This browser is blocking saved data, so progress lasts only until you close the page.
-              </p>
-            )}
+            <MemoryBanner />
             <Screens />
+            <SaveIndicator />
+            <NewerSaveDialog />
           </div>
         </div>
         <PwaPrompt />
