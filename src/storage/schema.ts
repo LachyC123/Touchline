@@ -11,6 +11,7 @@ import {
   FACE_IDS,
   FACIAL_HAIR_IDS,
   HAIR_COLOUR_IDS,
+  HISTORY_KINDS,
   HAIR_IDS,
   MOUTH_IDS,
   NOSE_IDS,
@@ -22,6 +23,7 @@ import {
   type AttributeKey,
 } from '../domain/players/types';
 import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
+import { MILESTONE_KINDS } from '../domain/players/milestones';
 import { ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
 import { CARD_IDS, DECK_MAX, DECK_MIN } from '../game/simulation/cards';
 
@@ -95,7 +97,7 @@ export const footballerSchema = z.object({
     .array(
       z.object({
         id: z.string().min(1).max(64),
-        kind: z.enum(['signed', 'debut', 'firstGoal', 'upgrade', 'milestone']),
+        kind: z.enum(HISTORY_KINDS),
         season: z.number().int().min(1).max(999),
         headline: z.string().min(1).max(200),
         order: z.number().int().min(0),
@@ -198,6 +200,10 @@ const pendingMatchSchema = z.object({
   checkpointTick: z.number().int().min(0).max(100_000),
   season: z.number().int().min(1).max(999).optional(),
   round: z.number().int().min(0).max(40).optional(),
+  milestones: z
+    .array(z.object({ playerId: z.string().max(80), name: z.string().max(80), kind: z.enum(MILESTONE_KINDS), text: z.string().max(200) }))
+    .max(40)
+    .optional(),
 });
 
 const matchRecordSchema = z.object({
@@ -242,6 +248,10 @@ const matchRecordSchema = z.object({
   unlockedCards: z.array(cardId).max(CARD_IDS.length).optional(),
   season: z.number().int().min(1).max(999).optional(),
   round: z.number().int().min(0).max(40).optional(),
+  milestones: z
+    .array(z.object({ playerId: z.string().max(80), name: z.string().max(80), kind: z.enum(MILESTONE_KINDS), text: z.string().max(200) }))
+    .max(40)
+    .optional(),
 });
 
 const ownedPackSchema = z.object({

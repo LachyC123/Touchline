@@ -18,6 +18,8 @@ const ICON: Record<StoryKind, IconName> = {
   theirRun: 'pulse',
   ourScorer: 'boot',
   theirScorer: 'boot',
+  milestone: 'starFilled',
+  hotStreak: 'bolt',
 };
 
 /** "The build-up": short lines that say why the next match matters. */

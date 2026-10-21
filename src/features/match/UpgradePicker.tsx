@@ -17,7 +17,7 @@ import './upgrade.css';
  * One meaningful choice per level: two training focuses with an exact preview of what
  * changes. Applied atomically once (idempotency key = player + level).
  */
-export function UpgradePicker({ upgrade, player, kit }: { upgrade: PendingUpgrade; player: Footballer; kit: Kit }) {
+export function UpgradePicker({ upgrade, player, kit, onDone }: { upgrade: PendingUpgrade; player: Footballer; kit: Kit; onDone?: () => void }) {
   const { chooseUpgrade } = useGame();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -34,6 +34,7 @@ export function UpgradePicker({ upgrade, player, kit }: { upgrade: PendingUpgrad
       playSfx('chime');
       const rows = (Object.entries(focusDeltas(player, focusId)) as [AttributeKey, number][]).map(([k, v]) => ({ key: k, label: ATTRIBUTE_INFO[k].label, before: player.attributes[k], after: player.attributes[k] + v }));
       setDone({ name: FOCUSES[focusId]?.name ?? focusId, before, after: overall(preview), rows });
+      onDone?.();
     } catch (err) {
       toast.show(err instanceof Error ? err.message : 'Could not apply that upgrade.', 'error');
     } finally {

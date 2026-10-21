@@ -237,8 +237,16 @@ function Stats({ player }: { player: Footballer }) {
   );
 }
 
+const HONOURS: { label: string; one: string; test: (h: Footballer['history'][number]) => boolean }[] = [
+  { label: 'Titles', one: 'Title', test: (h) => h.kind === 'honour' && h.headline.startsWith('CHAMPIONS') },
+  { label: 'Promotions', one: 'Promotion', test: (h) => h.kind === 'honour' && h.headline.startsWith('PROMOTED') },
+  { label: 'Golden Boots', one: 'Golden Boot', test: (h) => h.kind === 'honour' && h.headline.startsWith('GOLDEN BOOT') },
+  { label: 'Hat-tricks', one: 'Hat-trick', test: (h) => h.kind === 'hatTrick' },
+];
+
 function Story({ player, model, clubName }: { player: Footballer; model: ReturnType<typeof toCardModel>; clubName: string }) {
   const entries = [...player.history].sort((a, b) => b.order - a.order);
+  const honours = HONOURS.map((h) => ({ count: player.history.filter(h.test).length, h })).filter((x) => x.count > 0).map(({ count, h }) => ({ label: count === 1 ? h.one : h.label, count }));
   return (
     <div className="player__stack">
       <article className="paper player__origin">
@@ -248,11 +256,21 @@ function Story({ player, model, clubName }: { player: Footballer; model: ReturnT
           {player.nationality} · born in {player.hometown}
         </p>
       </article>
+      {honours.length > 0 && (
+        <section className="player__honours" aria-label="Honours">
+          {honours.map((h) => (
+            <div key={h.label}>
+              <b>{h.count}</b>
+              <span>{h.label}</span>
+            </div>
+          ))}
+        </section>
+      )}
       <section className="panel player__timeline">
         <h3 className="eyebrow">Scrapbook at {clubName}</h3>
         <ol>
           {entries.map((h) => (
-            <li key={h.id}>
+            <li key={h.id} className={h.kind === 'honour' || h.kind === 'hatTrick' ? 'is-gold' : ''}>
               <span className="player__stamp">S{h.season}</span>
               <span>{h.headline}</span>
             </li>

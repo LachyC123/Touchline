@@ -98,7 +98,7 @@ describe('pre-match storylines', () => {
   it('remembers the last meeting: revenge after a defeat, derby for rivals', () => {
     const league = play(newLeague('story-3', 1, 0), 2, weWin);
     const fx = { club: CLUB_BY_ID.stagmoor!, round: 3, home: true };
-    const lost = [{ opponentId: 'stagmoor', season: 1, round: 1, userSide: 'home', score: { home: 0, away: 2 } }] as Partial<MatchRecord>[];
+    const lost = [{ opponentId: 'stagmoor', season: 1, round: 1, userSide: 'home', score: { home: 0, away: 2 }, scorers: [], gains: [] }] as Partial<MatchRecord>[];
     expect(headToHead(saveWith(league, lost), 'stagmoor')[0]).toMatchObject({ gf: 0, ga: 2 });
     expect(preMatchStorylines(saveWith(league, lost), fx).find((l) => l.kind === 'revenge')?.text).toBe('They beat you 2–0 in round 2. Revenge is on the menu.');
 

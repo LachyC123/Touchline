@@ -19,6 +19,7 @@ async function playAndSkip(page: Page) {
 test('league: a round is played across the division and the table adds up after a reload', async ({ page }) => {
   await startCareerSkippingTutorial(page);
   await expect(page.locator('.club__league')).toContainText(/division two/i);
+  await expect(page.locator('.cabinet__shelf.is-empty')).toContainText(/top 2/i);
   await playAndSkip(page);
   const around = page.locator('.result__league');
   await expect(around).toBeVisible();
@@ -54,8 +55,10 @@ test('league: a whole season ends on the final day and season 2 starts once', as
   await expect(page.locator('.season__title')).toBeVisible();
   await expect(page.locator('.season__table li')).toHaveCount(4);
   await expect(page.locator('.season__story li').first()).toBeVisible();
+  const promoted = /promoted|champions/i.test(await page.locator('.season__title').innerText());
   await page.getByRole('button', { name: /start season 2/i }).click();
   await expect(page.locator('.club__league')).toContainText(/season 2/i);
+  await expect(page.locator('.cabinet__item')).toHaveCount(promoted ? 1 : 0);
   await page.reload();
   await expect(page.locator('.club__league')).toContainText(/season 2/i);
   await page.goto('/#/league');

@@ -17,7 +17,7 @@ import { overall } from '../../domain/players/rating';
 import { CoachMark } from '../../components/ui/CoachMark';
 import { ManagerCard } from '../../components/manager/ManagerCard';
 import { AI_DECKS, CARD_DEFS, HAND_SIZE } from '../../game/simulation/cards';
-import { UpgradePicker } from './UpgradePicker';
+import { UpgradeQueue } from './UpgradeQueue';
 import { FormDots } from '../../components/league/FormDots';
 import { Storylines } from '../../components/league/Storylines';
 import { clubForm, preMatchStorylines } from '../../domain/league/stories';
@@ -128,14 +128,9 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
       )}
 
       {upgrades.length > 0 && !pending && (
-        <section className="lobby__upgrades" aria-label="Level-ups waiting">
-          <h2 className="eyebrow">Ready to level up</h2>
-          {upgrades.slice(0, 2).map((u) => {
-            const p = save.footballers[u.playerId];
-            return p ? <UpgradePicker key={`${u.playerId}-${u.level}`} upgrade={u} player={p} kit={save.club.kit} /> : null;
-          })}
-          {upgrades.length > 2 && <p className="lobby__more">+{upgrades.length - 2} more after these.</p>}
-        </section>
+        <div className="lobby__upgrades">
+          <UpgradeQueue heading="Ready to level up" />
+        </div>
       )}
 
       {!pending && (

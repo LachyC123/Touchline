@@ -2,6 +2,7 @@ import type { ClubIdentity } from '../club/types';
 import type { FormationId } from '../formations';
 import type { Footballer, Tier } from '../players/types';
 import type { CardId } from '../../game/simulation/cards';
+import type { MilestoneKind } from '../players/milestones';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
 export const SCHEMA_VERSION = 5;
@@ -62,6 +63,13 @@ export interface PlayerGain {
 }
 
 /** What the full-time screen shows, preserved after the match is settled. */
+export interface RecordMilestone {
+  playerId: string;
+  name: string;
+  kind: MilestoneKind;
+  text: string;
+}
+
 export interface MatchRecord {
   matchId: string;
   number: number;
@@ -93,6 +101,8 @@ export interface MatchRecord {
   /** League season and round this match belonged to. */
   season?: number;
   round?: number;
+  /** Career landmarks reached in this match (debuts excluded). */
+  milestones?: RecordMilestone[];
   storyHeadline: string;
   /** Notable non-routine incidents (screamers, double saves, penalties, skills, bookings). */
   moments?: MatchMoment[];

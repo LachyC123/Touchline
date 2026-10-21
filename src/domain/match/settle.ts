@@ -10,10 +10,12 @@ import { opponentLineup } from '../club/opponents';
 import { simulateOtherFixtures, userLeagueResult, userFixture } from '../league/league';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
+import { matchMilestones, type MilestoneKind } from '../players/milestones';
 import { xpToNext } from '../players/progression';
+import type { HistoryEventKind } from '../players/types';
 import { FOCUS_OPTIONS } from '../players/upgrades';
 import { seededUuid, stream } from '../rng';
-import { MAX_MATCH_RECORDS, PLAYER_CLUB_ID, REPLAYS_KEPT, type ClubSave, type MatchMoment, type MatchRecord, type PendingMatch, type PlayerGain, type RewardLine } from '../save/types';
+import { MAX_MATCH_RECORDS, PLAYER_CLUB_ID, REPLAYS_KEPT, type ClubSave, type MatchMoment, type MatchRecord, type PendingMatch, type PlayerGain, type RecordMilestone, type RewardLine } from '../save/types';
 
 export const XP = { match: 40, win: 15, cleanSheet: 5, goal: 8, assist: 5, potm: 10, cap: 85, bench: 10, recruitDebut: 40 } as const;
 
@@ -148,6 +150,17 @@ function scoreTimeline(events: readonly FootballEvent[]): { home: number; away: 
   return out;
 }
 
+const HISTORY_KIND: Record<MilestoneKind, HistoryEventKind> = {
+  debut: 'debut',
+  firstGoal: 'firstGoal',
+  hatTrick: 'hatTrick',
+  goals: 'milestone',
+  assists: 'milestone',
+  apps: 'milestone',
+  firstCleanSheet: 'milestone',
+  cleanSheets: 'milestone',
+};
+
 /**
  * Applies a finished match to the career (on a draft inside the save transaction):
  * record, rewards, player stats/XP/level-ups, scrapbook entries and a fact-checked headline.
@@ -166,12 +179,13 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   const lines = new Map(result.players.map((l) => [l.playerId, l]));
   const season = draft.season;
   let order = draft.nextSeq;
-  const history = (playerId: string, kind: 'debut' | 'firstGoal' | 'milestone', headline: string) => {
+  const history = (playerId: string, kind: HistoryEventKind, headline: string) => {
     const p = draft.footballers[playerId];
     if (!p) return;
     p.history.push({ id: seededUuid(`${draft.careerSeed}:history:${order}`), kind, season, order, headline });
     order++;
   };
+  const milestones: RecordMilestone[] = [];
 
   // Headline candidates are evaluated against real facts (order = priority).
   const goals = result.events.filter((e): e is Extract<FootballEvent, { type: 'GOAL' }> => e.type === 'GOAL');
@@ -207,19 +221,18 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     const line = lines.get(id);
     if (starters.has(id) && line) {
       const wasDebut = p.stats.matches === 0;
-      const hadGoals = p.stats.goals;
+      const statsBefore = { ...p.stats };
       p.stats.matches++;
       p.stats.goals += line.goals;
       p.stats.assists += line.assists;
       const role = mine.players.find((x) => x.id === id)?.role;
       const cleanSheet = ga === 0 && (role === 'GK' || role === 'DEF');
       if (cleanSheet) p.stats.cleanSheets++;
-      if (wasDebut) history(id, 'debut', `Made his debut against ${oppName}.`);
-      if (hadGoals === 0 && line.goals > 0) {
-        const g = myGoals.find((x) => x.scorerId === id);
-        history(id, 'firstGoal', `First goal for the club${g ? ` (${g.minute}')` : ''} against ${oppName}.`);
+      const firstGoal = myGoals.find((x) => x.scorerId === id);
+      for (const m of matchMilestones(statsBefore, p.stats, { goals: line.goals, opponent: oppName, keeper: role === 'GK', ...(firstGoal ? { firstGoalMinute: firstGoal.minute } : {}) })) {
+        history(id, HISTORY_KIND[m.kind], m.headline);
+        if (m.kind !== 'debut') milestones.push({ playerId: id, name: `${p.firstName} ${p.lastName}`, kind: m.kind, text: m.headline });
       }
-      if ([10, 25, 50, 100].includes(p.stats.matches)) history(id, 'milestone', `A TRUE CLUB PLAYER: ${p.stats.matches} appearances.`);
       xp = XP.match + (won ? XP.win : 0) + (cleanSheet ? XP.cleanSheet : 0) + line.goals * XP.goal + line.assists * XP.assist + (result.playerOfMatchId === id ? XP.potm : 0);
       xp = Math.min(XP.cap, xp);
       // A scouted recruit's debut is worth a level: their first match always ends in a training choice.
@@ -286,6 +299,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     gains,
     storyHeadline,
     moments: matchMoments(result, pending),
+    ...(milestones.length ? { milestones } : {}),
     ...(unlockedCards.length ? { unlockedCards } : {}),
     ...(pending.season !== undefined ? { season: pending.season } : {}),
     ...(pending.round !== undefined ? { round: pending.round } : {}),

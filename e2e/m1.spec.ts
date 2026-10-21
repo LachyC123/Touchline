@@ -125,8 +125,18 @@ test('after two matches players level up and a training focus applies once', asy
   await expect(picker).toContainText(/locked in/i);
   await page.reload();
   await expect(page.locator('.result__hero')).toBeVisible();
-  // That level-up is consumed; any remaining pickers are for other players.
+  // That level-up is consumed; level-ups queue one at a time, the rest wait as names.
   const remaining = await page.locator('.upgrade').count();
+  expect(remaining).toBeLessThanOrEqual(1);
   await page.goto('/#/match');
-  await expect(page.locator('.upgrade')).toHaveCount(Math.min(2, remaining));
+  await expect(page.locator('.upgrade')).toHaveCount(remaining);
+  if (remaining) {
+    const chips = page.locator('.upgrade-queue__chip');
+    const waiting = await chips.count();
+    if (waiting > 0) {
+      const name = (await chips.first().innerText()).split('\n')[0]!.replace(/LV.*$/i, '').trim();
+      await chips.first().click();
+      await expect(page.locator('.upgrade h3')).toContainText(new RegExp(name, 'i'));
+    }
+  }
 });

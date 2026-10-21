@@ -435,3 +435,45 @@
 .player__upgrade {
   margin-top: var(--s-3);
 }
+
+.player__honours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.player__honours div {
+  display: grid;
+  flex: 1 1 0;
+  min-width: 70px;
+  padding: var(--s-2);
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(circle at 30% 0%, rgb(255 255 255 / 0.45), transparent 60%),
+    var(--gold);
+  color: var(--ink);
+  font-family: var(--font-display);
+  text-align: center;
+  box-shadow: 0 3px 0 var(--gold-dark);
+}
+
+.player__honours b {
+  font-weight: 900;
+  font-size: var(--text-xl);
+  line-height: 1;
+}
+
+.player__honours span {
+  font-weight: 800;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.player__timeline li.is-gold .player__stamp {
+  background: var(--gold);
+}
+
+.player__timeline li.is-gold {
+  font-weight: 700;
+}

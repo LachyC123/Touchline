@@ -5,7 +5,7 @@ import { useSave } from '../../app/GameContext';
 import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
 import { PACK_DEFS } from '../../domain/packs/packs';
-import { PLAYER_CLUB_ID, type MatchMoment } from '../../domain/save/types';
+import { PLAYER_CLUB_ID, type MatchMoment, type RecordMilestone } from '../../domain/save/types';
 import { clubName, divisionOf, leagueTable, ordinal, seasonComplete } from '../../domain/league/league';
 import { fatesSealedIn, roundHeadline, type Fate } from '../../domain/league/stories';
 import { Trophy } from '../../components/league/Trophy';
@@ -19,7 +19,7 @@ import { ManagerCard } from '../../components/manager/ManagerCard';
 import { useCountUp } from '../../components/ui/useCountUp';
 import { CLUB_BY_ID } from '../../data/clubs';
 import { xpToNext } from '../../domain/players/progression';
-import { UpgradePicker } from './UpgradePicker';
+import { UpgradeQueue } from './UpgradeQueue';
 import './result.css';
 
 const FATE_ORDER: Fate[] = ['champions', 'promoted', 'safe', 'relegated'];
@@ -30,6 +30,17 @@ function sealedFate(league: Parameters<typeof fatesSealedIn>[0], round: number |
   const sealed = fatesSealedIn(league, round);
   return FATE_ORDER.find((f) => sealed.includes(f)) ?? null;
 }
+
+const MILESTONE_ICON: Record<RecordMilestone['kind'], IconName> = {
+  debut: 'shirt',
+  firstGoal: 'boot',
+  hatTrick: 'starFilled',
+  goals: 'boot',
+  assists: 'feet',
+  apps: 'shirt',
+  firstCleanSheet: 'glove',
+  cleanSheets: 'glove',
+};
 
 const FATE_TITLE: Record<Fate, string> = {
   champions: 'Champions!',
@@ -225,6 +236,32 @@ export function ResultScreen({ id }: { id: string }) {
         </section>
       )}
 
+      {record.milestones && record.milestones.length > 0 && (
+        <section className="result__milestones" aria-labelledby="milestones-title">
+          <h2 id="milestones-title" className="eyebrow">
+            Milestones
+          </h2>
+          <ul>
+            {record.milestones.map((m, i) => {
+              const p = save.footballers[m.playerId];
+              return (
+                <li key={`${m.playerId}-${m.kind}`} style={{ animationDelay: `${200 + i * 120}ms` }}>
+                  <button type="button" className={`result__milestone result__milestone--${m.kind}`} onClick={() => navigate({ name: 'player', id: m.playerId })} disabled={!p}>
+                    <span className="result__milestone-icon" aria-hidden="true">
+                      <Icon name={MILESTONE_ICON[m.kind]} size={20} />
+                    </span>
+                    <span>
+                      <b>{m.name}</b>
+                      <small>{m.text}</small>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <section className="result__rewards paper" aria-label="Rewards">
         <div className="result__coins">
           <span className="club__coin" aria-hidden="true" />
@@ -285,18 +322,15 @@ export function ResultScreen({ id }: { id: string }) {
       </section>
 
       {upgrades.length > 0 && (
-        <section className="result__upgrades" aria-label="Level-ups">
-          <h2 className="eyebrow">Choose a training focus</h2>
-          {tipPending(save, 'upgrade') && (
-            <CoachMark className="result__coach">
-              <b>Level up!</b> Training choices are permanent: pick the focus that suits how you want him to play. The stat change shows straight away.
-            </CoachMark>
-          )}
-          {upgrades.map((u) => {
-            const p = save.footballers[u.playerId];
-            return p ? <UpgradePicker key={`${u.playerId}-${u.level}`} upgrade={u} player={p} kit={save.club.kit} /> : null;
-          })}
-        </section>
+        <div className="result__upgrades">
+          <UpgradeQueue heading="Choose a training focus">
+            {tipPending(save, 'upgrade') && (
+              <CoachMark className="result__coach">
+                <b>Level up!</b> Training choices are permanent: pick the focus that suits how you want him to play. The stat change shows straight away.
+              </CoachMark>
+            )}
+          </UpgradeQueue>
+        </div>
       )}
 
       <section className="result__potm">

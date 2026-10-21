@@ -4,6 +4,7 @@ import { colourDistance, KIT_CLASH_DISTANCE } from '../domain/club/onboarding';
 import { createCareer } from '../domain/club/newCareer';
 import { leagueTable, newLeague, ROUNDS_PER_SEASON, scheduleSeason, seasonComplete, seasonOutcome, simulateOtherFixtures } from '../domain/league/league';
 import { prepareMatch } from '../domain/match/settle';
+import { seasonAppearances } from '../domain/league/honours';
 import { PLAYER_CLUB_ID } from '../domain/save/types';
 import { TouchlineDB, setDbForTests } from './db';
 import { migrateSave } from './migrations';
@@ -109,6 +110,15 @@ describe('a full season', () => {
     expect(s.league.division).toBe(outcome.position <= 2 ? 1 : 0);
     expect(s.league.round).toBe(0);
     expect(s.league.results).toEqual([]);
+    // Honours were stamped once, for the players who actually played.
+    const played = seasonAppearances(s, 1);
+    expect(played.size).toBeGreaterThanOrEqual(7);
+    for (const p of Object.values(s.footballers)) {
+      const hs = p.history.filter((h) => h.kind === 'honour').map((h) => h.headline);
+      expect(new Set(hs).size).toBe(hs.length);
+      const medal = hs.some((h) => /^(CHAMPIONS|PROMOTED):/.test(h));
+      expect(medal).toBe(outcome.position <= 2 && played.has(p.id));
+    }
     // Season 2 kicks off normally.
     const next = await kickOff(db);
     expect(next.season).toBe(2);

@@ -603,3 +603,74 @@
   letter-spacing: 0.02em;
   color: var(--gold);
 }
+
+.result__milestones {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+.result__milestones ul {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result__milestones li {
+  animation: sealed-in 520ms var(--ease-spring) both;
+}
+
+.result__milestone {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(ellipse 60% 100% at 0% 50%, rgb(244 198 83 / 0.25), transparent 70%),
+    var(--navy-600);
+  color: var(--cream);
+  text-align: left;
+  box-shadow: 0 4px 0 var(--navy-900);
+}
+
+.result__milestone:active {
+  translate: 0 2px;
+  box-shadow: 0 2px 0 var(--navy-900);
+}
+
+.result__milestone b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-md);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.result__milestone small {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.result__milestone-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--ink);
+  box-shadow: 0 2px 0 var(--gold-dark);
+}
+
+.result__milestone--hatTrick .result__milestone-icon {
+  background: var(--lime);
+  box-shadow: 0 2px 0 var(--lime-dark);
+}

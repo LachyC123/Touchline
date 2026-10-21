@@ -1,5 +1,6 @@
 import { CLUB_BY_ID, type DivisionDef } from '../../data/clubs';
 import { PLAYER_CLUB_ID, type ClubSave, type LeagueResult, type LeagueState } from '../save/types';
+import { upcomingMilestones } from '../players/milestones';
 import { clubName, divisionOf, leagueTable, ordinal, topScorers, type TableRow, type UserFixture } from './league';
 
 /**
@@ -88,6 +89,24 @@ export function headToHead(save: Pick<ClubSave, 'matchRecords'>, opponentId: str
     });
 }
 
+/** Our players on a scoring run: consecutive most recent matches (this season) with a goal. */
+export function scoringRuns(save: Pick<ClubSave, 'matchRecords' | 'season'>): { playerId: string; name: string; games: number }[] {
+  const recent = save.matchRecords.filter((m) => m.season === save.season);
+  const runs = new Map<string, { playerId: string; name: string; games: number }>();
+  const broken = new Set<string>();
+  for (const m of recent) {
+    const scorers = new Map(m.scorers.filter((s) => s.side === m.userSide).map((s) => [s.playerId, s.name] as const));
+    const played = new Set(m.gains.filter((g) => g.rating !== undefined).map((g) => g.playerId));
+    for (const id of played) {
+      if (broken.has(id)) continue;
+      const name = scorers.get(id);
+      if (name) runs.set(id, { playerId: id, name, games: (runs.get(id)?.games ?? 0) + 1 });
+      else broken.add(id);
+    }
+  }
+  return [...runs.values()].sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
+}
+
 // ── Clinching ───────────────────────────────────────────────────────────────────────────────
 
 export type Fate = 'champions' | 'promoted' | 'safe' | 'relegated';
@@ -141,7 +160,7 @@ export function roundSealed(league: Pick<LeagueState, 'rounds' | 'results' | 'di
 
 // ── Pre-match storylines ───────────────────────────────────────────────────────────────────
 
-export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer';
+export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer' | 'milestone' | 'hotStreak';
 
 export interface Storyline {
   kind: StoryKind;
@@ -168,7 +187,7 @@ function score(m: Meeting): string {
  * Up to `limit` short lines that make the next fixture matter: what it means for the table,
  * form, the last meeting, and who is scoring. Built only from stored results.
  */
-export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | 'club' | 'season'>, fixture: Pick<UserFixture, 'club' | 'round' | 'home'>, limit = 3): Storyline[] {
+export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | 'club' | 'season'> & Partial<Pick<ClubSave, 'footballers' | 'lineup'>>, fixture: Pick<UserFixture, 'club' | 'round' | 'home'>, limit = 3): Storyline[] {
   const league = save.league;
   const div = divisionOf(league.division);
   const opp = fixture.club;
@@ -230,6 +249,13 @@ export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords
     }
     if (theirTop && theirTop.goals >= 2) add('theirScorer', 'warn', `Watch ${theirTop.name}: ${theirTop.goals} goals for ${them} this season.`, 32 + theirTop.goals);
   }
+
+  // Our own players: landmarks one game away, and anyone scoring in match after match.
+  const starters = Object.values(save.lineup ?? {}).flatMap((id) => (save.footballers?.[id] ? [save.footballers[id]] : []));
+  const next = upcomingMilestones(starters)[0];
+  if (next) add('milestone', 'hype', next.text, next.weight + 20);
+  const hot = scoringRuns(save)[0];
+  if (hot && hot.games >= 2 && starters.some((p) => p.id === hot.playerId)) add('hotStreak', 'hype', `${hot.name} has scored in ${hot.games === 2 ? 'both' : `each`} of his last ${hot.games === 2 ? 'two' : hot.games} games.`, 46 + hot.games * 3);
 
   const meetings = headToHead(save, opp.id);
   const last = meetings[0];

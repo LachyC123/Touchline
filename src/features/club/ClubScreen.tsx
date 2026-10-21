@@ -14,6 +14,7 @@ import { CLUB_BY_ID } from '../../data/clubs';
 import { clubName, divisionOf, leagueTable, ordinal, seasonComplete, userFixture } from '../../domain/league/league';
 import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import { preMatchStorylines } from '../../domain/league/stories';
+import { TrophyCabinet } from './TrophyCabinet';
 import './club.css';
 
 export function ClubScreen() {
@@ -148,6 +149,8 @@ export function ClubScreen() {
           </div>
         </section>
       )}
+
+      <TrophyCabinet seasons={save.seasons} division={save.league.division} kit={save.club.kit} />
 
       <section className="club__tiles">
         <button type="button" className="club__tile" onClick={() => navigate({ name: 'squad' })}>

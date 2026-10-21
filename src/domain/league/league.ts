@@ -3,6 +3,7 @@ import { replayMatch } from '../../game/simulation/replay';
 import type { MatchResult } from '../../game/simulation/types';
 import { grantClubXp } from '../club/manager';
 import { opponentLineup } from '../club/opponents';
+import { awardSeasonHonours } from './honours';
 import { createRng } from '../rng';
 import { PLAYER_CLUB_ID, type ClubSave, type LeagueFixture, type LeagueResult, type LeagueState, type SeasonSummary } from '../save/types';
 
@@ -224,6 +225,7 @@ export function startNextSeason(draft: ClubSave): SeasonSummary {
   const division = nextDivision;
   const prizeCoins = summary.prizeCoins;
   draft.seasons.push(summary);
+  awardSeasonHonours(draft, summary);
   draft.coins += prizeCoins;
   grantClubXp(draft, SEASON_CLUB_XP[idx] ?? 50);
   draft.season++;

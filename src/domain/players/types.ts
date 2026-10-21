@@ -135,7 +135,8 @@ export type CelebrationId = (typeof CELEBRATION_IDS)[number];
 export const RUNNING_STYLE_IDS = ['upright', 'hunched', 'bouncy', 'gliding', 'choppy'] as const;
 export type RunningStyleId = (typeof RUNNING_STYLE_IDS)[number];
 
-export type HistoryEventKind = 'signed' | 'debut' | 'firstGoal' | 'upgrade' | 'milestone';
+export const HISTORY_KINDS = ['signed', 'debut', 'firstGoal', 'upgrade', 'milestone', 'hatTrick', 'honour'] as const;
+export type HistoryEventKind = (typeof HISTORY_KINDS)[number];
 
 export interface HistoryEvent {
   id: string;
