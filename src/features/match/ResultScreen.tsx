@@ -86,7 +86,25 @@ const MOMENT_ICON: Record<MatchMoment['kind'], IconName> = {
   sub: 'shirt',
 };
 
+/**
+ * The full-time screen. The view below freezes some state on mount (whether this is the fresh
+ * result, which training pickers were open), so it only mounts once its record has arrived:
+ * the save can reach the screen a moment after settlement resolves.
+ */
 export function ResultScreen({ id }: { id: string }) {
+  const save = useSave();
+  const settling = save.pendingMatch?.matchId === id && !save.matchRecords.some((r) => r.matchId === id);
+  if (settling) {
+    return (
+      <main className="screen" aria-busy="true">
+        <p className="display result__settling">Full time…</p>
+      </main>
+    );
+  }
+  return <ResultView key={id} id={id} />;
+}
+
+function ResultView({ id }: { id: string }) {
   const save = useSave();
   const reduced = useReducedMotion();
   const record = save.matchRecords.find((r) => r.matchId === id);
