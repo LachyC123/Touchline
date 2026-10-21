@@ -3,15 +3,28 @@ import { buildTeamLineup } from '../../game/simulation/fromSquad';
 import { ENGINE_VERSION } from '../../game/simulation/constants';
 import type { CreateMatchArgs } from '../../game/simulation/engine';
 import { possessionShare } from '../../game/simulation/summary';
-import type { FootballEvent, MatchResult, TeamSide } from '../../game/simulation/types';
+import type { FootballEvent, MatchResult, TeamLineup, TeamSide } from '../../game/simulation/types';
+import { advanceOnboarding, colourDistance, KIT_CLASH_DISTANCE } from '../club/onboarding';
 import { fixtureFor, opponentLineup } from '../club/opponents';
+import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
 import { xpToNext } from '../players/progression';
 import { FOCUS_OPTIONS } from '../players/upgrades';
 import { seededUuid, stream } from '../rng';
 import { MAX_MATCH_RECORDS, REPLAYS_KEPT, type ClubSave, type MatchRecord, type PendingMatch, type PlayerGain, type RewardLine } from '../save/types';
 
-export const XP = { match: 40, win: 15, cleanSheet: 5, goal: 8, assist: 5, potm: 10, cap: 85, bench: 10 } as const;
+export const XP = { match: 40, win: 15, cleanSheet: 5, goal: 8, assist: 5, potm: 10, cap: 85, bench: 10, recruitDebut: 40 } as const;
+
+type MatchKit = TeamLineup['kit'];
+const CHANGE_KIT: MatchKit = { primary: '#F4F1EA', secondary: '#1B2235', pattern: 'plain' };
+
+/** The away side changes kit when the shirts would be hard to tell apart on the pitch. */
+export function resolveKitClash(home: MatchKit, away: MatchKit): MatchKit {
+  if (colourDistance(home.primary, away.primary) >= KIT_CLASH_DISTANCE) return away;
+  const swapped: MatchKit = { ...away, primary: away.secondary, secondary: away.primary };
+  if (colourDistance(home.primary, swapped.primary) >= KIT_CLASH_DISTANCE) return swapped;
+  return colourDistance(home.primary, CHANGE_KIT.primary) >= KIT_CLASH_DISTANCE ? CHANGE_KIT : { ...CHANGE_KIT, primary: '#1B2235', secondary: '#F4F1EA' };
+}
 export const COINS = { win: [110, 140], draw: [90, 110], loss: [65, 85], perGoal: 5, goalCap: 20 } as const;
 export const CLUB_XP = { match: 30, win: 15, draw: 8 } as const;
 
@@ -28,6 +41,8 @@ export function prepareMatch(save: ClubSave): PendingMatch {
   );
   const theirs = opponentLineup(save.careerSeed, fixture).lineup;
   const number = save.matchNumber + 1;
+  const home = fixture.home ? mine : theirs;
+  const away = fixture.home ? theirs : mine;
   return {
     matchId: `m${number}`,
     number,
@@ -35,8 +50,8 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     engineVersion: ENGINE_VERSION,
     opponentId: fixture.club.id,
     userSide: fixture.home ? 'home' : 'away',
-    home: fixture.home ? mine : theirs,
-    away: fixture.home ? theirs : mine,
+    home,
+    away: { ...away, kit: resolveKitClash(home.kit, away.kit) },
     commands: [],
     checkpointTick: 0,
   };
@@ -114,7 +129,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   let storyHeadline: string;
   if (lateWinner) storyHeadline = `WON IT LATE: ${nameOf(lateWinner.scorerId).toUpperCase()} STRIKES IN THE ${lateWinner.minute}TH.`;
   else if (trailedBy2 && gf >= ga) storyHeadline = `THE COMEBACK: TWO GOALS DOWN AGAINST ${oppName.toUpperCase()}, ONE TO REMEMBER.`;
-  else if (firstTimers.length > 0) storyHeadline = `THE FIRST ONE: ${nameOf((firstTimers[0] as (typeof firstTimers)[number]).scorerId).toUpperCase()} FINALLY FINDS THE NET.`;
+  else if (firstTimers.length > 0) storyHeadline = `OFF THE MARK: ${nameOf((firstTimers[0] as (typeof firstTimers)[number]).scorerId).toUpperCase()} SCORES HIS FIRST FOR THE CLUB.`;
   else if (keeper && keeperSaves >= 3 && gf >= ga) storyHeadline = `THE WALL: ${keeper.shortName.toUpperCase()} DENIES ${keeperSaves} ON TARGET.`;
   else if (ga === 0) {
     const bestDef = mine.players.filter((p) => p.role === 'DEF').sort((a, b) => (lines.get(b.id)?.rating ?? 0) - (lines.get(a.id)?.rating ?? 0))[0];
@@ -127,6 +142,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   // Player stats, scrapbook, XP.
   const gains: PlayerGain[] = [];
   const starters = new Set(mine.players.map((p) => p.id));
+  const recruitedIds = new Set(draft.packs.flatMap((p) => (p.playerId ? [p.playerId] : [])));
   for (const id of draft.squadIds) {
     const p = draft.footballers[id];
     if (!p) continue;
@@ -150,6 +166,8 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
       if ([10, 25, 50, 100].includes(p.stats.matches)) history(id, 'milestone', `A TRUE CLUB PLAYER: ${p.stats.matches} appearances.`);
       xp = XP.match + (won ? XP.win : 0) + (cleanSheet ? XP.cleanSheet : 0) + line.goals * XP.goal + line.assists * XP.assist + (result.playerOfMatchId === id ? XP.potm : 0);
       xp = Math.min(XP.cap, xp);
+      // A scouted recruit's debut is worth a level: their first match always ends in a training choice.
+      if (wasDebut && recruitedIds.has(id)) xp += XP.recruitDebut;
     } else {
       xp = XP.bench;
     }
@@ -164,6 +182,12 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   draft.nextSeq = order;
 
   const rewards = computeRewards(result, side, draft.careerSeed);
+  for (const g of gains) {
+    const p = draft.footballers[g.playerId];
+    if (p && recruitedIds.has(g.playerId) && p.stats.matches === 1 && starters.has(g.playerId)) {
+      rewards.lines.push({ label: `${p.lastName}’s debut: +${XP.recruitDebut} XP`, coins: 0 });
+    }
+  }
   draft.coins += rewards.coins;
   draft.clubXp += rewards.clubXp;
 
@@ -194,6 +218,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     rewards,
     gains,
     storyHeadline,
+    ...(pending.number % SCOUT_PACK_EVERY === 0 ? { packId: grantPack(draft, 'local-scout', `match:${pending.matchId}`).id } : {}),
     replay: { home: pending.home, away: pending.away },
   };
   draft.matchRecords = [record, ...draft.matchRecords].slice(0, MAX_MATCH_RECORDS).map((r, i) => {
@@ -203,6 +228,6 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   });
   draft.matchNumber = pending.number;
   draft.pendingMatch = null;
-  if (draft.tutorialStep === 'start') draft.tutorialStep = 'played-first-match';
+  draft.onboarding = advanceOnboarding(draft.onboarding, 'firstMatchSettled');
   return record;
 }

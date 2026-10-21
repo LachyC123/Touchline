@@ -10,6 +10,10 @@ import { LiveMatch } from '../features/match/LiveMatch';
 import { MatchLobby } from '../features/match/MatchLobby';
 import { ReplayScreen } from '../features/match/ReplayScreen';
 import { ResultScreen } from '../features/match/ResultScreen';
+import { ClubSetup } from '../features/onboarding/ClubSetup';
+import { IntroScreen } from '../features/onboarding/IntroScreen';
+import { PackScreen } from '../features/scout/PackScreen';
+import { ScoutScreen } from '../features/scout/ScoutScreen';
 import { MoreScreen } from '../features/settings/MoreScreen';
 import { PlayerScreen } from '../features/squad/PlayerScreen';
 import { SquadScreen } from '../features/squad/SquadScreen';
@@ -113,6 +117,18 @@ function Screens() {
   if (route.name === 'title' || (!hasSave && needsSave)) return <TitleScreen />;
   if (route.name === 'lab' && !DEV_TOOLS_ENABLED) return <TitleScreen />;
 
+  // The guided first run: the opening story and the first pack can't be wandered past by a
+  // deep link or a reload (Skip is always on screen). Settings stay reachable.
+  const save = saveState.status === 'ready' ? saveState.save : null;
+  if (save && route.name !== 'more' && route.name !== 'lab') {
+    if (save.onboarding === 'intro' && route.name !== 'intro') return <IntroScreen replay={false} />;
+    if (save.onboarding === 'pack') {
+      const first = save.packs.find((p) => p.kind === 'first-signing');
+      if (first && !(route.name === 'pack' && route.id === first.id)) return <PackScreen key={first.id} id={first.id} />;
+    }
+  }
+  const bare = route.name === 'live' || route.name === 'replay' || route.name === 'intro' || route.name === 'pack' || save?.onboarding === 'intro' || save?.onboarding === 'pack';
+
   return (
     <>
       {route.name === 'club' && <ClubScreen />}
@@ -124,12 +140,16 @@ function Screens() {
       {route.name === 'live' && <LiveMatch />}
       {route.name === 'result' && <ResultScreen key={route.id} id={route.id} />}
       {route.name === 'replay' && <ReplayScreen key={`${route.id}-${route.goal}`} id={route.id} goal={route.goal} />}
+      {route.name === 'intro' && <IntroScreen replay={route.replay} />}
+      {route.name === 'scout' && <ScoutScreen />}
+      {route.name === 'pack' && <PackScreen key={route.id} id={route.id} />}
+      {route.name === 'setup' && <ClubSetup />}
       {route.name === 'lab' && (
         <Suspense fallback={null}>
           <CardLab />
         </Suspense>
       )}
-      {(hasSave || route.name === 'more') && route.name !== 'live' && route.name !== 'replay' && <BottomNav current={route} />}
+      {(hasSave || route.name === 'more') && !bare && <BottomNav current={route} />}
     </>
   );
 }

@@ -3,6 +3,7 @@ import { FORMATION_DEFS } from '../formations';
 import { overallAt } from '../players/rating';
 import { autoLineup } from './lineup';
 import type { Footballer, Position, Tier } from '../players/types';
+import { grantPack } from '../packs/packs';
 import { seededUuid } from '../rng';
 import { CONTENT_VERSION, ENGINE_VERSION, SCHEMA_VERSION, type ClubSave } from '../save/types';
 import { DEFAULT_CLUB, type ClubIdentity } from './types';
@@ -73,7 +74,7 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
 
   const lineup = autoLineup(Object.values(footballers), '2-2-2');
 
-  return {
+  const save: ClubSave = {
     schemaVersion: SCHEMA_VERSION,
     saveId: seededUuid(`${careerSeed}:save`),
     careerSeed,
@@ -89,17 +90,21 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     lineup,
     footballers,
     anchorPlayerId,
-    packInventory: {},
+    packs: [],
     guaranteedRecruitProgress: 0,
     rewardClaimIds: [],
     nextSeq: STARTERS.length,
     season: 1,
-    tutorialStep: 'start',
+    onboarding: 'intro',
+    tipsSeen: [],
     matchNumber: 0,
     pendingMatch: null,
     matchRecords: [],
     pendingUpgrades: [],
   };
+  // The scout's welcome gift: committed now, revealed during onboarding.
+  grantPack(save, 'first-signing', 'onboarding');
+  return save;
 }
 
 /** Average positional rating of the starting seven in the current formation. */

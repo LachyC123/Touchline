@@ -5,10 +5,12 @@ import { goBack, navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Icon } from '../../components/icons/Icon';
 import { Button, IconButton } from '../../components/ui/Button';
+import { CoachMark } from '../../components/ui/CoachMark';
 import { useToast } from '../../components/ui/Toast';
 import { fitWarnings, lineupProblems } from '../../domain/club/lineup';
 import { squadPower } from '../../domain/club/newCareer';
 import { FORMATION_DEFS, FORMATION_IDS, type FormationId } from '../../domain/formations';
+import { bestSlotFor } from '../../domain/packs/packs';
 import { overall, overallAt } from '../../domain/players/rating';
 import type { Footballer } from '../../domain/players/types';
 import './lineup.css';
@@ -41,6 +43,11 @@ export function LineupScreen() {
   const [sel, setSel] = useState<Selection>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [justPlaced, setJustPlaced] = useState<string | null>(null);
+  // Tutorial: the first signing's best slot glows until he is in the team.
+  const signingId = save.onboarding === 'lineup' ? (save.packs.find((p) => p.kind === 'first-signing')?.playerId ?? null) : null;
+  const signing = signingId ? save.footballers[signingId] : undefined;
+  const target = signing ? bestSlotFor(save, signing) : null;
+  const [lift, setLift] = useState<{ before: number; name: string } | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const locked = save.pendingMatch !== null;
 
@@ -55,9 +62,13 @@ export function LineupScreen() {
   const power = squadPower(save);
 
   const place = async (slotId: string, playerId: string) => {
+    const before = power;
     try {
       await assignPlayer(slotId, playerId);
-      playSfx('pop');
+      if (playerId === signingId && signing) {
+        playSfx('cheer');
+        setLift({ before, name: signing.lastName });
+      } else playSfx('pop');
       setJustPlaced(slotId);
       window.setTimeout(() => setJustPlaced(null), 450);
     } catch (err) {
@@ -155,6 +166,28 @@ export function LineupScreen() {
         </div>
       )}
 
+      {signing && target && (
+        <CoachMark className="lineup__coach">
+          <span>
+            <b>{signing.lastName}</b> is your new {signing.primaryPosition}. Tap the glowing slot, then tap him on the bench — or drag him there.
+          </span>
+          <Button variant="secondary" size="sm" className="coach__action" onClick={() => void place(target.slotId, signing.id)} sfx={null}>
+            Put him there (+{target.gain})
+          </Button>
+        </CoachMark>
+      )}
+      {lift && (
+        <CoachMark className="lineup__coach" onDismiss={() => setLift(null)}>
+          <span>
+            <b>{lift.name} starts!</b> Team power {lift.before.toFixed(1)} → <b>{power.toFixed(1)}</b>. Time for the first match.
+          </span>
+          <Button variant="secondary" size="sm" className="coach__action" icon="whistle" onClick={() => navigate({ name: 'match' })}>
+            To the match
+          </Button>
+        </CoachMark>
+      )}
+      {lift && <span className="lineup__burst" aria-hidden="true" />}
+
       <div className="segmented lineup__formations" role="group" aria-label="Formation">
         {FORMATION_IDS.map((f: FormationId) => (
           <button
@@ -187,7 +220,7 @@ export function LineupScreen() {
               key={slot.id}
               type="button"
               data-slot={slot.id}
-              className={`pitchboard__slot ${isSel ? 'is-selected' : ''} ${justPlaced === slot.id ? 'is-placed' : ''} ${drag?.active && drag.fromSlot !== slot.id ? 'is-target' : ''}`}
+              className={`pitchboard__slot ${isSel ? 'is-selected' : ''} ${justPlaced === slot.id ? 'is-placed' : ''} ${drag?.active && drag.fromSlot !== slot.id ? 'is-target' : ''} ${target?.slotId === slot.id ? 'coach-target' : ''}`}
               style={{ left: `${slot.x}%`, top: `${slotTop(slot.depth)}%` }}
               aria-label={`${slot.position} slot: ${fitHint}${isSel ? '. Selected — now choose a player' : ''}`}
               aria-pressed={isSel}
@@ -232,7 +265,7 @@ export function LineupScreen() {
               <button
                 key={p.id}
                 type="button"
-                className={`lineup__bench-player ${isSel ? 'is-selected' : ''}`}
+                className={`lineup__bench-player ${isSel ? 'is-selected' : ''} ${target && p.id === signingId ? 'coach-target' : ''}`}
                 aria-label={`Bench: ${p.firstName} ${p.lastName}, ${p.primaryPosition}, overall ${overall(p)}${isSel ? '. Selected' : ''}`}
                 aria-pressed={isSel}
                 onClick={() => onBenchTap(p.id)}

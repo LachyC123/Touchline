@@ -1,4 +1,6 @@
 .result__hero {
+  position: relative;
+  --confetti-top: 45%;
   margin: calc(-1 * max(var(--s-3), var(--inset-top))) calc(-1 * var(--gutter)) 0;
   padding: max(var(--s-5), calc(var(--inset-top) + var(--s-4))) var(--gutter) var(--s-5);
   background:
@@ -347,4 +349,53 @@
 
 .result__replay svg {
   color: var(--lime);
+}
+
+.result__coach {
+  margin: var(--s-2) 0 var(--s-3);
+}
+
+.result__pack {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 56px;
+  margin: var(--s-2) 0 var(--s-3);
+  padding: 10px 14px;
+  border: 3px solid var(--ink);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, #d4ae74, #b98c55);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.3);
+  animation: pack-earned 700ms 600ms var(--ease-spring) both;
+}
+
+.result__pack.is-opened {
+  animation: none;
+  opacity: 0.85;
+}
+
+.result__pack span {
+  display: grid;
+}
+
+.result__pack b {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.result__pack small {
+  font-weight: 700;
+}
+
+@keyframes pack-earned {
+  from {
+    opacity: 0;
+    scale: 0.7;
+    rotate: -6deg;
+  }
 }

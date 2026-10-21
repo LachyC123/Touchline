@@ -209,3 +209,7 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+.lobby__coach {
+  margin-bottom: var(--s-4);
+}

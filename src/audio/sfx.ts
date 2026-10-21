@@ -10,9 +10,17 @@
  *  - goal: crowd swell + rising triad
  *  - save: low glove thump
  *  - coin: bright tick               (reward count-up)
+ *  - tear: ripping paper             (pack strip peel)
+ *  - whoosh: soft air sweep          (card slides out)
+ *  - reveal: sparkle arpeggio        (card turns face up; brighter for rarer tiers via revealTier)
+ *  - stamp: rubber-stamp thunk       (WELCOME TO THE CLUB)
+ *  - tackle: boot-on-boot clack      (won tackles)
+ *  - ooh: crowd groan                (a miss / off the woodwork)
+ *  - post: metallic ping             (woodwork)
+ *  - cheer: short crowd lift         (win at full time, placing a new signing)
  * Audio only starts after a user gesture (browser policy) and respects the SFX setting.
  */
-export type SfxName = 'tap' | 'flip' | 'pop' | 'thud' | 'chime' | 'whistle' | 'kick' | 'goal' | 'save' | 'coin';
+export type SfxName = 'tap' | 'flip' | 'pop' | 'thud' | 'chime' | 'whistle' | 'kick' | 'goal' | 'save' | 'coin' | 'tear' | 'whoosh' | 'reveal' | 'stamp' | 'tackle' | 'ooh' | 'post' | 'cheer';
 
 let ctx: AudioContext | null = null;
 let enabled = true;
@@ -53,7 +61,7 @@ function tone(c: AudioContext, type: OscillatorType, from: number, to: number, p
   o.stop(t + attack + decay + 0.05);
 }
 
-function noise(c: AudioContext, duration: number, from: number, to: number, peak: number): void {
+function noise(c: AudioContext, duration: number, from: number, to: number, peak: number, delay = 0, q = 1.2): void {
   const len = Math.floor(c.sampleRate * duration);
   const buf = c.createBuffer(1, len, c.sampleRate);
   const data = buf.getChannelData(0);
@@ -66,12 +74,13 @@ function noise(c: AudioContext, duration: number, from: number, to: number, peak
   src.buffer = buf;
   const f = c.createBiquadFilter();
   f.type = 'bandpass';
-  f.Q.value = 1.2;
-  f.frequency.setValueAtTime(from, c.currentTime);
-  f.frequency.exponentialRampToValueAtTime(to, c.currentTime + duration);
+  f.Q.value = q;
+  const t = c.currentTime + delay;
+  f.frequency.setValueAtTime(from, t);
+  f.frequency.exponentialRampToValueAtTime(to, t + duration);
   src.connect(f);
-  f.connect(envGain(c, peak, duration * 0.3, duration * 0.7));
-  src.start();
+  f.connect(envGain(c, peak, duration * 0.3, duration * 0.7, t));
+  src.start(t);
 }
 
 export function playSfx(name: SfxName): void {
@@ -111,9 +120,54 @@ export function playSfx(name: SfxName): void {
     case 'coin':
       tone(c, 'sine', 1320, 1760, 0.08, 0.003, 0.06);
       break;
+    case 'tear':
+      // Several short, bright rips in quick succession read as paper.
+      for (let i = 0; i < 5; i++) noise(c, 0.05 + (i % 2) * 0.03, 2400 + i * 300, 5200, 0.2, i * 0.045, 2.5);
+      break;
+    case 'whoosh':
+      noise(c, 0.3, 300, 2400, 0.14);
+      break;
+    case 'reveal':
+      revealArpeggio(c, 0);
+      break;
+    case 'stamp':
+      tone(c, 'sine', 160, 70, 0.32, 0.003, 0.12);
+      noise(c, 0.06, 700, 300, 0.16);
+      break;
+    case 'tackle':
+      tone(c, 'square', 420, 180, 0.06, 0.002, 0.05);
+      noise(c, 0.07, 1500, 600, 0.1);
+      break;
+    case 'ooh':
+      noise(c, 0.9, 900, 380, 0.16, 0, 3);
+      noise(c, 0.9, 1300, 520, 0.08, 0.04, 3);
+      break;
+    case 'post':
+      tone(c, 'sine', 1880, 1840, 0.12, 0.002, 0.5);
+      tone(c, 'sine', 2730, 2700, 0.05, 0.002, 0.35);
+      break;
+    case 'cheer':
+      noise(c, 1.1, 700, 1600, 0.2, 0, 0.8);
+      noise(c, 0.8, 1800, 2600, 0.08, 0.15, 1.5);
+      break;
     case 'chime':
       tone(c, 'sine', 784, 784, 0.16, 0.01, 0.22);
       tone(c, 'sine', 1175, 1175, 0.16, 0.01, 0.3, 0.09);
       break;
   }
+}
+
+const TIER_STEPS: Readonly<Record<string, number>> = { street: 2, prospect: 3, breakout: 4, star: 5, phenomenon: 6 };
+
+function revealArpeggio(c: AudioContext, extra: number): void {
+  const notes = [784, 988, 1175, 1568, 1976, 2349];
+  const steps = Math.min(notes.length, 3 + extra);
+  for (let i = 0; i < steps; i++) tone(c, 'triangle', notes[i] as number, notes[i] as number, 0.09, 0.004, 0.22, i * 0.07);
+}
+
+/** The reveal sparkle grows one note per tier: rarity is heard as well as seen, never only colour. */
+export function playReveal(tier: string): void {
+  if (!enabled || !ctx || ctx.state !== 'running' || volume <= 0) return;
+  revealArpeggio(ctx, (TIER_STEPS[tier] ?? 2) - 2);
+  if ((TIER_STEPS[tier] ?? 0) >= 4) noise(ctx, 1.2, 700, 1700, 0.14, 0.25, 0.8);
 }

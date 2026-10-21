@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { isReducedMotion } from '../../accessibility/motion';
 import { playSfx } from '../../audio/sfx';
-import { useSave } from '../../app/GameContext';
+import { useGame, useSave } from '../../app/GameContext';
 import { navigate } from '../../app/router';
 import { Crest } from '../../components/club/Crest';
 import { Icon } from '../../components/icons/Icon';
 import { Button, IconButton } from '../../components/ui/Button';
+import { CoachMark } from '../../components/ui/CoachMark';
+import { tipPending } from '../../domain/club/onboarding';
 import { Dialog } from '../../components/ui/Dialog';
 import { useToast } from '../../components/ui/Toast';
 import { CLUB_BY_ID } from '../../data/clubs';
@@ -46,6 +48,8 @@ const CHIPS: { type: TacticCommand; label: string; activeLabel: string; icon: 'b
 
 function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const toast = useToast();
+  const save = useSave();
+  const { seeTip } = useGame();
   // Freeze the match definition at mount: later checkpoint/command writes update the stored
   // copy, but must never rebuild the engine or the scene mid-match.
   const [pending] = useState(livePending);
@@ -94,6 +98,16 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
       onCommentary: (l) => setLine(l),
       onShot: () => playSfx('kick'),
       onSave: () => playSfx('save'),
+      onTackle: (e) => {
+        if (e.won) playSfx('tackle');
+      },
+      onMiss: (e) => {
+        if (e.outcome === 'woodwork') {
+          playSfx('post');
+          playSfx('ooh');
+        } else if (e.outcome === 'wide') playSfx('ooh');
+        else playSfx('tackle');
+      },
       onGoal: (e) => {
         // Bank the goal immediately so a reload can never rewind past it.
         void saveCheckpoint(pending.matchId, controller.snapshot.tick).catch(() => undefined);
@@ -144,6 +158,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   }, [hold, pending.matchId, toast]);
 
   const triggerChip = async (type: TacticCommand) => {
+    if (tipPending(save, 'tactic')) void seeTip('tactic');
     const r = controller.dispatch(type);
     if (!r.ok) {
       playSfx('thud');
@@ -176,6 +191,17 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
     const bestName = best ? userTeam.players.find((p) => p.id === best.playerId)?.name : undefined;
     return { stats, poss: possessionShare(stats), best, bestName };
   }, [hold, controller, pending, snap.score, user, userTeam]);
+
+  // Tutorial: once the user's side has settled on the ball, prompt the first tactic.
+  const quickReady = tactics.activeUntil.QUICK_PASS <= snap.tick && tactics.readyAt.QUICK_PASS <= snap.tick;
+  const ourBall = userTeam.players.some((p) => p.id === snap.ball.ownerId);
+  const [tipShown, setTipShown] = useState(false);
+  const showTacticTip = tipPending(save, 'tactic') && (tipShown || (hold === null && quickReady && ourBall && snap.minute >= 4 && snap.phase !== 'halftime'));
+  // Latch it (derived state set during render) so the tip stays up after possession changes.
+  if (showTacticTip && !tipShown) setTipShown(true);
+  useEffect(() => {
+    if (tipShown) playSfx('pop');
+  }, [tipShown]);
 
   const crestFor = (side: TeamSide) =>
     side === user ? { name: userTeam.name, shortName: userTeam.shortName, crest: 'shield' as const, kit: { ...userTeam.kit, pattern: 'plain' as const, cut: 'crew' as const } } : { name: oppTeam.name, shortName: oppTeam.shortName, crest: oppClub?.crest ?? ('round' as const), kit: { ...oppTeam.kit, pattern: 'plain' as const, cut: 'crew' as const } };
@@ -218,6 +244,11 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
       </div>
 
       <footer className="live__controls">
+        {showTacticTip && hold === null && (
+          <CoachMark className="live__coach" onDismiss={() => void seeTip('tactic')}>
+            We’ve got the ball — tap <b>QUICK PASS!</b> Your players hold it less and pass short and sharp for 12 minutes.
+          </CoachMark>
+        )}
         <div className="chips-row">
           {CHIPS.map((c) => {
             const active = tactics.activeUntil[c.type] > snap.tick;
@@ -229,7 +260,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
               <button
                 key={c.type}
                 type="button"
-                className={`tchip ${active ? 'is-active' : ''} ${cooling ? 'is-cooling' : ''}`}
+                className={`tchip ${active ? 'is-active' : ''} ${cooling ? 'is-cooling' : ''} ${showTacticTip && c.type === 'QUICK_PASS' ? 'coach-target' : ''}`}
                 style={{ '--p': Math.max(0, Math.min(1, remaining)) } as CSSProperties}
                 aria-disabled={disabled}
                 aria-label={`${c.label}. ${active ? `Active for ${minsLeft} more minutes` : cooling ? `Ready in ${minsLeft} minutes` : 'Ready'}. ${c.help}`}

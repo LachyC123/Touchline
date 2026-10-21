@@ -12,7 +12,7 @@ The full specification lives in this repo:
 
 ## Status
 
-**M0 (foundation) and M1 (first football match)** are implemented: new career → 10 generated footballers → lineup & formation → an animated, deterministic 7v7 match you can influence with PRESS and QUICK PASS → full time with real rewards and XP → choose a training focus on level-up → goal replays → everything persists across reloads (including mid-match). See `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred.
+**M0, M1 and M2** are implemented: opening comic → free First Signing pack (tear, reveal, persisted before the animation) → guided lineup placement → an animated, deterministic 7v7 match you can influence with PRESS and QUICK PASS (with a first-time prompt) → full time with real rewards, XP and the first training choice → name your club and pick its colours → hub. Scout packs are earned every 3 matches with published odds and a visible guarantee; goal replays; everything persists across reloads (including mid-match). See `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ The full specification lives in this repo:
 | `npm run typecheck` | TypeScript only |
 | `npm run icons` | Re-render PWA PNG icons from `public/icons/icon.svg` |
 | `npm run simulate:balance -- --n 1000` | Batch match sims → `reports/balance-latest.md` / `.json` (fairness, power gaps, formations, tactics) |
-| `node scripts/capture.mjs <url> <dir>` / `capture-m1.mjs` | Capture the review storyboard screenshots (M0 screens / M1 match flow) |
+| `node scripts/capture.mjs <url> <dir>` / `capture-m1.mjs` / `capture-m2.mjs` | Capture the review storyboard screenshots (M0 screens / M1 match flow / M2 first run; `VW=320 VH=680` for other viewports) |
 
 To include the developer Card Lab in a production-style build: `VITE_DEV_DEBUG=true npx vite build`.
 
@@ -54,7 +54,8 @@ src/
   storage/       Dexie DB, Zod runtime schema, migrations, atomic mutateSave (with idempotency
                  claim ids), rolling backups, checksummed JSON export/import
   components/    portrait kit (procedural SVG), FootballerCard (mini/standard/hero), icons, UI kit
-  features/      title, club hub, squad, lineup, matchday lobby, live match, result, replay, player profile, settings, dev Card Lab
+  features/      title, onboarding (story, club identity), scout (room, pack opening), club hub, squad, lineup,
+                 matchday lobby, live match, result, replay, player profile, settings, dev Card Lab
   app/           boot, hash router, GameContext (live queries), PWA update prompt
   audio/         procedural Web Audio sound grammar (no sample files)
 ```
@@ -69,6 +70,12 @@ Key contracts:
 ## Art & licences
 
 All art is original and generated in code: the portrait kit (6 face shapes, 13 hairstyles incl. bald, 8 hair colours, 8 skin tones, 5 eye shapes, 8 brows, 6 noses, 8 mouths, 6 facial-hair styles, 6 accessories, 3 builds, 3 kit cuts × 5 patterns), card frames, icons, crest and stadium illustration. Fonts: Barlow and Barlow Condensed (SIL Open Font License 1.1), self-hosted via `@fontsource`. Sounds are synthesised at runtime. No real clubs, players, crests or commercial game assets are used.
+
+### Replacement art wanted (current versions are original in-code SVG fallbacks)
+
+- Opening comic panels (empty ground, terrace + battered ball, supporter handing over keys, title card): illustrator pass for character acting and lighting.
+- Scout envelope / card back: a paper texture and printed crest treatment.
+- Sound: crowd beds, net ripple, boot/ball foley, pack tear to replace the synthesised placeholders.
 
 ## Saves
 

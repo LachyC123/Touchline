@@ -3,7 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, type ReactN
 import { setSfxEnabled, setSfxVolume } from '../audio/sfx';
 import { freshSeed } from '../domain/rng';
 import type { FormationId } from '../domain/formations';
-import type { ClubSave, PendingMatch } from '../domain/save/types';
+import type { ClubIdentityChoice, OnboardingEvent } from '../domain/club/onboarding';
+import type { ClubSave, PendingMatch, TipId } from '../domain/save/types';
 import { getDb, MAIN_SLOT } from '../storage/db';
 import { parseSaveFile } from '../storage/exportImport';
 import { migrateSave } from '../storage/migrations';
@@ -17,7 +18,12 @@ import {
   exportCurrentSave,
   loadSettings,
   markInspected,
+  markTipSeen,
+  onboardingEvent,
+  openPack as repoOpenPack,
   replaceSave,
+  replayTutorialTips,
+  setClubIdentity as repoSetClubIdentity,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -42,6 +48,11 @@ interface GameApi {
   autoPick: () => Promise<void>;
   kickOff: () => Promise<PendingMatch>;
   chooseUpgrade: (playerId: string, level: number, focusId: string) => Promise<void>;
+  openPack: (packId: string) => Promise<{ playerId: string; applied: boolean }>;
+  onboarding: (event: OnboardingEvent) => Promise<void>;
+  seeTip: (tip: TipId) => Promise<void>;
+  replayTutorial: () => Promise<void>;
+  setClubIdentity: (choice: ClubIdentityChoice) => Promise<void>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -108,6 +119,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       autoPick: async () => void (await autoPickLineup()),
       kickOff: () => repoKickOff(),
       chooseUpgrade: async (id, level, focus) => void (await repoChooseUpgrade(id, level, focus)),
+      openPack: (id) => repoOpenPack(id),
+      onboarding: async (event) => void (await onboardingEvent(event)),
+      seeTip: async (tip) => void (await markTipSeen(tip)),
+      replayTutorial: async () => void (await replayTutorialTips()),
+      setClubIdentity: async (choice) => void (await repoSetClubIdentity(choice)),
     }),
     [saveState, settings, updateSettings, exportSave],
   );

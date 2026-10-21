@@ -1,0 +1,198 @@
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.setup .screen-head {
+  margin-bottom: 0;
+}
+
+.setup__preview {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: end;
+  column-gap: var(--s-3);
+  min-height: 150px;
+  padding: var(--s-3) var(--s-4) 0;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(circle at 25% 30%, color-mix(in srgb, var(--kit-a) 45%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--navy-600), var(--navy-800));
+  box-shadow: var(--plate);
+}
+
+.setup__crest {
+  grid-row: 1 / span 2;
+  align-self: center;
+  padding-bottom: var(--s-3);
+  animation: crest-pop 380ms var(--ease-spring);
+}
+
+@keyframes crest-pop {
+  from {
+    scale: 0.85;
+  }
+}
+
+.setup__shirt {
+  position: absolute;
+  right: -6px;
+  bottom: -18px;
+  width: 132px;
+  opacity: 0.95;
+}
+
+.setup__shirt svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.setup__name {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  max-width: calc(100% - 96px);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-xl);
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.setup__code {
+  position: relative;
+  z-index: 1;
+  align-self: start;
+  margin: 4px 0 var(--s-3);
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+  background: var(--ink);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.setup__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.setup__label {
+  padding: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.setup__input {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 2px solid rgb(27 34 53 / 0.3);
+  border-radius: var(--r-sm);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.setup__input:focus-visible {
+  outline: 3px solid var(--royal);
+  outline-offset: 1px;
+}
+
+.setup__input[aria-invalid='true'] {
+  border-color: var(--orange-dark);
+}
+
+.setup__help {
+  margin: 0 0 var(--s-2);
+  color: rgb(27 34 53 / 0.7);
+  font-size: var(--text-sm);
+}
+
+.setup__help.is-error {
+  color: #a3341d;
+  font-weight: 700;
+}
+
+.setup__fieldset {
+  margin: 0 0 var(--s-2);
+  padding: 0;
+  border: 0;
+}
+
+.setup__swatches {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-2);
+  margin-top: 6px;
+}
+
+.setup__swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.setup__swatch input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.setup__swatch-chip {
+  width: 100%;
+  height: 44px;
+  border: 3px solid var(--ink);
+  border-radius: var(--r-sm);
+  box-shadow: 0 3px 0 rgb(0 0 0 / 0.25);
+  transition: translate var(--dur-snap) var(--ease-spring);
+}
+
+.setup__swatch.is-on .setup__swatch-chip {
+  translate: 0 -3px;
+  box-shadow:
+    0 0 0 3px var(--lime),
+    0 5px 0 rgb(0 0 0 / 0.3);
+}
+
+.setup__swatch input:focus-visible + .setup__swatch-chip {
+  outline: 3px solid var(--royal);
+  outline-offset: 3px;
+}
+
+.setup__patterns {
+  margin-top: 6px;
+  background: var(--navy-700);
+}
+
+.setup__patterns button {
+  min-width: 0;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.setup__form .btn--ghost {
+  --btn-fg: var(--ink);
+  --btn-bg: transparent;
+  box-shadow:
+    inset 0 0 0 2px rgb(27 34 53 / 0.3),
+    0 3px 0 rgb(27 34 53 / 0.2);
+}

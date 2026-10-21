@@ -112,6 +112,36 @@
     scale var(--dur-release) var(--ease-spring);
 }
 
+.bottom-nav__icon {
+  position: relative;
+}
+
+.bottom-nav__badge {
+  position: absolute;
+  top: -4px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 2px solid var(--navy-900);
+  border-radius: var(--r-pill);
+  background: var(--lime);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 11px;
+  line-height: 1;
+  animation: badge-pop 420ms var(--ease-spring);
+}
+
+@keyframes badge-pop {
+  from {
+    scale: 0.3;
+  }
+}
+
 .bottom-nav__tab:active .bottom-nav__icon {
   scale: 0.9;
 }

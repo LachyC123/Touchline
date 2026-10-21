@@ -22,7 +22,7 @@ import {
   type AttributeKey,
 } from '../domain/players/types';
 import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
-import { SCHEMA_VERSION } from '../domain/save/types';
+import { ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
 
 /**
  * Runtime validation for everything persisted or imported. Mirrors the TypeScript domain
@@ -183,6 +183,17 @@ const matchRecordSchema = z.object({
   gains: z.array(z.object({ playerId: z.string().max(80), xp: safeCount, levelBefore: z.number().int().min(1).max(99), levelAfter: z.number().int().min(1).max(99), rating: z.number().min(0).max(10).optional() })).max(200),
   storyHeadline: z.string().max(200),
   replay: z.object({ home: teamLineupSchema, away: teamLineupSchema }).optional(),
+  packId: z.string().uuid().optional(),
+});
+
+const ownedPackSchema = z.object({
+  id: z.string().uuid(),
+  kind: z.enum(PACK_KINDS),
+  source: z.string().max(60),
+  tier: z.enum(TIERS),
+  grantedOrder: z.number().int().min(0),
+  recruit: footballerSchema.nullable(),
+  playerId: z.string().uuid().nullable(),
 });
 
 export const clubSaveSchema = z
@@ -210,12 +221,13 @@ export const clubSaveSchema = z
     lineup: z.record(z.string().max(16), z.string().uuid()),
     footballers: z.record(z.string().uuid(), footballerSchema),
     anchorPlayerId: z.string().uuid(),
-    packInventory: z.record(z.string().max(32), safeCount),
+    packs: z.array(ownedPackSchema).max(500),
     guaranteedRecruitProgress: z.number().int().min(0).max(100),
     rewardClaimIds: z.array(z.string().max(80)).max(100_000),
     nextSeq: z.number().int().min(0),
     season: z.number().int().min(1).max(999),
-    tutorialStep: z.string().max(40),
+    onboarding: z.enum(ONBOARDING_STEPS),
+    tipsSeen: z.array(z.enum(TIP_IDS)).max(TIP_IDS.length),
     matchNumber: z.number().int().min(0).max(100_000),
     pendingMatch: pendingMatchSchema.nullable(),
     matchRecords: z.array(matchRecordSchema).max(100),
@@ -238,6 +250,12 @@ export const clubSaveSchema = z
     for (const key of Object.keys(save.lineup)) {
       if (!slots.includes(key)) ctx.addIssue({ code: 'custom', message: `lineup slot ${key} is not in formation ${save.formationId}` });
     }
+    for (const pack of save.packs) {
+      if ((pack.recruit === null) === (pack.playerId === null)) ctx.addIssue({ code: 'custom', message: `pack ${pack.id} must hold either a recruit or an opened player` });
+      if (pack.playerId && !save.footballers[pack.playerId]) ctx.addIssue({ code: 'custom', message: `pack ${pack.id} opened a missing player` });
+      if (pack.recruit && save.footballers[pack.recruit.id]) ctx.addIssue({ code: 'custom', message: `pack ${pack.id} recruit is already in the squad` });
+    }
+    if (new Set(save.packs.map((p) => p.id)).size !== save.packs.length) ctx.addIssue({ code: 'custom', message: 'duplicate pack id' });
     for (const u of save.pendingUpgrades) {
       if (!save.footballers[u.playerId]) ctx.addIssue({ code: 'custom', message: 'upgrade for unknown player' });
     }

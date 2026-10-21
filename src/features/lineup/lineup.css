@@ -254,3 +254,52 @@
   pointer-events: none;
   filter: drop-shadow(0 12px 14px rgb(0 0 0 / 0.45));
 }
+
+/* ---- Tutorial ------------------------------------------------------------- */
+.lineup__coach {
+  margin-bottom: var(--s-3);
+}
+
+.lineup__coach .coach__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.lineup__burst {
+  position: fixed;
+  left: 50%;
+  top: 40%;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.lineup__burst::before,
+.lineup__burst::after {
+  content: '';
+  position: absolute;
+  inset: -60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 40%, var(--lime) 41% 46%, transparent 47%);
+  animation: lineup-burst 700ms var(--ease-out) forwards;
+}
+
+.lineup__burst::after {
+  background: repeating-conic-gradient(var(--gold) 0 6deg, transparent 6deg 30deg);
+  mask: radial-gradient(circle, transparent 50%, #000 52% 60%, transparent 62%);
+  animation-delay: 80ms;
+}
+
+@keyframes lineup-burst {
+  from {
+    scale: 0.2;
+    opacity: 1;
+  }
+  to {
+    scale: 1.6;
+    opacity: 0;
+  }
+}

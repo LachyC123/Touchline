@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useReducedMotion } from '../../accessibility/motion';
+import { useCountUp } from '../../components/ui/useCountUp';
 import { playSfx } from '../../audio/sfx';
 import { useGame } from '../../app/GameContext';
 import { FootballerCard } from '../../components/cards/FootballerCard';
@@ -19,7 +21,8 @@ export function UpgradePicker({ upgrade, player, kit }: { upgrade: PendingUpgrad
   const { chooseUpgrade } = useGame();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ name: string; before: number; after: number } | null>(null);
+  const [done, setDone] = useState<{ name: string; before: number; after: number; rows: { key: AttributeKey; label: string; before: number; after: number }[] } | null>(null);
+  const reduced = useReducedMotion();
 
   const pick = async (focusId: string) => {
     setBusy(true);
@@ -29,7 +32,8 @@ export function UpgradePicker({ upgrade, player, kit }: { upgrade: PendingUpgrad
     try {
       await chooseUpgrade(player.id, upgrade.level, focusId);
       playSfx('chime');
-      setDone({ name: FOCUSES[focusId]?.name ?? focusId, before, after: overall(preview) });
+      const rows = (Object.entries(focusDeltas(player, focusId)) as [AttributeKey, number][]).map(([k, v]) => ({ key: k, label: ATTRIBUTE_INFO[k].label, before: player.attributes[k], after: player.attributes[k] + v }));
+      setDone({ name: FOCUSES[focusId]?.name ?? focusId, before, after: overall(preview), rows });
     } catch (err) {
       toast.show(err instanceof Error ? err.message : 'Could not apply that upgrade.', 'error');
     } finally {
@@ -52,9 +56,21 @@ export function UpgradePicker({ upgrade, player, kit }: { upgrade: PendingUpgrad
         </div>
       </div>
       {done ? (
-        <p className="upgrade__done" role="status">
-          OVR <b>{done.before}</b> → <b className={done.after > done.before ? 'is-up' : ''}>{done.after}</b>
-        </p>
+        <div className="upgrade__result" role="status">
+          <ul className="upgrade__deltas">
+            {done.rows.map((r, i) => (
+              <li key={r.key}>
+                <span>{r.label}</span>
+                <span>
+                  {r.before} → <Rising from={r.before} to={r.after} delay={i * 160} animate={!reduced} />
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="upgrade__done">
+            OVR <b>{done.before}</b> → <Rising from={done.before} to={done.after} delay={done.rows.length * 160 + 120} animate={!reduced} big />
+          </p>
+        </div>
       ) : (
         <div className="upgrade__options">
           {upgrade.options.map((id) => {
@@ -84,5 +100,16 @@ export function UpgradePicker({ upgrade, player, kit }: { upgrade: PendingUpgrad
         </div>
       )}
     </article>
+  );
+}
+
+/** A number that counts up from `from` to `to` with one sparkle when it lands. */
+function Rising({ from, to, delay, animate, big = false }: { from: number; to: number; delay: number; animate: boolean; big?: boolean }) {
+  const gain = useCountUp(to - from, 450, animate, { delayMs: delay, tickEvery: 1, sfx: 'coin' });
+  const up = to > from;
+  return (
+    <b className={`upgrade__rise ${up ? 'is-up' : ''} ${big ? 'is-big' : ''}`} style={animate ? { animationDelay: `${delay + 450}ms` } : undefined}>
+      {from + gain}
+    </b>
   );
 }

@@ -27,7 +27,7 @@ function Row({ icon, title, hint, children }: { icon: IconName; title: string; h
 }
 
 export function MoreScreen() {
-  const { settings, updateSettings, exportSave, readImportFile, confirmImport, resetCareer, saveState } = useGame();
+  const { settings, updateSettings, exportSave, readImportFile, confirmImport, resetCareer, saveState, replayTutorial } = useGame();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<ClubSave | null>(null);
@@ -91,6 +91,30 @@ export function MoreScreen() {
           More
         </h1>
       </header>
+
+      {saveState.status === 'ready' && saveState.save && saveState.save.onboarding !== 'intro' && saveState.save.onboarding !== 'pack' && (
+        <section className="more__section panel" aria-labelledby="sec-club">
+          <h2 id="sec-club" className="eyebrow">
+            Club &amp; tutorial
+          </h2>
+          <Row icon="shield" title="Name & colours" hint={`${saveState.save.club.name} · change any time`}>
+            <Button size="sm" onClick={() => navigate({ name: 'setup' })}>
+              Edit
+            </Button>
+          </Row>
+          <Row icon="play" title="Replay tutorial" hint="Watch the opening story again and bring back the tips. Rewards are never given twice.">
+            <Button
+              size="sm"
+              onClick={async () => {
+                await replayTutorial();
+                navigate({ name: 'intro', replay: true });
+              }}
+            >
+              Replay
+            </Button>
+          </Row>
+        </section>
+      )}
 
       <section className="more__section panel" aria-labelledby="sec-sound">
         <h2 id="sec-sound" className="eyebrow">

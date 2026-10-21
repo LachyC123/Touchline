@@ -11,6 +11,7 @@ import { squadPower } from '../../domain/club/newCareer';
 import { fixtureFor, opponentSquad, squadAverage } from '../../domain/club/opponents';
 import { FORMATION_DEFS } from '../../domain/formations';
 import { overall } from '../../domain/players/rating';
+import { CoachMark } from '../../components/ui/CoachMark';
 import { UpgradePicker } from './UpgradePicker';
 import './match.css';
 
@@ -169,7 +170,21 @@ export function MatchLobby() {
               <Icon name="info" size={16} /> {problems[0]}
             </p>
           )}
-          <Button variant="primary" size="lg" block icon="whistle" sfx="whistle" disabled={busy || problems.length > 0} onClick={play}>
+          {save.onboarding === 'match' && save.matchNumber === 0 && (
+            <CoachMark className="lobby__coach">
+              <b>Your first match.</b> Watch for the lime tactic chips under the pitch — I’ll tell you when to use one.
+            </CoachMark>
+          )}
+          <Button
+            variant="primary"
+            size="lg"
+            block
+            icon="whistle"
+            sfx="whistle"
+            disabled={busy || problems.length > 0}
+            onClick={play}
+            className={save.onboarding === 'match' && save.matchNumber === 0 ? 'coach-target' : ''}
+          >
             {busy ? 'Walking out…' : 'Play match'}
           </Button>
           <p className="lobby__note">About two minutes · use PRESS and QUICK PASS to change the game</p>

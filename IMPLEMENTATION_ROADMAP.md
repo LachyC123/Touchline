@@ -44,15 +44,25 @@ Tick checkboxes only when the feature works on a **real narrow viewport** and pa
 - Audio is a minimal synthesised set (whistle, kick, save, goal, coin); the full audio pass is M2.
 
 ## M2. Onboarding and delight
-- [ ] Opening stadium comic sequence and free pack.
-- [ ] Pack outcomes persisted before first reveal; package tear, full card reveal, quick skip.
-- [ ] Tutorial highlighted signing, formation swap, first tactical button and first upgrade; replayable/skip.
-- [ ] Sound effects for pack, kick, impact, crowd and goal; user-toggled and respectful browser gesture policy.
-- [ ] Player cards shine/foil by tier without obstructing name/OVR; stat upgrades animate.
-- [ ] Goal, miss, tackle, save and result each have distinct, controlled effects.
-- [ ] Reduced motion, high contrast, tap instead of drag support.
-- [ ] Onboarding E2E: cold new install -> full match -> upgrade -> main hub -> refresh.
+- [x] Opening stadium comic sequence and free pack. *(`src/features/onboarding/IntroScreen.tsx`: four authored SVG comic panels (~14 s, auto-advance, tap, pause, Skip); the First Signing pack is granted with the new career.)*
+- [x] Pack outcomes persisted before first reveal; package tear, full card reveal, quick skip. *(The recruit is generated and stored when the pack is **granted** (`src/domain/packs/packs.ts`); opening is one idempotent transaction (`claimId = pack:<id>`) before any animation. Swipe the perforated strip or tap Open; card back shows the tier, then turns; tier-scaled hold, sound and confetti; Skip at any point; reload shows the same signing.)*
+- [x] Tutorial highlighted signing, formation swap, first tactical button and first upgrade; replayable/skip. *(Guided steps `intro → pack → lineup → match → club → done`, each advancing only from the step before. The lineup glows the slot where the signing is a guaranteed upgrade and offers a one-tap "Put him there"; the live match prompts QUICK PASS once we have the ball; the result screen explains the first training choice; "Make it yours" names the club. Skip tutorial on the pack screen; More → Replay tutorial replays the story and tips without re-granting anything.)*
+- [x] Sound effects for pack, kick, impact, crowd and goal; user-toggled and respectful browser gesture policy. *(New synthesised sounds: tear, whoosh, tier-scaled reveal arpeggio, stamp, tackle, crowd "ooh", post ping, cheer. Still Web Audio only, unlocked on first input, behind the existing toggle/volume.)*
+- [x] Player cards shine/foil by tier without obstructing name/OVR; stat upgrades animate. *(Foil rims/glint for Breakout+ existed since M0; training choices now count each attribute and the OVR up with a sparkle.)*
+- [x] Goal, miss, tackle, save and result each have distinct, controlled effects. *(Goal: flash, zoom, net ripple, confetti. Save: SAVE! burst + expanding ring. Won tackle/block: comic impact star + clack. Wide: WIDE puff + crowd groan. Woodwork: CLANG!, frame shake, post ping. Win at full time: confetti + cheer.)*
+- [x] Reduced motion, high contrast, tap instead of drag support. *(Global reduced-motion rule also covers the new screens; pack has a one-tap Open; lineup placement has a button; kit colours are radio buttons; all new controls ≥44 px.)*
+- [x] Onboarding E2E: cold new install -> full match -> upgrade -> main hub -> refresh. *(`e2e/m2.spec.ts` at 390/360/320, plus skip-and-open-later with reduced motion, and tutorial replay.)*
 **M2 demonstration:** first-time play is intuitive, visually memorable and fast, with no mock controls.
+
+Also added in M2 (needed so the pack system is not a one-off): a **Scout** tab (packs waiting, exact odds, pity counter, recent signings), a **Local Scout** pack earned every 3 matches with a persisted Breakout-or-better guarantee every 10 recruits, a recruit **debut bonus** (+40 XP, so a new signing's first match always ends in a training choice), **club name/colours/pattern** editing with validation and an automatic away-kit change when shirts would clash. Save schema v3 (v2 saves migrate as already onboarded).
+
+**M2 known gaps (carried forward):**
+- The guided first match is a normal full match (~2 min at 1×, 2× available), not the abbreviated 40–60 s opener the master plan sketches; no scripted tutorial seed.
+- No separate coach mark for changing the formation shape (the tutorial covers placing the signing in the XI).
+- Comic panels, envelope and supporter are code-drawn SVG; a human illustrator pass would lift them (see replacement art list in README).
+- Sounds are synthesised placeholders with a coherent grammar; a sound designer pass (real crowd beds, foley) is still wanted.
+- No haptics, no font-size mode beyond the existing Large text toggle.
+- Tested in headless Chromium only (no physical phone/Safari yet).
 
 ## M3. Competitive mode and career attachment
 - [ ] Stable fictional AI club identities and generated opponents with distinct tactics and named captains.

@@ -1,0 +1,27 @@
+.confetti {
+  position: absolute;
+  left: 50%;
+  top: var(--confetti-top, 34%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.confetti span {
+  position: absolute;
+  width: 8px;
+  height: 5px;
+  border-radius: 1px;
+  animation: confetti var(--d) var(--ease-out) forwards;
+}
+
+@keyframes confetti {
+  60% {
+    opacity: 1;
+  }
+  to {
+    translate: var(--x) calc(var(--y) + 220px);
+    rotate: calc(var(--r) * 3);
+    opacity: 0;
+  }
+}
+

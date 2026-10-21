@@ -60,12 +60,12 @@ describe('lineup rules', () => {
 });
 
 describe('save migration', () => {
-  it('upgrades an M0 (v1) save to v2 without touching players', () => {
+  it('upgrades an M0 (v1) save all the way to the current version without touching players', () => {
     const v2 = createCareer('mig-1', 'x');
-    const { matchNumber: _a, pendingMatch: _b, matchRecords: _c, pendingUpgrades: _d, ...rest } = v2;
-    const v1 = { ...rest, schemaVersion: 1, contentVersion: 'content-1' };
+    const { matchNumber: _a, pendingMatch: _b, matchRecords: _c, pendingUpgrades: _d, packs: _e, onboarding: _f, tipsSeen: _g, ...rest } = v2;
+    const v1 = { ...rest, schemaVersion: 1, contentVersion: 'content-1', packInventory: {}, tutorialStep: 'start' };
     const migrated = migrateSave(v1);
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
     expect(migrated.matchNumber).toBe(0);
     expect(migrated.pendingMatch).toBeNull();
     expect(migrated.footballers).toEqual(v2.footballers);
@@ -177,7 +177,7 @@ describe('settlement facts', () => {
       const record = settleMatch(draft, pm, result);
       expect(record.rewards.coins).toBeGreaterThanOrEqual(65);
       for (const g of record.gains) expect(g.xp).toBeLessThanOrEqual(XP.cap);
-      if (record.storyHeadline.startsWith('THE FIRST ONE')) {
+      if (record.storyHeadline.startsWith('OFF THE MARK')) {
         expect(record.scorers.some((sc) => record.storyHeadline.includes(sc.name.toUpperCase()))).toBe(true);
       }
       if (record.storyHeadline.startsWith('WON IT LATE')) {

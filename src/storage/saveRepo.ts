@@ -1,10 +1,12 @@
+import { advanceOnboarding, applyClubIdentity, type ClubIdentityChoice, type OnboardingEvent } from '../domain/club/onboarding';
 import { createCareer } from '../domain/club/newCareer';
+import { openPackDraft } from '../domain/packs/packs';
 import { assignToSlot, autoLineup, changeFormation } from '../domain/club/lineup';
 import type { FormationId } from '../domain/formations';
 import { matchArgs, prepareMatch, settleMatch } from '../domain/match/settle';
 import { applyFocus, FOCUSES } from '../domain/players/upgrades';
 import { seededUuid } from '../domain/rng';
-import type { ClubSave, MatchRecord, PendingMatch } from '../domain/save/types';
+import type { ClubSave, MatchRecord, PendingMatch, TipId } from '../domain/save/types';
 import { replayMatch } from '../game/simulation/replay';
 import type { MatchCommand } from '../game/simulation/types';
 import { getDb, MAIN_SLOT, MAX_BACKUPS, type BackupRow, type TouchlineDB } from './db';
@@ -157,6 +159,13 @@ function assertNoMatchInProgress(s: ClubSave): void {
   if (s.pendingMatch) throw new Error('Finish the current match before changing the lineup.');
 }
 
+/** The first-run flow moves on once the first signing is in the starting seven. */
+function checkRecruitPlaced(s: ClubSave): void {
+  if (s.onboarding !== 'lineup') return;
+  const signing = s.packs.find((p) => p.kind === 'first-signing')?.playerId;
+  if (signing && Object.values(s.lineup).includes(signing)) s.onboarding = advanceOnboarding(s.onboarding, 'recruitPlaced');
+}
+
 export function setFormation(formation: FormationId, db?: TouchlineDB): Promise<MutationResult> {
   return mutateSave((s) => {
     assertNoMatchInProgress(s);
@@ -169,6 +178,7 @@ export function assignPlayer(slotId: string, playerId: string, db?: TouchlineDB)
   return mutateSave((s) => {
     assertNoMatchInProgress(s);
     s.lineup = assignToSlot(s.lineup, s.formationId, slotId, playerId, s.footballers);
+    checkRecruitPlaced(s);
   }, {}, db);
 }
 
@@ -177,6 +187,7 @@ export function autoPickLineup(db?: TouchlineDB): Promise<MutationResult> {
     assertNoMatchInProgress(s);
     const players = s.squadIds.map((id) => s.footballers[id]).filter((p): p is NonNullable<typeof p> => Boolean(p));
     s.lineup = autoLineup(players, s.formationId);
+    checkRecruitPlaced(s);
   }, {}, db);
 }
 
@@ -248,8 +259,58 @@ export function chooseUpgrade(playerId: string, level: number, focusId: string, 
       });
       s.nextSeq++;
       s.pendingUpgrades.splice(idx, 1);
+      if (!s.tipsSeen.includes('upgrade')) s.tipsSeen.push('upgrade');
     },
     { claimId: `upgrade:${playerId}:${level}` },
     db,
   );
+}
+
+// ---------------------------------------------------------------------------- M2: packs, onboarding, identity
+
+/**
+ * Opens a pack exactly once (claim id = pack id). The recruit was committed when the pack was
+ * granted; this moves that exact player into the squad before any reveal animation starts.
+ */
+export async function openPack(packId: string, db?: TouchlineDB): Promise<{ playerId: string; applied: boolean }> {
+  let playerId = '';
+  const r = await mutateSave(
+    (s) => {
+      const kind = s.packs.find((p) => p.id === packId)?.kind;
+      playerId = openPackDraft(s, packId).id;
+      if (kind === 'first-signing') s.onboarding = advanceOnboarding(s.onboarding, 'packOpened');
+    },
+    { claimId: `pack:${packId}` },
+    db,
+  );
+  if (!r.applied) playerId = r.save.packs.find((p) => p.id === packId)?.playerId ?? '';
+  if (!playerId) throw new Error('That pack could not be opened.');
+  return { playerId, applied: r.applied };
+}
+
+export function onboardingEvent(event: OnboardingEvent, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    s.onboarding = advanceOnboarding(s.onboarding, event);
+  }, {}, db);
+}
+
+export function markTipSeen(tip: TipId, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    if (!s.tipsSeen.includes(tip)) s.tipsSeen.push(tip);
+  }, {}, db);
+}
+
+/** Replaying the tutorial brings back its coach marks; earned rewards are never re-granted. */
+export function replayTutorialTips(db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    s.tipsSeen = [];
+  }, {}, db);
+}
+
+export function setClubIdentity(choice: ClubIdentityChoice, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    const next = applyClubIdentity(s.club, choice);
+    s.club = { ...s.club, ...next };
+    s.onboarding = advanceOnboarding(s.onboarding, 'clubNamed');
+  }, {}, db);
 }

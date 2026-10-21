@@ -1,4 +1,7 @@
-import { useSave } from '../../app/GameContext';
+import { useGame, useSave } from '../../app/GameContext';
+import { CoachMark } from '../../components/ui/CoachMark';
+import { tipPending } from '../../domain/club/onboarding';
+import { PACK_DEFS, unopenedPacks } from '../../domain/packs/packs';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { toCardModel } from '../../components/cards/cardModel';
@@ -12,6 +15,10 @@ import './club.css';
 
 export function ClubScreen() {
   const save = useSave();
+  const { seeTip } = useGame();
+  const waiting = unopenedPacks(save);
+  const step = save.onboarding;
+  const showNextTip = step === 'match' || (step === 'done' && tipPending(save, 'next-match') && save.matchNumber > 0 && !save.pendingMatch);
   const anchor = save.footballers[save.anchorPlayerId];
   const power = squadPower(save);
   const anchorModel = anchor ? toCardModel(anchor) : null;
@@ -40,7 +47,43 @@ export function ClubScreen() {
         </span>
       </section>
 
-      <button type="button" className="club__next" onClick={() => navigate({ name: save.pendingMatch ? 'live' : 'match' })}>
+      {step === 'lineup' && (
+        <CoachMark className="club__coach" arrow="none">
+          <span>Your new signing is waiting for a shirt.</span>
+          <Button size="sm" className="coach__action" icon="squad" onClick={() => navigate({ name: 'lineup' })}>
+            Put him in the team
+          </Button>
+        </CoachMark>
+      )}
+      {step === 'club' && (
+        <CoachMark className="club__coach" arrow="none">
+          <span>One last thing: name your club and pick its colours.</span>
+          <Button size="sm" className="coach__action" icon="shield" onClick={() => navigate({ name: 'setup' })}>
+            Make it yours
+          </Button>
+        </CoachMark>
+      )}
+      {showNextTip && (
+        <CoachMark className="club__coach" onDismiss={step === 'done' ? () => void seeTip('next-match') : undefined}>
+          {step === 'match' ? (
+            <span>
+              <b>Kick-off time.</b> Your first match is one tap away.
+            </span>
+          ) : (
+            <span>
+              <b>{save.club.name} is yours.</b> Win matches, earn scout packs, train your players. Next up:
+            </span>
+          )}
+        </CoachMark>
+      )}
+      <button
+        type="button"
+        className={`club__next ${showNextTip ? 'coach-target' : ''}`}
+        onClick={() => {
+          if (showNextTip && step === 'done') void seeTip('next-match');
+          navigate({ name: save.pendingMatch ? 'live' : 'match' });
+        }}
+      >
         <span className="club__next-kicker">{save.pendingMatch ? 'Match in progress' : 'Next match'}</span>
         <span className="club__next-vs">
           vs {save.pendingMatch ? (save.pendingMatch.userSide === 'home' ? save.pendingMatch.away.name : save.pendingMatch.home.name) : fixture.club.name}
@@ -53,6 +96,11 @@ export function ClubScreen() {
         </span>
       </button>
       {last && <p className="club__latest">Latest: {last.storyHeadline}</p>}
+      {waiting.length > 0 && step !== 'pack' && (
+        <button type="button" className="club__levelup club__packs" onClick={() => navigate(waiting.length === 1 ? { name: 'pack', id: (waiting[0] as (typeof waiting)[number]).id } : { name: 'scout' })}>
+          <Icon name="pack" size={18} /> {waiting.length === 1 ? `${PACK_DEFS[(waiting[0] as (typeof waiting)[number]).kind].name} pack waiting — open it` : `${waiting.length} scout packs waiting`}
+        </button>
+      )}
       {save.pendingUpgrades.length > 0 && (
         <button type="button" className="club__levelup" onClick={() => navigate({ name: 'match' })}>
           <Icon name="star" size={18} /> {save.pendingUpgrades.length} level-up{save.pendingUpgrades.length > 1 ? 's' : ''} ready — choose training focus

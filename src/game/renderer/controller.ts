@@ -25,6 +25,8 @@ export interface ControllerListener {
   onSave?(e: Extract<FootballEvent, { type: 'SAVE' }>): void;
   onShot?(e: Extract<FootballEvent, { type: 'SHOT' }>): void;
   onTackle?(e: Extract<FootballEvent, { type: 'TACKLE' }>): void;
+  /** A shot that missed (wide / woodwork / blocked), revealed when the ball gets there. */
+  onMiss?(e: Extract<FootballEvent, { type: 'SHOT' }>): void;
   onHold?(reason: HoldReason): void;
   onTick?(snap: MatchSnapshot): void;
   onCommand?(result: CommandResult): void;
@@ -46,7 +48,7 @@ export class MatchController {
   private holdMs = 0;
   private userPaused = false;
   private eventCursor: number;
-  private queued: { atTick: number; line: Omit<CommentaryLine, 'id'> }[] = [];
+  private queued: { atTick: number; line: Omit<CommentaryLine, 'id'>; miss?: Extract<FootballEvent, { type: 'SHOT' }> }[] = [];
   private lineId = 1;
   private listeners = new Set<ControllerListener>();
   private names = new Map<string, string>();
@@ -175,7 +177,10 @@ export class MatchController {
   private flushQueued(): void {
     const due = this.queued.filter((q) => q.atTick <= this.curr.tick);
     this.queued = this.queued.filter((q) => q.atTick > this.curr.tick);
-    for (const q of due) this.say(q.line);
+    for (const q of due) {
+      this.say(q.line);
+      if (q.miss) for (const l of this.listeners) l.onMiss?.(q.miss);
+    }
   }
 
   private teamName(side: TeamSide): string {
@@ -197,9 +202,9 @@ export class MatchController {
           // Misses have no follow-up event: reveal them when the ball gets there.
           const ticks = Math.max(2, Math.ceil(Math.hypot(e.target.x - e.from.x, e.target.y - e.from.y) / BALL.shotSpeed));
           const at = this.curr.tick + ticks;
-          if (e.outcome === 'wide') this.queued.push({ atTick: at, line: { text: 'Wide of the post.', tone: 'info', side: e.team } });
-          if (e.outcome === 'woodwork') this.queued.push({ atTick: at, line: { text: 'Off the woodwork!', tone: 'chance', side: e.team } });
-          if (e.outcome === 'blocked') this.queued.push({ atTick: at, line: { text: `Blocked by ${this.nameOf(e.blockerId ?? '')}!`, tone: 'info' } });
+          if (e.outcome === 'wide') this.queued.push({ atTick: at, line: { text: 'Wide of the post.', tone: 'info', side: e.team }, miss: e });
+          if (e.outcome === 'woodwork') this.queued.push({ atTick: at, line: { text: 'Off the woodwork!', tone: 'chance', side: e.team }, miss: e });
+          if (e.outcome === 'blocked') this.queued.push({ atTick: at, line: { text: `Blocked by ${this.nameOf(e.blockerId ?? '')}!`, tone: 'info' }, miss: e });
           break;
         }
         case 'SAVE':

@@ -88,9 +88,23 @@ export class MatchScene extends Phaser.Scene {
         this.scorerId = e.scorerId;
         this.goalFx(e.team);
       },
-      onSave: (e) => this.burst(e.at.x, e.at.y, 0xcbf238, 'SAVE!'),
+      onSave: (e) => {
+        this.burst(e.at.x, e.at.y, 0xcbf238, 'SAVE!');
+        this.ring(e.at.x, e.at.y, 0xcbf238);
+      },
       onTackle: (e) => {
-        if (e.won) this.burst(e.at.x, e.at.y, 0xfff7e9);
+        if (e.won) this.impact(e.at.x, e.at.y);
+      },
+      onMiss: (e) => {
+        if (e.outcome === 'woodwork') {
+          this.burst(e.target.x, e.target.y, 0xfff7e9, 'CLANG!');
+          for (const net of this.nets) this.tweens.add({ targets: net, x: { from: -0.25 * this.S, to: 0.25 * this.S }, duration: 45, yoyo: true, repeat: 4, onComplete: () => net.setX(0) });
+          if (!this.opts.reducedMotion) this.cameras.main.shake(160, 0.004);
+        } else if (e.outcome === 'wide') {
+          this.burst(e.target.x, e.target.y, 0x9fb0cc, 'WIDE');
+        } else {
+          this.impact(e.target.x, e.target.y);
+        }
       },
       onShot: () => {
         this.trailPoints = [];
@@ -194,6 +208,33 @@ export class MatchScene extends Phaser.Scene {
         .setDepth(PITCH_L * S + 12);
       this.tweens.add({ targets: t, y: w.y - 11 * S, alpha: 0, duration: 900, delay: 300, ease: 'Quad.easeIn', onComplete: () => t.destroy() });
     }
+  }
+
+  /** An expanding ring (keeper saves). */
+  private ring(x: number, y: number, colour: number): void {
+    if (this.opts.reducedMotion) return;
+    const w = this.toWorld(x, y, this.flip(this.controller.snapshot));
+    const S = this.S;
+    const g = this.add.circle(w.x, w.y - 2 * S, 1.5 * S).setStrokeStyle(Math.max(1.5, 0.35 * S), colour, 1).setDepth(PITCH_L * S + 6);
+    g.isFilled = false;
+    this.tweens.add({ targets: g, scale: 3.2, alpha: 0, duration: 420, ease: 'Quad.easeOut', onComplete: () => g.destroy() });
+  }
+
+  /** A comic "impact star" for won tackles and blocks: short, local and small. */
+  private impact(x: number, y: number): void {
+    const w = this.toWorld(x, y, this.flip(this.controller.snapshot));
+    const S = this.S;
+    const pts: Phaser.Math.Vector2[] = [];
+    for (let i = 0; i < 16; i++) {
+      const r = (i % 2 === 0 ? 1.9 : 0.85) * S;
+      const a = (i / 16) * Math.PI * 2;
+      pts.push(new Phaser.Math.Vector2(Math.cos(a) * r, Math.sin(a) * r));
+    }
+    const star = this.add.graphics({ x: w.x, y: w.y - 1.5 * S }).setDepth(PITCH_L * S + 6);
+    star.fillStyle(0xfff7e9, 0.95).fillPoints(pts, true);
+    star.lineStyle(Math.max(1, 0.2 * S), 0x1b2235, 1).strokePoints(pts, true);
+    star.setScale(this.opts.reducedMotion ? 0.8 : 0.3);
+    this.tweens.add({ targets: star, scale: 1, alpha: 0, angle: 25, duration: this.opts.reducedMotion ? 300 : 360, ease: 'Back.easeOut', onComplete: () => star.destroy() });
   }
 
   private goalFx(team: TeamSide): void {

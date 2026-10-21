@@ -30,7 +30,9 @@ export type IconName =
   | 'bug'
   | 'pause'
   | 'play'
-  | 'coin';
+  | 'coin'
+  | 'chevron'
+  | 'pack';
 
 const PATHS: Record<IconName, ReactNode> = {
   bolt: <path d="M13 2 5 13h6l-1 9 8-11h-6l1-9Z" />,
@@ -131,6 +133,14 @@ const PATHS: Record<IconName, ReactNode> = {
   star: <path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17l-5.4 2.8 1.1-6.1-4.5-4.3 6.1-.8L12 3Z" />,
   starFilled: <path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17l-5.4 2.8 1.1-6.1-4.5-4.3 6.1-.8L12 3Z" fill="currentColor" />,
   back: <path d="M15 5 8 12l7 7" />,
+  chevron: <path d="m9 5 7 7-7 7" />,
+  pack: (
+    <>
+      <path d="M4 7h16v13H4z" />
+      <path d="M4 7l8 6 8-6" />
+      <path d="M8 4h8" />
+    </>
+  ),
   flip: (
     <>
       <path d="M4 12a8 8 0 0 1 13.7-5.6L20 9" />

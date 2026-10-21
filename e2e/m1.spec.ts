@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { startCareerSkippingTutorial, tab } from './helpers';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -9,9 +10,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function newClub(page: Page) {
-  await page.goto('/');
-  await page.getByRole('button', { name: /start your club/i }).click();
-  await expect(page.locator('.club__hud')).toBeVisible();
+  await startCareerSkippingTutorial(page);
 }
 
 async function coins(page: Page): Promise<number> {
@@ -87,7 +86,7 @@ test('match: tactic chip, skip to full time, rewards paid exactly once across re
     await expect(page.locator('.result__hero')).toBeVisible();
   }
 
-  await page.getByRole('button', { name: 'Match', exact: true }).click();
+  await tab(page, 'Match').click();
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/match 2/i);
 });
 

@@ -27,6 +27,12 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
     matchRecords: [],
     pendingUpgrades: [],
   }),
+  // v2 → v3 (M2): real scout packs and the guided first run. Existing careers have already
+  // been "onboarded", so they skip the tutorial and its coach marks.
+  2: (raw) => {
+    const { packInventory: _inv, tutorialStep: _step, ...rest } = raw;
+    return { ...rest, contentVersion: 'content-3', packs: [], onboarding: 'done', tipsSeen: ['tactic', 'upgrade', 'next-match'] };
+  },
 };
 
 export function migrateSave(input: unknown): ClubSave {

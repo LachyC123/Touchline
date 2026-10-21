@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { startCareerSkippingTutorial } from './helpers';
 
 async function startCareer(page: Page) {
-  await page.goto('/');
-  await page.getByRole('button', { name: /start your club/i }).click();
+  await startCareerSkippingTutorial(page);
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/millbrook town/i);
 }
 

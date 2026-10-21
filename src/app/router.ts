@@ -11,7 +11,11 @@ export type Route =
   | { name: 'lineup' }
   | { name: 'live' }
   | { name: 'result'; id: string }
-  | { name: 'replay'; id: string; goal: number };
+  | { name: 'replay'; id: string; goal: number }
+  | { name: 'intro'; replay: boolean }
+  | { name: 'scout' }
+  | { name: 'pack'; id: string }
+  | { name: 'setup' };
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -36,13 +40,22 @@ export function parseHash(hash: string): Route {
       return parts[1] ? { name: 'replay', id: decodeURIComponent(parts[1]), goal: Math.max(0, Number(parts[2] ?? 0) || 0) } : { name: 'match' };
     case 'result':
       return parts[1] ? { name: 'result', id: decodeURIComponent(parts[1]) } : { name: 'match' };
+    case 'intro':
+      return { name: 'intro', replay: parts[1] === 'replay' };
+    case 'scout':
+      return { name: 'scout' };
+    case 'pack':
+      return parts[1] ? { name: 'pack', id: decodeURIComponent(parts[1]) } : { name: 'scout' };
+    case 'setup':
+      return { name: 'setup' };
     default:
       return { name: 'title' };
   }
 }
 
 export function routeToHash(route: Route): string {
-  if (route.name === 'player' || route.name === 'result') return `#/${route.name}/${encodeURIComponent(route.id)}`;
+  if (route.name === 'player' || route.name === 'result' || route.name === 'pack') return `#/${route.name}/${encodeURIComponent(route.id)}`;
+  if (route.name === 'intro') return route.replay ? '#/intro/replay' : '#/intro';
   if (route.name === 'replay') return `#/replay/${encodeURIComponent(route.id)}/${route.goal}`;
   return route.name === 'title' ? '#/' : `#/${route.name}`;
 }

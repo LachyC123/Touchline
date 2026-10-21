@@ -20,7 +20,7 @@ export function TitleScreen() {
     setBusy(true);
     try {
       await startCareer();
-      navigate({ name: 'club' });
+      navigate({ name: 'intro', replay: false });
     } catch (err) {
       toast.show(err instanceof Error ? err.message : 'Could not start a career.', 'error');
     } finally {

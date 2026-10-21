@@ -310,3 +310,19 @@
 .club__spotlight {
   margin-top: var(--s-4);
 }
+
+.club__coach {
+  margin-bottom: var(--s-3);
+}
+
+.club__coach .coach__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.club__packs {
+  background: linear-gradient(180deg, #d4ae74, #b98c55);
+  color: var(--ink);
+}

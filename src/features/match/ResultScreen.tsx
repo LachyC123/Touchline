@@ -2,38 +2,20 @@ import { useEffect, useState } from 'react';
 import { useReducedMotion } from '../../accessibility/motion';
 import { playSfx } from '../../audio/sfx';
 import { useSave } from '../../app/GameContext';
+import { CoachMark } from '../../components/ui/CoachMark';
+import { tipPending } from '../../domain/club/onboarding';
+import { PACK_DEFS } from '../../domain/packs/packs';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
 import { Icon } from '../../components/icons/Icon';
 import { Button } from '../../components/ui/Button';
+import { Confetti } from '../../components/ui/Confetti';
+import { useCountUp } from '../../components/ui/useCountUp';
 import { CLUB_BY_ID } from '../../data/clubs';
 import { xpToNext } from '../../domain/players/progression';
 import { UpgradePicker } from './UpgradePicker';
 import './result.css';
-
-function useCountUp(target: number, ms: number, enabled: boolean): number {
-  const [v, setV] = useState(0);
-  useEffect(() => {
-    if (!enabled) return;
-    let raf = 0;
-    let lastTick = 0;
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / ms);
-      const next = Math.round(target * (1 - Math.pow(1 - t, 3)));
-      setV(next);
-      if (next - lastTick >= 12) {
-        lastTick = next;
-        playSfx('coin');
-      }
-      if (t < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, ms, enabled]);
-  return enabled ? v : target;
-}
 
 export function ResultScreen({ id }: { id: string }) {
   const save = useSave();
@@ -48,7 +30,8 @@ export function ResultScreen({ id }: { id: string }) {
     if (!record || !fresh) return;
     const ours = record.score[record.userSide];
     const theirs = record.score[record.userSide === 'home' ? 'away' : 'home'];
-    if (ours > theirs) playSfx('chime');
+    if (ours > theirs) playSfx('cheer');
+    else if (ours === theirs) playSfx('chime');
   }, [record, fresh]);
 
   if (!record) {
@@ -75,6 +58,8 @@ export function ResultScreen({ id }: { id: string }) {
   const homeCrest = us === 'home' ? save.club : opp;
   const awayCrest = us === 'home' ? opp : save.club;
   const potm = save.footballers[record.playerOfMatchId];
+  const pack = record.packId ? save.packs.find((p) => p.id === record.packId) : undefined;
+  const firstRun = save.onboarding === 'club';
   const gains = [...record.gains].filter((g) => save.footballers[g.playerId]).sort((a, b) => b.xp - a.xp);
   const stats: [string, number | string, number | string, number, number][] = [
     ['Possession', `${record.stats.possession.home}%`, `${record.stats.possession.away}%`, record.stats.possession.home, record.stats.possession.away],
@@ -88,6 +73,7 @@ export function ResultScreen({ id }: { id: string }) {
   return (
     <main className={`screen result result--${verdict.toLowerCase()}`}>
       <section className="result__hero" aria-label={`Full time: ${verdict} ${gf}–${ga} against ${record.opponentName}`}>
+        {fresh && !reduced && gf > ga && <Confetti count={26} colours={[save.club.kit.primary, save.club.kit.secondary, '#CBF238', '#F4C653']} />}
         <p className="result__ft">Full time · {verdict}</p>
         <div className="result__score">
           <div className="result__team">
@@ -128,6 +114,67 @@ export function ResultScreen({ id }: { id: string }) {
         <h2>{record.storyHeadline}</h2>
       </article>
 
+      <section className="result__rewards paper" aria-label="Rewards">
+        <div className="result__coins">
+          <span className="club__coin" aria-hidden="true" />
+          <b>+{coins}</b>
+          <span>coins</span>
+          <span className="result__clubxp">+{record.rewards.clubXp} club XP</span>
+        </div>
+        <ul className="result__lines">
+          {record.rewards.lines.map((l) => (
+            <li key={l.label}>
+              <span>{l.label}</span>
+              <span>{l.coins > 0 ? `+${l.coins}` : ''}</span>
+            </li>
+          ))}
+        </ul>
+        {pack && (
+          <button type="button" className={`result__pack ${pack.playerId ? 'is-opened' : ''}`} onClick={() => navigate(pack.playerId ? { name: 'scout' } : { name: 'pack', id: pack.id })}>
+            <Icon name="pack" size={22} />
+            <span>
+              <b>{PACK_DEFS[pack.kind].name} pack earned</b>
+              <small>{pack.playerId ? 'Opened — see the Scout room' : 'Tap to open it now'}</small>
+            </span>
+          </button>
+        )}
+        <h3 className="result__xp-title">Player XP</h3>
+        <ul className="result__xp">
+          {gains.slice(0, 10).map((g) => {
+            const p = save.footballers[g.playerId]!;
+            const need = xpToNext(p.level);
+            const levelled = g.levelAfter > g.levelBefore;
+            return (
+              <li key={g.playerId}>
+                <button type="button" onClick={() => navigate({ name: 'player', id: p.id })}>
+                  <span className="result__xp-name">{p.lastName}</span>
+                  <span className="result__xp-bar">
+                    <span style={{ width: `${Math.min(100, (p.xp / need) * 100)}%` }} />
+                  </span>
+                  <span className="result__xp-gain">+{g.xp}</span>
+                  {levelled && <span className="result__lvl">LV {g.levelAfter}!</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      {upgrades.length > 0 && (
+        <section className="result__upgrades" aria-label="Level-ups">
+          <h2 className="eyebrow">Choose a training focus</h2>
+          {tipPending(save, 'upgrade') && (
+            <CoachMark className="result__coach">
+              <b>Level up!</b> Training choices are permanent: pick the focus that suits how you want him to play. The stat change shows straight away.
+            </CoachMark>
+          )}
+          {upgrades.map((u) => {
+            const p = save.footballers[u.playerId];
+            return p ? <UpgradePicker key={`${u.playerId}-${u.level}`} upgrade={u} player={p} kit={save.club.kit} /> : null;
+          })}
+        </section>
+      )}
+
       <section className="result__potm">
         <div className="result__potm-card">
           {potm ? (
@@ -167,60 +214,19 @@ export function ResultScreen({ id }: { id: string }) {
         })}
       </section>
 
-      <section className="result__rewards paper" aria-label="Rewards">
-        <div className="result__coins">
-          <span className="club__coin" aria-hidden="true" />
-          <b>+{coins}</b>
-          <span>coins</span>
-          <span className="result__clubxp">+{record.rewards.clubXp} club XP</span>
-        </div>
-        <ul className="result__lines">
-          {record.rewards.lines.map((l) => (
-            <li key={l.label}>
-              <span>{l.label}</span>
-              <span>+{l.coins}</span>
-            </li>
-          ))}
-        </ul>
-        <h3 className="result__xp-title">Player XP</h3>
-        <ul className="result__xp">
-          {gains.slice(0, 10).map((g) => {
-            const p = save.footballers[g.playerId]!;
-            const need = xpToNext(p.level);
-            const levelled = g.levelAfter > g.levelBefore;
-            return (
-              <li key={g.playerId}>
-                <button type="button" onClick={() => navigate({ name: 'player', id: p.id })}>
-                  <span className="result__xp-name">{p.lastName}</span>
-                  <span className="result__xp-bar">
-                    <span style={{ width: `${Math.min(100, (p.xp / need) * 100)}%` }} />
-                  </span>
-                  <span className="result__xp-gain">+{g.xp}</span>
-                  {levelled && <span className="result__lvl">LV {g.levelAfter}!</span>}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {upgrades.length > 0 && (
-        <section className="result__upgrades" aria-label="Level-ups">
-          <h2 className="eyebrow">Choose a training focus</h2>
-          {upgrades.map((u) => {
-            const p = save.footballers[u.playerId];
-            return p ? <UpgradePicker key={`${u.playerId}-${u.level}`} upgrade={u} player={p} kit={save.club.kit} /> : null;
-          })}
-        </section>
-      )}
-
       <div className="result__actions">
         <Button variant="ghost" icon="club" onClick={() => navigate({ name: 'club' })}>
           Club
         </Button>
-        <Button variant="primary" size="lg" icon="whistle" onClick={() => navigate({ name: 'match' })}>
-          Next match
-        </Button>
+        {firstRun ? (
+          <Button variant="primary" size="lg" icon="shield" onClick={() => navigate({ name: 'setup' })}>
+            Make it yours
+          </Button>
+        ) : (
+          <Button variant="primary" size="lg" icon="whistle" onClick={() => navigate({ name: 'match' })}>
+            Next match
+          </Button>
+        )}
       </div>
     </main>
   );

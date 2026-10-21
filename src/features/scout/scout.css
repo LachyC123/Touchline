@@ -1,0 +1,242 @@
+.scout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.scout .screen-head {
+  margin-bottom: 0;
+}
+
+.scout h2.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.scout__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--lime);
+  color: var(--ink);
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.scout__packs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.scout__pack {
+  --edge: #b7c0d1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 150px;
+  padding: 14px 12px 12px 26px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background:
+    linear-gradient(155deg, rgb(255 255 255 / 0.22), transparent 35%),
+    linear-gradient(180deg, #d4ae74, #b98c55);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.35);
+  animation: pack-bob 2.8s ease-in-out infinite;
+  transition: translate var(--dur-release) var(--ease-spring);
+}
+
+.scout__pack:active {
+  translate: 0 3px;
+}
+
+.scout__pack--prospect {
+  --edge: #4fd1e8;
+}
+
+.scout__pack--breakout {
+  --edge: #8c7cff;
+}
+
+.scout__pack--star {
+  --edge: #f4c653;
+}
+
+.scout__pack--phenomenon {
+  --edge: #dc63b4;
+}
+
+@keyframes pack-bob {
+  50% {
+    translate: 0 -3px;
+  }
+}
+
+.scout__pack-edge {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: -3px;
+  width: 14px;
+  border: 3px solid var(--ink);
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+  background: var(--edge);
+}
+
+.scout__pack-name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.scout__pack-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.scout__pack-open {
+  margin-top: auto;
+  padding: 6px 14px 4px;
+  border-radius: var(--r-pill);
+  background: var(--lime);
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  box-shadow: 0 3px 0 var(--lime-dark);
+}
+
+.scout__empty {
+  text-align: center;
+}
+
+.scout__empty p {
+  margin: 0;
+}
+
+.scout__empty-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.scout__track-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.scout__track-head p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.scout__track-head b {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.scout__pips {
+  display: flex;
+  gap: 6px;
+  margin: var(--s-2) 0;
+}
+
+.scout__pips span {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: rgb(27 34 53 / 0.15);
+}
+
+.scout__pips span.is-on {
+  background: var(--pitch);
+}
+
+.scout__pity {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.scout__recent {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+.scout__odds h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.scout__odds p {
+  margin: 0 0 var(--s-2);
+  font-size: var(--text-sm);
+}
+
+.scout__odds table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.scout__odds th,
+.scout__odds td {
+  padding: 6px 4px;
+  border-top: 1px solid rgb(27 34 53 / 0.12);
+  text-align: left;
+  vertical-align: top;
+}
+
+.scout__odds th {
+  white-space: nowrap;
+}
+
+.scout__odds th svg {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 2px;
+}
+
+.scout__odds td:nth-child(2) {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.scout__odds-meaning {
+  color: rgb(27 34 53 / 0.7);
+}
+
+@media (max-width: 360px) {
+  .scout__odds-meaning {
+    display: none;
+  }
+}
+
+.scout__fine {
+  margin-top: var(--s-2) !important;
+  color: rgb(27 34 53 / 0.7);
+}
