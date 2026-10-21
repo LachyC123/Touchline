@@ -8,7 +8,8 @@ import { MoraleMeter } from '../../components/players/MoraleMeter';
 import { Button, IconButton } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { PERSONALITY_BY_ID } from '../../data/personality';
-import { choicesFor, eventHeadline, eventQuote, interviewFacts } from '../../domain/club/dressingRoom';
+import { CLUB_BY_ID } from '../../data/clubs';
+import { choicesFor, eventHeadline, eventQuote } from '../../domain/club/dressingRoom';
 import { describeEffect } from '../../domain/players/morale';
 import './dressing.css';
 
@@ -42,8 +43,10 @@ export function EventScreen({ id }: { id: string }) {
   }
 
   const p = e.playerId ? save.footballers[e.playerId] : undefined;
-  const choices = choicesFor(e, save, p);
-  const quote = eventQuote(e, p, e.kind === 'interview' && p ? interviewFacts(save, p.id) : undefined);
+  const other = e.otherId ? save.footballers[e.otherId] : undefined;
+  const watcher = e.clubId ? CLUB_BY_ID[e.clubId] : undefined;
+  const choices = choicesFor(e, save);
+  const quote = eventQuote(e, save);
   const done = e.status !== 'open';
 
   const choose = async (choiceId: string) => {
@@ -65,7 +68,7 @@ export function EventScreen({ id }: { id: string }) {
         <IconButton icon="back" label="Back to the club" onClick={() => goBack({ name: 'club' })} sfx="thud" />
         <h1>
           <small>Dressing room</small>
-          {eventHeadline(e, p)}
+          {eventHeadline(e, save)}
         </h1>
       </header>
 
@@ -80,6 +83,21 @@ export function EventScreen({ id }: { id: string }) {
           </div>
         )}
         <div className="dressing__about">
+          {other && (
+            <button type="button" className="dressing__other" onClick={() => navigate({ name: 'player', id: other.id })}>
+              <span className="dressing__other-card">
+                <FootballerCard player={other} kit={save.club.kit} variant="mini" />
+              </span>
+              <span>
+                with <b>{other.lastName}</b>
+              </span>
+            </button>
+          )}
+          {watcher && (
+            <span className="dressing__watcher">
+              <Crest club={watcher} size={34} /> <b>{watcher.name}</b> are watching
+            </span>
+          )}
           {p && (
             <>
               <p className="dressing__trait">{PERSONALITY_BY_ID[p.personality.type].label}</p>

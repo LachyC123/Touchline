@@ -161,7 +161,7 @@ export function roundSealed(league: Pick<LeagueState, 'rounds' | 'results' | 'di
 
 // ── Pre-match storylines ───────────────────────────────────────────────────────────────────
 
-export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer' | 'milestone' | 'hotStreak' | 'cupRound' | 'cupFinal' | 'giantKilling' | 'bananaSkin' | 'knockout';
+export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer' | 'milestone' | 'hotStreak' | 'cupRound' | 'cupFinal' | 'giantKilling' | 'bananaSkin' | 'knockout' | 'dream';
 
 export interface Storyline {
   kind: StoryKind;
@@ -258,6 +258,12 @@ export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords
   const hot = scoringRuns(save)[0];
   if (hot && hot.games >= 2 && starters.some((p) => p.id === hot.playerId)) add('hotStreak', 'hype', `${hot.name} has scored in ${hot.games === 2 ? 'both' : `each`} of his last ${hot.games === 2 ? 'two' : hot.games} games.`, 46 + hot.games * 3);
 
+  // A starter whose dream this game could make come true.
+  if (opp.rival) {
+    const dreamer = starters.find((p) => p.dreamId === 'derbyWinner' && !p.history.some((h) => h.kind === 'dream'));
+    if (dreamer) add('dream', 'hype', `${dreamer.lastName} has dreamed of scoring a derby winner since he was a boy.`, 70);
+  }
+
   const meetings = headToHead(save, opp.id);
   const last = meetings[0];
   if (opp.rival) {
@@ -344,6 +350,9 @@ export function cupStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | '
   const final = k === CUP_ROUNDS.length - 1;
   const them = fixture.club.name;
   if (final) add('cupFinal', 'hype', `${CUP_NAME} final at the County Ground. Win and the cup is yours.`, 100);
+  const cupStarters = Object.values(save.lineup ?? {}).flatMap((id) => (save.footballers?.[id] ? [save.footballers[id]] : []));
+  const finalDreamer = final ? cupStarters.find((p) => p.dreamId === 'scoreFinal' && !p.history.some((h) => h.kind === 'dream')) : undefined;
+  if (finalDreamer) add('dream', 'hype', `${finalDreamer.lastName} has always dreamed of scoring in a cup final. Today he can.`, 95);
   else if (k > 0) add('cupRound', 'hype', `Win and you're in the ${cupRoundName(k + 1).toLowerCase()}.`, 80);
   else add('knockout', 'info', 'Knockout football: level after 90 minutes means penalties.', 70);
   const ours = save.league.division;

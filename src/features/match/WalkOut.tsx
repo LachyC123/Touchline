@@ -48,6 +48,7 @@ export function WalkOut({ big, us, them, reduced, onKickOff }: { big: BigMatch; 
         {seven.map((p, i) => (
           <li key={p.id} style={{ animationDelay: `${500 + i * 110}ms` }}>
             <small>{p.role}</small> {p.shortName}
+            {p.id === us.team.captainId && <span className="walkout__armband" aria-label="captain">C</span>}
           </li>
         ))}
       </ol>

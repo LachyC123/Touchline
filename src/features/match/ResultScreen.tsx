@@ -101,7 +101,7 @@ export function ResultScreen({ id }: { id: string }) {
     if (!record || !fresh) return;
     const ours = record.score[record.userSide];
     const theirs = record.score[record.userSide === 'home' ? 'away' : 'home'];
-    if (ours > theirs || fate === 'champions' || fate === 'promoted' || cupWon) playSfx('cheer');
+    if (ours > theirs || fate === 'champions' || fate === 'promoted' || cupWon || record.dreams?.length) playSfx('cheer');
     else if ((ours === theirs && !record.shootout) || fate === 'safe') playSfx('chime');
   }, [record, fresh, fate, cupWon]);
 
@@ -301,6 +301,31 @@ export function ResultScreen({ id }: { id: string }) {
         </section>
       )}
 
+      {record.dreams && record.dreams.length > 0 && (
+        <section className="result__dreams" aria-labelledby="dreams-title">
+          {fresh && !reduced && <Confetti count={30} colours={['#F4C653', '#FFF7E9', save.club.kit.primary, '#CBF238']} />}
+          <h2 id="dreams-title" className="result__dreams-title">
+            Dream come true
+          </h2>
+          {record.dreams.map((d) => {
+            const p = save.footballers[d.playerId];
+            return (
+              <button key={d.playerId} type="button" className="result__dream" onClick={() => navigate({ name: 'player', id: d.playerId })}>
+                {p && (
+                  <span className="result__dream-card">
+                    <FootballerCard player={p} kit={save.club.kit} variant="mini" />
+                  </span>
+                )}
+                <span>
+                  <b>{d.name}</b>
+                  <small>“{d.text}”</small>
+                </span>
+              </button>
+            );
+          })}
+        </section>
+      )}
+
       {(record.morale?.length || roomNews.length > 0) && (
         <section className="result__room panel" aria-labelledby="room-title">
           <h2 id="room-title" className="eyebrow">
@@ -308,7 +333,7 @@ export function ResultScreen({ id }: { id: string }) {
           </h2>
           {roomNews.map((e) => (
             <button key={e.id} type="button" className={`result__room-news ${e.status === 'open' ? 'is-open' : e.kind === 'promiseBroken' ? 'is-bad' : 'is-good'}`} onClick={() => navigate({ name: 'event', id: e.id })}>
-              {e.status === 'open' ? `${eventHeadline(e, e.playerId ? save.footballers[e.playerId] : undefined)} — hear ${e.playerId ? 'him' : 'them'} out` : e.outcome}
+              {e.status === 'open' ? `${eventHeadline(e, save)} — hear ${e.playerId ? 'him' : 'them'} out` : e.outcome}
             </button>
           ))}
           {record.morale && record.morale.length > 0 && (

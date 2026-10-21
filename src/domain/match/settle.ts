@@ -14,6 +14,7 @@ import { penaltyShootout, type ShootoutResult } from '../cup/shootout';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
 import { awayFor, dressingRoomAfterMatch } from '../club/dressingRoom';
+import { dreamsAfterMatch } from '../players/dreams';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
 import { xpToNext } from '../players/progression';
 import { overall } from '../players/rating';
@@ -45,7 +46,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
   if (!fx) throw new Error('The season is over — start the next one from the league table.');
   const fixture = { number: save.matchNumber, club: fx.club, lap: fx.lap, home: fx.home };
   const mine = buildTeamLineup(
-    { clubId: PLAYER_CLUB_ID, name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary, pattern: save.club.kit.pattern }, aiStyle: 'balanced', deck: [...save.deck] },
+    { clubId: PLAYER_CLUB_ID, name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary, pattern: save.club.kit.pattern }, aiStyle: 'balanced', deck: [...save.deck], ...(save.captainId ? { captainId: save.captainId } : {}), ...(save.penaltyTakerId ? { penaltyTakerId: save.penaltyTakerId } : {}) },
     save.formationId,
     save.lineup,
     save.footballers,
@@ -332,7 +333,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     opponentName: oppName,
     userSide: side,
     score: { ...result.score },
-    scorers: goals.map((g) => ({ playerId: g.scorerId, name: nameOf(g.scorerId), side: g.team, minute: g.minute, tick: g.tick, ...(g.assistId ? { assistName: nameOf(g.assistId) } : {}) })),
+    scorers: goals.map((g) => ({ playerId: g.scorerId, name: nameOf(g.scorerId), side: g.team, minute: g.minute, tick: g.tick, ...(g.assistId ? { assistName: nameOf(g.assistId), assistId: g.assistId } : {}) })),
     playerOfMatchId: result.playerOfMatchId,
     playerOfMatchName: nameOf(result.playerOfMatchId),
     playerOfMatchRating: potmLine?.rating ?? 6,
@@ -372,7 +373,17 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   const outcome = gf > ga ? 'win' : gf === ga ? 'draw' : 'loss';
   const swings = dressingRoomAfterMatch(draft, { started: starters, cameOn: new Set(subRole.keys()), goals: goalsBy, potmId: result.playerOfMatchId, result: outcome });
   const morale = swings.slice(0, 6).map((c) => ({ ...c, name: draft.footballers[c.playerId] ? `${draft.footballers[c.playerId]!.firstName} ${draft.footballers[c.playerId]!.lastName}` : nameOf(c.playerId) }));
-  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}) };
+  // Dreams: did this match make anyone's come true?
+  const dreams = dreamsAfterMatch(draft, {
+    side,
+    events: result.events,
+    started: starters,
+    played: new Set([...starters, ...subRole.keys()]),
+    cupFinal: isCup && pending.cupRound === CUP_ROUNDS.length - 1,
+    rival: Boolean(club?.rival),
+    won,
+  });
+  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}), ...(dreams.length ? { dreams } : {}) };
   draft.matchRecords[0] = withMorale;
   return withMorale;
 }

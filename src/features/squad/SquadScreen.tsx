@@ -1,4 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { MoraleMeter } from '../../components/players/MoraleMeter';
+import { RoleBadges } from '../../components/players/RoleBadges';
 import { useSave } from '../../app/GameContext';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
@@ -122,6 +124,10 @@ export function SquadScreen() {
           {players.map((p, i) => (
             <li key={p.id} style={{ '--i': i } as CSSProperties}>
               <FootballerCard player={p} kit={save.club.kit} variant="standard" onActivate={() => navigate({ name: 'player', id: p.id })} />
+              <span className="squad__mood">
+                <MoraleMeter morale={p.morale} compact />
+                <RoleBadges captain={save.captainId === p.id} penalties={save.penaltyTakerId === p.id} />
+              </span>
               {starters.has(p.id) && (
                 <span className="squad__starter" title="In the starting seven">
                   <Icon name="shirt" size={14} /> Starter

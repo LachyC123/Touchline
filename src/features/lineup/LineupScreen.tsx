@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { RoleBadges } from '../../components/players/RoleBadges';
 import { MoraleMeter } from '../../components/players/MoraleMeter';
 import { awayFor } from '../../domain/club/dressingRoom';
 import { playSfx } from '../../audio/sfx';
@@ -40,7 +41,7 @@ interface DragState {
  */
 export function LineupScreen() {
   const save = useSave();
-  const { assignPlayer, setFormation, autoPick } = useGame();
+  const { assignPlayer, setFormation, autoPick, setCaptain, setPenaltyTaker } = useGame();
   const toast = useToast();
   const [sel, setSel] = useState<Selection>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -61,6 +62,26 @@ export function LineupScreen() {
     .sort((a, b) => overall(b) - overall(a));
   const warnings = useMemo(() => fitWarnings(save.lineup, save.formationId, save.footballers), [save]);
   const away = awayFor(save);
+  const starterPlayers = FORMATION_DEFS[save.formationId].slots.flatMap((sl) => (save.footballers[save.lineup[sl.id] ?? ''] ? [save.footballers[save.lineup[sl.id]!]!] : []));
+  const pickCaptain = async (id: string) => {
+    if (save.captainId === id) return;
+    playSfx('stamp');
+    try {
+      await setCaptain(id);
+      toast.show(`${save.footballers[id]?.lastName ?? 'He'} is your captain`);
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : 'Could not change the captain.', 'error');
+    }
+  };
+  const pickPens = async (id: string | null) => {
+    if (save.penaltyTakerId === id) return;
+    playSfx('tap');
+    try {
+      await setPenaltyTaker(id);
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : 'Could not change penalty duty.', 'error');
+    }
+  };
   const promised = new Set(save.dressingRoom.promises.map((p) => p.playerId));
   const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, away);
   const power = squadPower(save);
@@ -239,6 +260,9 @@ export function LineupScreen() {
                     <span className="pitchboard__mood">
                       <MoraleMeter morale={p.morale} compact />
                     </span>
+                    <span className="pitchboard__roles">
+                      <RoleBadges captain={save.captainId === p.id} penalties={save.penaltyTakerId === p.id} />
+                    </span>
                   </span>
                   <span className="pitchboard__name">{p.lastName}</span>
                   {away.has(p.id) && <span className="pitchboard__tag is-away">Away</span>}
@@ -293,6 +317,38 @@ export function LineupScreen() {
           })}
         </div>
       </section>
+
+      {!locked && (
+        <section className="lineup__roles panel" aria-label="Captain and penalties">
+          <div className="lineup__role">
+            <h2 className="eyebrow">Captain</h2>
+            <div className="lineup__role-chips" role="radiogroup" aria-label="Captain">
+              {starterPlayers.map((p) => (
+                <button key={p.id} type="button" role="radio" aria-checked={save.captainId === p.id} className={`lineup__role-chip ${save.captainId === p.id ? 'is-on' : ''}`} onClick={() => void pickCaptain(p.id)}>
+                  {p.lastName}
+                </button>
+              ))}
+            </div>
+            <p className="lineup__role-note">{save.captainId && save.footballers[save.captainId] ? `${save.footballers[save.captainId]!.lastName} wears the armband: a little extra pride every match he starts.` : 'Nobody wears the armband yet. A new captain gets a big lift; the old one feels it.'}</p>
+          </div>
+          <div className="lineup__role">
+            <h2 className="eyebrow">Penalties</h2>
+            <div className="lineup__role-chips" role="radiogroup" aria-label="Penalty taker">
+              <button type="button" role="radio" aria-checked={save.penaltyTakerId === null} className={`lineup__role-chip ${save.penaltyTakerId === null ? 'is-on' : ''}`} onClick={() => void pickPens(null)}>
+                Best taker
+              </button>
+              {starterPlayers
+                .filter((p) => p.primaryPosition !== 'GK')
+                .map((p) => (
+                  <button key={p.id} type="button" role="radio" aria-checked={save.penaltyTakerId === p.id} className={`lineup__role-chip ${save.penaltyTakerId === p.id ? 'is-on' : ''}`} onClick={() => void pickPens(p.id)}>
+                    {p.lastName}
+                  </button>
+                ))}
+            </div>
+            <p className="lineup__role-note">{save.penaltyTakerId ? 'He steps up for every penalty while he’s on the pitch.' : 'Whoever on the pitch has the best composure, finishing and set-piece skill.'}</p>
+          </div>
+        </section>
+      )}
 
       {problems.length > 0 && (
         <p className="lineup__problem" role="alert">

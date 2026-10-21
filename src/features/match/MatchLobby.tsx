@@ -121,7 +121,7 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
 
       {request && !pending && (
         <button type="button" className="lobby__request" onClick={() => navigate({ name: 'event', id: request.id })}>
-          <Icon name="megaphone" size={18} /> {eventHeadline(request, requester)} — hear {requester ? 'him' : 'them'} out
+          <Icon name="megaphone" size={18} /> {eventHeadline(request, save)} — hear {requester ? 'him' : 'them'} out
         </button>
       )}
 

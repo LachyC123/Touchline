@@ -25,6 +25,7 @@ const ICON: Record<StoryKind, IconName> = {
   giantKilling: 'bolt',
   bananaSkin: 'wall',
   knockout: 'whistle',
+  dream: 'starFilled',
 };
 
 /** "The build-up": short lines that say why the next match matters. */

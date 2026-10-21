@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { dreamProgress } from '../../domain/players/dreams';
 import { MoraleMeter } from '../../components/players/MoraleMeter';
 import { awayFor } from '../../domain/club/dressingRoom';
 import { describeEffect } from '../../domain/players/morale';
@@ -155,6 +156,9 @@ export function PlayerScreen({ id }: { id: string }) {
 }
 
 function Overview({ player, model, starterSlot }: { player: Footballer; model: ReturnType<typeof toCardModel>; starterSlot?: string }) {
+  const save = useSave();
+  const came = player.history.find((h) => h.kind === 'dream');
+  const dream = { done: Boolean(came), season: came?.season, progress: dreamProgress(player, save), backed: save.dressingRoom.backed.includes(player.id) };
   const traits = [model.trait, ...model.extraTraits].filter((t): t is NonNullable<typeof t> => Boolean(t));
   const facts: [string, string][] = [
     ['Age', String(player.age)],
@@ -201,9 +205,17 @@ function Overview({ player, model, starterSlot }: { player: Footballer; model: R
         <p className="eyebrow">Character</p>
         <h3>{model.personalityLabel}</h3>
         <p>{model.personalityBlurb}</p>
-        <p className="player__dream">
-          <Icon name="star" size={16} /> Dream: {model.dream}
+        <p className={`player__dream ${dream.done ? 'is-done' : ''}`}>
+          <Icon name={dream.done ? 'starFilled' : 'star'} size={16} /> Dream: {model.dream}
+          {dream.done ? <b> — came true{dream.season ? ` in season ${dream.season}` : ''}!</b> : null}
         </p>
+        {!dream.done && (dream.progress || dream.backed) && (
+          <p className="player__dream-note">
+            {dream.progress}
+            {dream.progress && dream.backed ? ' · ' : ''}
+            {dream.backed ? 'You told him you’d help make it happen.' : ''}
+          </p>
+        )}
       </article>
     </div>
   );

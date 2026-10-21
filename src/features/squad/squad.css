@@ -130,3 +130,13 @@
 .squad__chev {
   rotate: 180deg;
 }
+
+.squad__mood {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}

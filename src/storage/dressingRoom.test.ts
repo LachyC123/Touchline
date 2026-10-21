@@ -28,10 +28,10 @@ describe('dressing room (persisted)', () => {
     const s = (await loadSave(db))!;
     const e = openEvent(s)!;
     expect(e).toBeDefined();
-    expect(['playingTime', 'flatSquad']).toContain(e.kind);
+    expect(['playingTime', 'flatSquad', 'captaincy']).toContain(e.kind);
     // Morale moved for the squad, and the match record says how.
     expect(s.matchRecords[0]!.morale?.length).toBeGreaterThan(0);
-    const choice = e.kind === 'playingTime' ? 'squadRole' : 'clearAir';
+    const choice = e.kind === 'playingTime' ? 'squadRole' : e.kind === 'captaincy' ? 'wait' : 'clearAir';
     const [a, b] = await Promise.all([resolveEvent(e.id, choice, db), resolveEvent(e.id, choice, db)]);
     expect([a.applied, b.applied].sort()).toEqual([false, true]);
     expect(a.outcome).toBe(b.outcome);
@@ -52,10 +52,11 @@ describe('dressing room (persisted)', () => {
 
   it('a v6 save gains an empty dressing room and keeps its players’ morale', () => {
     const v7 = createCareer('room-mig', 'x');
-    const { dressingRoom: _d, ...rest } = v7;
+    const { dressingRoom: _d, captainId: _c, penaltyTakerId: _p, ...rest } = v7;
     const m = migrateSave({ ...rest, schemaVersion: 6, contentVersion: 'content-6' });
-    expect(m.schemaVersion).toBe(7);
-    expect(m.dressingRoom).toEqual({ events: [], promises: [], away: [], lastEventMatch: 0 });
+    expect(m.schemaVersion).toBe(8);
+    expect(m.dressingRoom).toEqual({ events: [], promises: [], away: [], lastEventMatch: 0, backed: [] });
+    expect(m.captainId).toBeNull();
     expect(m.footballers[m.anchorPlayerId]!.morale).toBe(v7.footballers[v7.anchorPlayerId]!.morale);
   });
 });

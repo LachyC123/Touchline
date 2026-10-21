@@ -6,8 +6,8 @@ import type { MilestoneKind } from '../players/milestones';
 import type { ShootoutResult } from '../cup/shootout';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
-export const SCHEMA_VERSION = 7;
-export const CONTENT_VERSION = 'content-7';
+export const SCHEMA_VERSION = 8;
+export const CONTENT_VERSION = 'content-8';
 export { ENGINE_VERSION } from '../../game/simulation/constants';
 
 export type { FormationId };
@@ -42,6 +42,7 @@ export interface ScorerLine {
   /** Engine tick of the goal, for replays. */
   tick: number;
   assistName?: string;
+  assistId?: string;
 }
 
 export interface MatchMoment {
@@ -108,6 +109,8 @@ export interface MatchRecord {
   competition?: Competition;
   cupRound?: number;
   shootout?: ShootoutResult;
+  /** Dreams that came true in this match. */
+  dreams?: { playerId: string; name: string; text: string }[];
   /** Morale swings worth showing (largest first). */
   morale?: { playerId: string; name: string; delta: number; reasons: string[] }[];
   /** Career landmarks reached in this match (debuts excluded). */
@@ -204,7 +207,23 @@ export interface CupState {
   round: number;
 }
 
-export const EVENT_KINDS = ['playingTime', 'homesick', 'flatSquad', 'interview', 'promiseKept', 'promiseBroken'] as const;
+export const EVENT_KINDS = [
+  'playingTime',
+  'homesick',
+  'flatSquad',
+  'interview',
+  'promiseKept',
+  'promiseBroken',
+  'dreamTalk',
+  'dreamCome',
+  'penalties',
+  'rivalInterest',
+  'bustUp',
+  'newDad',
+  'schoolVisit',
+  'captaincy',
+  'armband',
+] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
 /** Something in the dressing room: a request with choices, or news of how one played out. */
@@ -212,6 +231,10 @@ export interface ClubEvent {
   id: string;
   kind: EventKind;
   playerId?: string;
+  /** A second player involved (a bust-up, the current captain). */
+  otherId?: string;
+  /** A club involved (who is watching him). */
+  clubId?: string;
   /** The match after which it happened (matchNumber at the time). */
   atMatch: number;
   status: 'open' | 'resolved' | 'news';
@@ -238,6 +261,8 @@ export interface DressingRoom {
   /** Players excused until (and including) a match number. */
   away: { playerId: string; untilMatch: number; reason: string }[];
   lastEventMatch: number;
+  /** Players whose dream you said you'd help make happen. */
+  backed: string[];
 }
 
 export interface SeasonSummary {
@@ -302,6 +327,10 @@ export interface ClubSave {
   newCards: CardId[];
   league: LeagueState;
   dressingRoom: DressingRoom;
+  /** Wears the armband (null = nobody yet). */
+  captainId: string | null;
+  /** Takes the penalties (null = the best taker on the pitch). */
+  penaltyTakerId: string | null;
   /** This season's County Cup (null for a season that started before the cup existed). */
   cup: CupState | null;
   /** Finished seasons, oldest first. */

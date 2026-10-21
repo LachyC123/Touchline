@@ -169,7 +169,7 @@ describe('a full season', () => {
     const { league: _l, seasons: _s, cup: _c, ...rest } = v5;
     const v4 = { ...rest, schemaVersion: 4, contentVersion: 'content-4', season: 2 };
     const m = migrateSave(v4);
-    expect(m.schemaVersion).toBe(7);
+    expect(m.schemaVersion).toBe(8);
     expect(m.cup).toBeNull();
     expect(m.league.division).toBe(0);
     expect(m.league.round).toBe(0);
@@ -181,7 +181,7 @@ describe('a full season', () => {
     const v6 = createCareer('cup-mig', 'x');
     const { cup: _c, ...rest } = v6;
     const m = migrateSave({ ...rest, schemaVersion: 5, contentVersion: 'content-5' });
-    expect(m.schemaVersion).toBe(7);
+    expect(m.schemaVersion).toBe(8);
     expect(m.cup).toBeNull();
     expect(m.league).toEqual(v6.league);
     // The season closes without a cup and the next one has one.

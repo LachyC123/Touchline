@@ -54,6 +54,11 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
   5: (raw) => ({ ...raw, contentVersion: 'content-6', cup: null }),
   // v6 → v7: the dressing room. Morale already exists on every footballer; it starts empty.
   6: (raw) => ({ ...raw, contentVersion: 'content-7', dressingRoom: emptyDressingRoom() }),
+  // v7 → v8: captaincy, penalty duty, dreams backed. Nobody wears the armband yet.
+  7: (raw) => {
+    const room = (raw.dressingRoom ?? emptyDressingRoom()) as Record<string, unknown>;
+    return { ...raw, contentVersion: 'content-8', captainId: null, penaltyTakerId: null, dressingRoom: { ...room, backed: Array.isArray(room.backed) ? room.backed : [] } };
+  },
 };
 
 export function migrateSave(input: unknown): ClubSave {

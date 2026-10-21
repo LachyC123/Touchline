@@ -754,3 +754,58 @@
 .result__room-list b.is-down {
   color: var(--orange);
 }
+
+.result__dreams {
+  position: relative;
+  --confetti-top: 10%;
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background:
+    repeating-conic-gradient(from 0deg at 50% 0%, rgb(255 255 255 / 0.08) 0 8deg, transparent 8deg 20deg),
+    linear-gradient(180deg, var(--gold), var(--gold-dark));
+  color: var(--ink);
+  box-shadow:
+    0 6px 0 #9c6f1c,
+    var(--cast);
+  animation: sealed-in 700ms var(--ease-spring) 200ms both;
+}
+
+.result__dreams-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-2xl);
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.result__dream {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: rgb(255 247 233 / 0.85);
+  color: var(--ink);
+  text-align: left;
+}
+
+.result__dream b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.result__dream small {
+  font-weight: 700;
+  font-style: italic;
+}

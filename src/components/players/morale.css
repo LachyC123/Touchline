@@ -63,3 +63,31 @@
   align-items: center;
   gap: 6px;
 }
+
+.role-badges {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.role-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.role-badge.is-captain {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.role-badge.is-pens {
+  background: var(--cream);
+  color: var(--ink);
+}

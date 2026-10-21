@@ -67,6 +67,10 @@ export interface TeamLineup {
   kit: { primary: string; secondary: string; pattern?: 'plain' | 'stripes' | 'hoops' | 'sash' | 'halves' };
   formation: FormationId;
   players: LineupPlayer[];
+  /** Takes this side's penalties when on the pitch (otherwise the best taker does). */
+  penaltyTakerId?: string;
+  /** Wears the armband (presentation only; the engine does not read it). */
+  captainId?: string;
   /** Substitutes available at half-time (slotId 'bench', role = natural position). */
   bench?: LineupPlayer[];
   /** Manager cards brought to this match, in draw order (absent on lineups frozen before engine-3). */

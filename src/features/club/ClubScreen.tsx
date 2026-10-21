@@ -56,6 +56,7 @@ export function ClubScreen() {
         <StadiumScene club={save.club} />
         <span className="club__ground-tag">
           Ground level {save.club.stadiumLevel} · {save.club.stadiumLevel === 1 ? 'Seen better days' : 'On the up'}
+          {save.club.reputation > 0 ? ` · Reputation ${save.club.reputation}` : ''}
         </span>
       </section>
 

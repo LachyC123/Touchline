@@ -17,6 +17,13 @@ function benchIds(save: ClubSave): string[] {
 }
 
 /** Plays a "match" on the draft: a record where the starters played and the bench sat. */
+/** A career with a captain already named, so the armband request stays out of the way. */
+function career(seed: string): ClubSave {
+  const s = createCareer(seed, 'x');
+  s.captainId = s.lineup.GK!;
+  return s;
+}
+
 function play(save: ClubSave, result: 'win' | 'draw' | 'loss' = 'draw', extra: Partial<AfterMatchInput> = {}): ReturnType<typeof dressingRoomAfterMatch> {
   save.matchNumber++;
   const st = extra.started ?? starters(save);
@@ -59,7 +66,7 @@ describe('morale', () => {
 describe('requests and promises', () => {
   it('three games on the bench and he knocks on the door; same career, same request', () => {
     const make = () => {
-      const save = createCareer('room-1', 'x');
+      const save = career('room-1');
       for (const id of benchIds(save)) save.footballers[id]!.morale = 56;
       for (let i = 0; i < 3; i++) play(save, 'win');
       return save;
@@ -76,7 +83,7 @@ describe('requests and promises', () => {
   });
 
   it('a promise kept: he starts, he flies, and the scrapbook remembers', () => {
-    const save = createCareer('room-2', 'x');
+    const save = career('room-2');
     for (const id of benchIds(save)) save.footballers[id]!.morale = 50;
     for (let i = 0; i < 3; i++) play(save, 'win');
     const e = openEvent(save)!;
@@ -95,7 +102,7 @@ describe('requests and promises', () => {
   });
 
   it('a promise broken: two matches without a start, he is furious and the bench notices', () => {
-    const save = createCareer('room-3', 'x');
+    const save = career('room-3');
     for (const id of benchIds(save)) save.footballers[id]!.morale = 50;
     for (let i = 0; i < 3; i++) play(save, 'win');
     const e = openEvent(save)!;
@@ -113,7 +120,7 @@ describe('requests and promises', () => {
   });
 
   it('a few days at home: he misses the next match (the lineup says so), then he is back', () => {
-    const save = createCareer('room-4', 'x');
+    const save = career('room-4');
     const id = save.lineup.MID_L!;
     save.dressingRoom.events = [{ id: '00000000-0000-4000-8000-000000000001', kind: 'homesick', playerId: id, atMatch: 0, status: 'open' }];
     applyChoice(save, '00000000-0000-4000-8000-000000000001', 'daysOff');
@@ -124,7 +131,7 @@ describe('requests and promises', () => {
   });
 
   it('three defeats: a flat squad; the choices cost what they say and split by character', () => {
-    const save = createCareer('room-5', 'x');
+    const save = career('room-5');
     for (let i = 0; i < 3; i++) play(save, 'loss');
     const e = openEvent(save)!;
     expect(e.kind).toBe('flatSquad');

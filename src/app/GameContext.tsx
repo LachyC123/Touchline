@@ -29,6 +29,8 @@ import {
   markCardsSeen as repoMarkCardsSeen,
   beginNextSeason as repoBeginNextSeason,
   resolveEvent as repoResolveEvent,
+  setCaptain as repoSetCaptain,
+  setPenaltyTaker as repoSetPenaltyTaker,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -62,6 +64,8 @@ interface GameApi {
   markCardsSeen: () => Promise<void>;
   beginNextSeason: () => Promise<SeasonSummary>;
   resolveEvent: (eventId: string, choiceId: string) => Promise<string>;
+  setCaptain: (playerId: string | null) => Promise<void>;
+  setPenaltyTaker: (playerId: string | null) => Promise<void>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -137,6 +141,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       markCardsSeen: async () => void (await repoMarkCardsSeen()),
       beginNextSeason: async () => (await repoBeginNextSeason()).summary,
       resolveEvent: async (eventId, choiceId) => (await repoResolveEvent(eventId, choiceId)).outcome,
+      setCaptain: async (id) => void (await repoSetCaptain(id)),
+      setPenaltyTaker: async (id) => void (await repoSetPenaltyTaker(id)),
     }),
     [saveState, settings, updateSettings, exportSave],
   );

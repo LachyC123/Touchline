@@ -258,3 +258,36 @@
 .room__news .is-bad {
   box-shadow: inset 3px 0 0 var(--orange);
 }
+
+.dressing__other {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 4px 10px 4px 4px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--navy-600);
+  color: var(--cream);
+  font-size: var(--text-sm);
+}
+
+.dressing__other-card {
+  width: 34px;
+}
+
+.dressing__watcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+
+.dressing--dreamCome .dressing__outcome {
+  background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+  color: var(--ink);
+}
+
+.dressing--dreamCome .dressing__outcome-kicker {
+  color: rgb(27 34 53 / 0.7);
+}

@@ -152,6 +152,8 @@ const teamLineupSchema = z.object({
   deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX).optional(),
   players: z.array(lineupPlayerSchema).length(7),
   bench: z.array(lineupPlayerSchema).max(SUBS.bench).optional(),
+  penaltyTakerId: z.string().max(80).optional(),
+  captainId: z.string().max(80).optional(),
 });
 
 const clubRef = z.string().min(1).max(40);
@@ -198,9 +200,11 @@ const dressingRoomSchema = z.object({
         id: z.string().uuid(),
         kind: z.enum(EVENT_KINDS),
         playerId: z.string().max(80).optional(),
+        otherId: z.string().max(80).optional(),
+        clubId: z.string().max(40).optional(),
         atMatch: z.number().int().min(0),
         status: z.enum(['open', 'resolved', 'news']),
-        choiceId: z.string().max(40).optional(),
+        choiceId: z.string().max(120).optional(),
         outcome: z.string().max(240).optional(),
       }),
     )
@@ -208,6 +212,7 @@ const dressingRoomSchema = z.object({
   promises: z.array(z.object({ id: z.string().uuid(), playerId: z.string().max(80), starts: z.number().int().min(1).max(10), got: z.number().int().min(0).max(10), byMatch: z.number().int().min(0) })).max(20),
   away: z.array(z.object({ playerId: z.string().max(80), untilMatch: z.number().int().min(0), reason: z.string().max(80) })).max(20),
   lastEventMatch: z.number().int().min(0),
+  backed: z.array(z.string().max(80)).max(40),
 });
 
 const cupSchema = z.object({
@@ -258,7 +263,7 @@ const matchRecordSchema = z.object({
   opponentName: z.string().max(60),
   userSide: side,
   score: pair(z.number().int().min(0).max(99)),
-  scorers: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), side, minute: z.number().int().min(0).max(130), tick: z.number().int().min(0).max(100_000), assistName: z.string().max(90).optional() })).max(60),
+  scorers: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), side, minute: z.number().int().min(0).max(130), tick: z.number().int().min(0).max(100_000), assistName: z.string().max(90).optional(), assistId: z.string().max(80).optional() })).max(60),
   playerOfMatchId: z.string().max(80),
   playerOfMatchName: z.string().max(90),
   playerOfMatchRating: z.number().min(0).max(10),
@@ -306,6 +311,7 @@ const matchRecordSchema = z.object({
     .max(40)
     .optional(),
   morale: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), delta: z.number().int().min(-100).max(100), reasons: z.array(z.string().max(40)).max(8) })).max(12).optional(),
+  dreams: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), text: z.string().max(120) })).max(14).optional(),
 });
 
 const ownedPackSchema = z.object({
@@ -356,6 +362,8 @@ export const clubSaveSchema = z
     league: leagueSchema,
     cup: cupSchema.nullable(),
     dressingRoom: dressingRoomSchema,
+    captainId: z.string().max(80).nullable(),
+    penaltyTakerId: z.string().max(80).nullable(),
     seasons: z.array(seasonSummarySchema).max(999),
     matchNumber: z.number().int().min(0).max(100_000),
     pendingMatch: pendingMatchSchema.nullable(),

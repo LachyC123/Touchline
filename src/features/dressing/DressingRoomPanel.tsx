@@ -19,7 +19,7 @@ export function DressingRoomPanel() {
         <button type="button" className="room__request" onClick={() => navigate({ name: 'event', id: open.id })}>
           {who ? <FootballerCard player={who} kit={save.club.kit} variant="mini" /> : <Crest club={save.club} size={52} />}
           <span>
-            <b>{eventHeadline(open, who)}</b>
+            <b>{eventHeadline(open, save)}</b>
             <small>{who ? 'He’s knocking on your door.' : 'The players are waiting for you.'}</small>
           </span>
           <span className="room__go">Hear {who ? 'him' : 'them'} out</span>

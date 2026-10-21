@@ -108,6 +108,8 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     league: newLeague(careerSeed, 1, 0),
     cup: newCup(careerSeed, 1),
     dressingRoom: emptyDressingRoom(),
+    captainId: null,
+    penaltyTakerId: null,
     seasons: [],
     matchNumber: 0,
     pendingMatch: null,

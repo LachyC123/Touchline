@@ -1,5 +1,5 @@
 import { advanceOnboarding, applyClubIdentity, type ClubIdentityChoice, type OnboardingEvent } from '../domain/club/onboarding';
-import { applyChoice } from '../domain/club/dressingRoom';
+import { applyChoice, appointCaptain, givePenalties, scrapbook } from '../domain/club/dressingRoom';
 import { createCareer } from '../domain/club/newCareer';
 import { deckProblem } from '../domain/club/manager';
 import type { CardId } from '../game/simulation/cards';
@@ -383,4 +383,27 @@ export async function resolveEvent(eventId: string, choiceId: string, db?: Touch
   );
   outcome ||= r.save.dressingRoom.events.find((e) => e.id === eventId)?.outcome ?? '';
   return { outcome, applied: r.applied };
+}
+
+/** Hands the armband to a player in the squad (null removes it). */
+export function setCaptain(playerId: string | null, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    if (playerId === null) {
+      s.captainId = null;
+      return;
+    }
+    if (!s.squadIds.includes(playerId)) throw new Error('He is not in the squad.');
+    if (s.captainId === playerId) return;
+    appointCaptain(s, playerId);
+    scrapbook(s, playerId, 'Named club captain.');
+  }, {}, db);
+}
+
+/** Chooses who takes penalties (null = the best taker on the pitch). */
+export function setPenaltyTaker(playerId: string | null, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    if (playerId !== null && (!s.squadIds.includes(playerId) || s.footballers[playerId]?.primaryPosition === 'GK')) throw new Error('Pick an outfield player from the squad.');
+    if (s.penaltyTakerId === playerId) return;
+    givePenalties(s, playerId);
+  }, {}, db);
 }

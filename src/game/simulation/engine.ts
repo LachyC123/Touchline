@@ -1444,6 +1444,9 @@ export class MatchEngine {
         return base + (p.traits.has('setPieceArtist') ? 12 : 0);
       };
       taker = [...outfield].sort((a, b) => score(b) - score(a) || a.index - b.index)[0] as PState;
+      // The manager's chosen penalty taker steps up if he is on the pitch.
+      const chosen = kind === 'penalty' ? outfield.find((p) => p.id === st.teams[side].lineup.penaltyTakerId) : undefined;
+      if (chosen) taker = chosen;
     } else {
       taker = [...outfield].sort((a, b) => Math.hypot(a.x - spot.x, a.y - spot.y) - Math.hypot(b.x - spot.x, b.y - spot.y) || a.index - b.index)[0] as PState;
     }

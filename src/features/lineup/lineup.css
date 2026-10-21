@@ -334,3 +334,53 @@
   background: var(--royal);
   color: var(--cream);
 }
+
+.pitchboard__roles {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  z-index: 2;
+}
+
+.lineup__roles {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.lineup__role {
+  display: grid;
+  gap: 6px;
+}
+
+.lineup__role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lineup__role-chip {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--navy-600);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 0 var(--navy-900);
+}
+
+.lineup__role-chip.is-on {
+  background: var(--gold);
+  color: var(--ink);
+  box-shadow: 0 3px 0 var(--gold-dark);
+}
+
+.lineup__role-note {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

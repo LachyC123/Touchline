@@ -488,3 +488,13 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+.player__dream.is-done {
+  color: var(--gold-dark);
+}
+
+.player__dream-note {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  opacity: 0.8;
+}

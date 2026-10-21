@@ -39,6 +39,8 @@ export interface TeamIdentity {
   kit: TeamLineup['kit'];
   aiStyle: AiStyle;
   deck?: TeamLineup['deck'];
+  penaltyTakerId?: string;
+  captainId?: string;
 }
 
 /**
