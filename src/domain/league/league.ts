@@ -6,6 +6,7 @@ import { grantClubXp } from '../club/manager';
 import { opponentLineup } from '../club/opponents';
 import { awardSeasonHonours, seasonAppearances } from './honours';
 import { fulfilDream } from '../players/dreams';
+import { REP_GAIN } from '../club/reputation';
 import { cupFinished, cupWinner, newCup, userCupTie } from '../cup/cup';
 import { createRng } from '../rng';
 import { PLAYER_CLUB_ID, type ClubSave, type Competition, type CupState, type LeagueFixture, type LeagueResult, type LeagueState, type SeasonSummary } from '../save/types';
@@ -251,6 +252,8 @@ export function startNextSeason(draft: ClubSave): SeasonSummary {
   const prizeCoins = summary.prizeCoins;
   draft.seasons.push(summary);
   awardSeasonHonours(draft, summary);
+  if (summary.position === 1) draft.club.reputation += REP_GAIN.champions;
+  else if (summary.outcome === 'promoted') draft.club.reputation += REP_GAIN.promoted;
   // "Win promotion": comes true for everyone with that dream who played in a promotion season.
   if (summary.outcome === 'promoted' || (summary.position === 1 && divisionOf(summary.division).promote > 0)) {
     for (const id of seasonAppearances(draft, summary.season)) if (draft.footballers[id]?.dreamId === 'promotion') fulfilDream(draft, id);

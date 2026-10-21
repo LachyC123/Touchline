@@ -16,6 +16,8 @@ import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import { fixtureStorylines } from '../../domain/league/stories';
 import { CUP_NAME, cupRoundName } from '../../domain/cup/cup';
 import { TrophyCabinet } from './TrophyCabinet';
+import { GroundPanel } from './GroundPanel';
+import { attendance, groundOf, repTier } from '../../domain/club/reputation';
 import { DressingRoomPanel } from '../dressing/DressingRoomPanel';
 import './club.css';
 
@@ -53,10 +55,9 @@ export function ClubScreen() {
       </header>
 
       <section className="club__ground" aria-label={`${save.club.stadiumName}, ground level ${save.club.stadiumLevel}`}>
-        <StadiumScene club={save.club} />
+        <StadiumScene club={save.club} level={save.club.stadiumLevel} fill={attendance(save, false) / groundOf(save.club.stadiumLevel).capacity} />
         <span className="club__ground-tag">
-          Ground level {save.club.stadiumLevel} · {save.club.stadiumLevel === 1 ? 'Seen better days' : 'On the up'}
-          {save.club.reputation > 0 ? ` · Reputation ${save.club.reputation}` : ''}
+          {groundOf(save.club.stadiumLevel).name} · {repTier(save.club.reputation).label} club
         </span>
       </section>
 
@@ -162,6 +163,8 @@ export function ClubScreen() {
           </div>
         </section>
       )}
+
+      <GroundPanel />
 
       <TrophyCabinet seasons={save.seasons} division={save.league.division} kit={save.club.kit} cup={save.cup} />
 

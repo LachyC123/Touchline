@@ -184,3 +184,14 @@
   font-size: 11px;
   vertical-align: 1px;
 }
+
+.walkout__crowd {
+  position: relative;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.walkout__crowd b {
+  color: var(--gold);
+  font-family: var(--font-display);
+}

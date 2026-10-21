@@ -115,6 +115,7 @@ export class FootballerRig {
     S: number,
     isUser: boolean,
     private readonly reducedMotion: boolean,
+    captain = false,
   ) {
     this.S = S;
     const u = (n: number) => n * S;
@@ -160,6 +161,11 @@ export class FootballerRig {
       up.fillStyle(shade(shirt, k), 1).fillRoundedRect(u(-0.42), u(-0.15), u(0.84), u(0.8), u(0.38));
       up.fillStyle(shade(trim, k), 1).fillRect(u(-0.4), u(0.5), u(0.8), u(0.12));
       up.lineStyle(ow, ink, 0.6).strokeRoundedRect(u(-0.42), u(-0.15), u(0.84), u(0.8), u(0.38));
+      if (captain && !back) {
+        // The armband: a gold band on the sleeve the camera sees.
+        up.fillStyle(0xf4c653, 1).fillRect(u(-0.44), u(0.12), u(0.88), u(0.26));
+        up.lineStyle(ow, ink, 0.8).strokeRect(u(-0.44), u(0.12), u(0.88), u(0.26));
+      }
       const fore = scene.add.graphics();
       fore.fillStyle(shade(skinBase, k), 1).fillRoundedRect(u(-0.27), u(-0.12), u(0.54), u(1.15), u(0.26));
       const handR = keeper ? 0.5 : 0.34;

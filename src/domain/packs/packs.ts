@@ -1,4 +1,5 @@
-import { TIER_DEFS, TIER_ORDER } from '../../data/tiers';
+import { TIER_ORDER } from '../../data/tiers';
+import { scoutOdds } from '../club/reputation';
 import { FORMATION_DEFS } from '../formations';
 import { generateFootballer } from '../players/generator';
 import { overallAt } from '../players/rating';
@@ -77,7 +78,8 @@ export function grantPack(draft: ClubSave, kind: PackKind, source: string): Owne
     }
   } else {
     const rng = stream(seed, 'reward');
-    let tier: Tier = rng.weighted(TIER_ORDER.map((t) => [t, TIER_DEFS[t].odds] as const));
+    const odds = scoutOdds(draft.club.reputation);
+    let tier: Tier = rng.weighted(TIER_ORDER.map((t) => [t, odds[t]] as const));
     if (!STRONG.has(tier) && draft.guaranteedRecruitProgress >= PITY_AT - 1) tier = 'breakout';
     draft.guaranteedRecruitProgress = STRONG.has(tier) ? 0 : draft.guaranteedRecruitProgress + 1;
     recruit = uniqueRecruit(draft, seed, (s) => generateFootballer({ seed: s, tier, season: draft.season }));

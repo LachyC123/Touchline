@@ -31,6 +31,13 @@ export function awayFor(save: Pick<ClubSave, 'dressingRoom' | 'matchNumber'>): M
   return new Map(save.dressingRoom.away.filter((a) => a.untilMatch >= next).map((a) => [a.playerId, a.reason]));
 }
 
+/** One of a few ways of saying the same thing, fixed per event (so a re-read reads the same). */
+export function vary(e: Pick<ClubEvent, 'id'>, lines: readonly string[]): string {
+  let h = 0;
+  for (const ch of e.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return lines[h % lines.length] as string;
+}
+
 export function openEvent(save: Pick<ClubSave, 'dressingRoom'>): ClubEvent | undefined {
   return save.dressingRoom.events.find((e) => e.status === 'open');
 }
@@ -180,7 +187,12 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
     rule: true,
     trigger: (c) => (lostLast(c.records, 3) && !recently(c.draft, 'flatSquad', 4) ? {} : null),
     headline: () => 'The dressing room is flat',
-    quote: () => 'Three defeats on the bounce. Heads are down and nobody’s put the music on in the changing room.',
+    quote: (e) =>
+      vary(e, [
+        'Three defeats on the bounce. Heads are down and nobody’s put the music on in the changing room.',
+        'Training was silent this morning. Three losses and you can feel it in every drill.',
+        'The kit man says he’s never known the dressing room this quiet. Three defeats will do that.',
+      ]),
     choices: (_e, s) => [
       { id: 'nightOut', label: `Team night out (${COSTS.nightOut} coins)`, hint: '+8 morale for the whole squad.', ...(s.coins < COSTS.nightOut ? { disabled: `Needs ${COSTS.nightOut} coins` } : {}) },
       { id: 'toughLove', label: 'Hairdryer treatment', hint: 'The professionals respond (+6). The rest take it badly (−5).' },
@@ -223,7 +235,7 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       if (type === 'anxious') return 'I don’t know what I’m doing wrong. Can I just get a chance?';
       if (type === 'laidBack' || type === 'joker') return 'No stress, gaffer, but my boots are getting dusty. Any chance of a run-out?';
       if (type === 'hotHeaded') return 'Three games on the bench. Three! What do I have to do?';
-      return 'I’ve sat out three games now. I’m ready — give me a chance.';
+      return vary(e, ['I’ve sat out three games now. I’m ready — give me a chance.', 'Gaffer, I’m training well. I just need ninety minutes to show you.', 'I know the lads are doing well, but I’m going stir-crazy on that bench.']);
     },
     choices: (e, s) => [
       { id: 'promise', label: 'Promise him a start in the next two matches', hint: '+5 now. Keep it: +15. Break it: −20, and the rest of the bench notices.' },
@@ -255,7 +267,12 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
     rule: true,
     trigger: (c) => (!c.draft.captainId && c.draft.matchNumber >= 2 && !recently(c.draft, 'captaincy', 8) && c.squad.length >= 3 ? {} : null),
     headline: () => 'The squad needs a captain',
-    quote: () => 'Every team needs a voice on the pitch. Three names keep coming up in the dressing room.',
+    quote: (e) =>
+      vary(e, [
+        'Every team needs a voice on the pitch. Three names keep coming up in the dressing room.',
+        'Nobody’s wearing the armband. The lads want to know who’s in charge out there.',
+        'The ref asked who our captain was last week. Nobody answered. Time to pick one.',
+      ]),
     choices: (_e, s) => {
       const squad = s.squadIds.flatMap((id) => (s.footballers[id] ? [s.footballers[id]] : []));
       const top = [...squad].sort((a, b) => leadership(b) - leadership(a) || a.id.localeCompare(b.id)).slice(0, 3);
@@ -315,7 +332,7 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       return keen.length ? { playerId: c.rng.pick(keen).id } : null;
     },
     headline: (e, s) => `${last(s, e.playerId)} wants the penalties`,
-    quote: (e, s) => (who(s, e.playerId)?.personality.type === 'hotHeaded' ? 'Next penalty’s mine. I’m not asking, gaffer — well, I am, but you know what I mean.' : 'Next time we get a penalty, I want it. I won’t miss.'),
+    quote: (e, s) => (who(s, e.playerId)?.personality.type === 'hotHeaded' ? 'Next penalty’s mine. I’m not asking, gaffer — well, I am, but you know what I mean.' : vary(e, ['Next time we get a penalty, I want it. I won’t miss.', 'I’ve been practising penalties after training every night. Let me take them.', 'Give me the ball on the spot, gaffer. Bottom corner, every time.'])),
     choices: (_e, s) => [
       { id: 'give', label: 'Give him the penalties', hint: `+10 morale. He steps up for every penalty while he’s on the pitch${s.penaltyTakerId && s.footballers[s.penaltyTakerId] ? `; ${s.footballers[s.penaltyTakerId]!.lastName} loses the job (−5)` : ''}.` },
       { id: 'keep', label: 'Penalties stay as they are', hint: 'He won’t like it (−6); a resilient player shrugs it off.' },
@@ -341,7 +358,14 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       return { playerId: c.rng.pick(best).id, clubId: c.rng.pick(bigger).id };
     },
     headline: (e, s) => `${CLUB_BY_ID[e.clubId ?? '']?.shortName ?? 'A big club'} are watching ${last(s, e.playerId)}`,
-    quote: (e) => `My agent says ${CLUB_BY_ID[e.clubId ?? '']?.name ?? 'a bigger club'} have been at the last two games. I’m not saying I want to go… but I’m listening.`,
+    quote: (e) => {
+      const them = CLUB_BY_ID[e.clubId ?? '']?.name ?? 'a bigger club';
+      return vary(e, [
+        `My agent says ${them} have been at the last two games. I’m not saying I want to go… but I’m listening.`,
+        `${them} rang my agent last night. I’m happy here, gaffer — I just want to know I matter.`,
+        `I saw the ${them} scout in the stand. Everyone did. What am I supposed to think?`,
+      ]);
+    },
     choices: () => [
       { id: 'heart', label: 'Tell him he’s at the heart of your plans', hint: '+6 now, and a promise: he starts both of the next three. Keep it: +15. Break it: −20.' },
       { id: 'free', label: 'It’s his career — wish him well', hint: '+4 morale. Loyal players appreciate it; ambitious ones start dreaming.' },
@@ -373,7 +397,12 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       return rivals.length ? { playerId: c.rng.pick(rivals).id, otherId: cap.id } : null;
     },
     headline: (e, s) => `${last(s, e.playerId)} wants the armband`,
-    quote: (e, s) => `With respect to ${last(s, e.otherId)}, the lads look to me out there. I should be captain.`,
+    quote: (e, s) =>
+      vary(e, [
+        `With respect to ${last(s, e.otherId)}, the lads look to me out there. I should be captain.`,
+        `I organise the lads every game anyway. Give me the armband and make it official.`,
+        `${last(s, e.otherId)}’s a good lad, but he doesn’t shout. I do. Make me captain.`,
+      ]),
     choices: (e, s) => [
       { id: 'switch', label: 'Give him the armband', hint: `+12 for him. ${last(s, e.otherId)} won’t take it well (−10).` },
       { id: 'keep', label: `${last(s, e.otherId)} stays captain`, hint: `He’s disappointed (−6); ${last(s, e.otherId)} feels backed (+3).` },
@@ -436,7 +465,12 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       return others.length ? { playerId: a.id, otherId: c.rng.pick(others).id } : null;
     },
     headline: (e, s) => `${last(s, e.playerId)} and ${last(s, e.otherId)} clash in training`,
-    quote: (e, s) => `A late tackle, a shove, and now ${last(s, e.playerId)} and ${last(s, e.otherId)} aren’t speaking. The whole squad saw it.`,
+    quote: (e, s) =>
+      vary(e, [
+        `A late tackle, a shove, and now ${last(s, e.playerId)} and ${last(s, e.otherId)} aren’t speaking. The whole squad saw it.`,
+        `${last(s, e.playerId)} and ${last(s, e.otherId)} had to be pulled apart in the car park. It’s all anyone’s talking about.`,
+        `Words in the shower, then a door slammed off its hinges. ${last(s, e.playerId)} and ${last(s, e.otherId)} need sorting out.`,
+      ]),
     choices: (e, s) => [
       { id: 'fine', label: `Fine ${last(s, e.playerId)}`, hint: 'He started it: −10 for him, +5 for the other lad.' },
       { id: 'handshake', label: 'Make them shake hands', hint: 'Works if the instigator is sociable (both +4); if not, it’s frosty (both −3).' },
@@ -471,7 +505,14 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       return lonely.length ? { playerId: c.rng.pick(lonely).id } : null;
     },
     headline: (e, s) => `${last(s, e.playerId)} is homesick`,
-    quote: (e, s) => `I miss ${who(s, e.playerId)?.hometown ?? 'home'}. My family, my mates… it’s harder than I thought it would be.`,
+    quote: (e, s) => {
+      const home = who(s, e.playerId)?.hometown ?? 'home';
+      return vary(e, [
+        `I miss ${home}. My family, my mates… it’s harder than I thought it would be.`,
+        `My mum rang from ${home} last night and I couldn’t stop thinking about it. I’m not sleeping, gaffer.`,
+        `Everyone back in ${home} thinks I’m living the dream. Truth is, I’m lonely.`,
+      ]);
+    },
     choices: (_e, s) => [
       { id: 'daysOff', label: 'Give him a few days at home', hint: '+18 morale, but he misses the next match.' },
       { id: 'familyVisit', label: `Fly his family over (${COSTS.familyVisit} coins)`, hint: '+10 morale and he stays available.', ...(s.coins < COSTS.familyVisit ? { disabled: `Needs ${COSTS.familyVisit} coins` } : {}) },
@@ -522,7 +563,12 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
     rule: false,
     trigger: (c) => (c.draft.matchNumber >= 3 && !recently(c.draft, 'schoolVisit', 10) ? {} : null),
     headline: () => 'A school wants a visit',
-    quote: (_e, s) => `Ashby Lane Primary have written in: thirty kids in ${s.club.name} shirts want to meet a real player.`,
+    quote: (e, s) =>
+      vary(e, [
+        `Ashby Lane Primary have written in: thirty kids in ${s.club.name} shirts want to meet a real player.`,
+        `A letter from St Brannock’s Juniors, in crayon: “Please can a ${s.club.name} player come to our sports day?”`,
+        `The under-9s at Millbrook School have made a banner for ${s.club.name}. They’d love someone to see it.`,
+      ]),
     choices: (_e, s) => {
       const squad = s.squadIds.flatMap((id) => (s.footballers[id] ? [s.footballers[id]] : []));
       const star = [...squad].sort((a, b) => Number(b.favourite) - Number(a.favourite) || overall(b) - overall(a))[0];

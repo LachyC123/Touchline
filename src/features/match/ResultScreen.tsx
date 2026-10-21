@@ -14,6 +14,7 @@ import { ShootoutReveal } from './ShootoutReveal';
 import { MoraleMeter } from '../../components/players/MoraleMeter';
 import { eventHeadline } from '../../domain/club/dressingRoom';
 import { navigate } from '../../app/router';
+import { repTier } from '../../domain/club/reputation';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
 import { Icon, type IconName } from '../../components/icons/Icon';
@@ -364,6 +365,16 @@ export function ResultScreen({ id }: { id: string }) {
           <span>coins</span>
           <span className="result__clubxp">+{record.rewards.clubXp} club XP</span>
         </div>
+        {Boolean(record.repGain || record.attendance) && (
+          <p className="result__rep">
+            {record.attendance ? `${record.attendance.toLocaleString('en-GB')} at ${save.club.stadiumName}. ` : ''}
+            {record.repGain ? (
+              <b>
+                +{record.repGain} reputation · {repTier(save.club.reputation).label} club
+              </b>
+            ) : null}
+          </p>
+        )}
         <ul className="result__lines">
           {record.rewards.lines.map((l) => (
             <li key={l.label}>

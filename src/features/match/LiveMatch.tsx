@@ -24,6 +24,7 @@ import { createMatchGame } from '../../game/renderer/createMatchGame';
 import { recordCommand, restartStaleMatch, saveCheckpoint, settleMatchOnce } from '../../storage/saveRepo';
 import { ENGINE_VERSION } from '../../game/simulation/constants';
 import { WalkOut } from './WalkOut';
+import { matchAttendance } from '../../domain/club/reputation';
 import { Icon } from '../../components/icons/Icon';
 import { HalftimeSubs } from './HalftimeSubs';
 import { bigMatch, fixtureOfPending } from '../../domain/match/bigMatch';
@@ -476,6 +477,8 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
           us={{ team: userTeam, crest: save.club.crest }}
           them={{ team: oppTeam, crest: oppClub?.crest ?? 'round' }}
           reduced={isReducedMotion()}
+          crowd={matchAttendance(save, pending)}
+          ground={save.club.stadiumName}
           onKickOff={() => controller.resume()}
         />
       )}

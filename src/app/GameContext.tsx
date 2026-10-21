@@ -31,6 +31,7 @@ import {
   resolveEvent as repoResolveEvent,
   setCaptain as repoSetCaptain,
   setPenaltyTaker as repoSetPenaltyTaker,
+  buyGroundUpgrade as repoBuyGround,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -66,6 +67,7 @@ interface GameApi {
   resolveEvent: (eventId: string, choiceId: string) => Promise<string>;
   setCaptain: (playerId: string | null) => Promise<void>;
   setPenaltyTaker: (playerId: string | null) => Promise<void>;
+  upgradeGround: () => Promise<boolean>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -143,6 +145,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       resolveEvent: async (eventId, choiceId) => (await repoResolveEvent(eventId, choiceId)).outcome,
       setCaptain: async (id) => void (await repoSetCaptain(id)),
       setPenaltyTaker: async (id) => void (await repoSetPenaltyTaker(id)),
+      upgradeGround: async () => (await repoBuyGround()).applied,
     }),
     [saveState, settings, updateSettings, exportSave],
   );

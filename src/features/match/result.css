@@ -809,3 +809,13 @@
   font-weight: 700;
   font-style: italic;
 }
+
+.result__rep {
+  margin: 6px 0 2px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.result__rep b {
+  color: var(--gold-dark);
+}

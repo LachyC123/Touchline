@@ -452,3 +452,54 @@
 .club__next.is-cup .club__next-go {
   color: var(--gold);
 }
+
+.ground {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.ground__rep,
+.ground__ground {
+  display: grid;
+  gap: 6px;
+}
+
+.ground__ground {
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.ground__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-weight: 900;
+}
+
+.ground__tier {
+  color: var(--gold);
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.ground__bar {
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: rgb(0 0 0 / 0.3);
+  overflow: hidden;
+}
+
+.ground__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+  transition: width 900ms var(--ease-spring);
+}
+
+.ground__note {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

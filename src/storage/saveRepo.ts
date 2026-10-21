@@ -1,4 +1,5 @@
 import { advanceOnboarding, applyClubIdentity, type ClubIdentityChoice, type OnboardingEvent } from '../domain/club/onboarding';
+import { upgradeGround } from '../domain/club/reputation';
 import { applyChoice, appointCaptain, givePenalties, scrapbook } from '../domain/club/dressingRoom';
 import { createCareer } from '../domain/club/newCareer';
 import { deckProblem } from '../domain/club/manager';
@@ -406,4 +407,15 @@ export function setPenaltyTaker(playerId: string | null, db?: TouchlineDB): Prom
     if (s.penaltyTakerId === playerId) return;
     givePenalties(s, playerId);
   }, {}, db);
+}
+
+/** Buys the next ground upgrade, once per level (claim = the level). */
+export function buyGroundUpgrade(db?: TouchlineDB): Promise<MutationResult> {
+  return getSaveLevel(db).then((level) => mutateSave((s) => void upgradeGround(s), { claimId: `ground:${level + 1}` }, db));
+}
+
+async function getSaveLevel(db?: TouchlineDB): Promise<number> {
+  const s = await loadSave(db);
+  if (!s) throw new Error('No career to update.');
+  return s.club.stadiumLevel;
 }

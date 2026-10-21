@@ -17,7 +17,7 @@ interface Side {
  * The tunnel before a big match: both crests, why it matters (a real storyline), the seven
  * walking out, then one tap to kick off. The match is held at minute 0 until then.
  */
-export function WalkOut({ big, us, them, reduced, onKickOff }: { big: BigMatch; us: Side; them: Side; reduced: boolean; onKickOff: () => void }) {
+export function WalkOut({ big, us, them, reduced, crowd = 0, ground, onKickOff }: { big: BigMatch; us: Side; them: Side; reduced: boolean; crowd?: number; ground?: string; onKickOff: () => void }) {
   useEffect(() => {
     playSfx('cheer');
   }, []);
@@ -44,6 +44,11 @@ export function WalkOut({ big, us, them, reduced, onKickOff }: { big: BigMatch; 
         </span>
       </div>
       <p className="walkout__line">{big.line}</p>
+      {crowd > 0 && (
+        <p className="walkout__crowd">
+          <b>{crowd.toLocaleString('en-GB')}</b> packed into {ground ?? 'the ground'}
+        </p>
+      )}
       <ol className="walkout__seven" aria-label="Your starting seven">
         {seven.map((p, i) => (
           <li key={p.id} style={{ animationDelay: `${500 + i * 110}ms` }}>

@@ -240,3 +240,19 @@
   margin-top: var(--s-2) !important;
   color: rgb(27 34 53 / 0.7);
 }
+
+.scout__rep {
+  font-size: var(--text-sm);
+}
+
+.scout__odds td small {
+  font-weight: 800;
+}
+
+.scout__odds td small.is-up {
+  color: var(--ink);
+}
+
+.scout__odds td small.is-down {
+  color: rgb(27 34 53 / 0.6);
+}

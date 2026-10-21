@@ -109,6 +109,10 @@ export interface MatchRecord {
   competition?: Competition;
   cupRound?: number;
   shootout?: ShootoutResult;
+  /** Home crowd (home matches only). */
+  attendance?: number;
+  /** Reputation the club earned from this result. */
+  repGain?: number;
   /** Dreams that came true in this match. */
   dreams?: { playerId: string; name: string; text: string }[];
   /** Morale swings worth showing (largest first). */

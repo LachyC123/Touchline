@@ -4,6 +4,7 @@ import { FootballerCard } from '../../components/cards/FootballerCard';
 import { TierEmblem } from '../../components/icons/Icon';
 import { TIER_DEFS, TIER_ORDER } from '../../data/tiers';
 import { matchesUntilScoutPack, PACK_DEFS, PITY_AT, SCOUT_PACK_EVERY, unopenedPacks } from '../../domain/packs/packs';
+import { nextRepTier, repTier, scoutOdds } from '../../domain/club/reputation';
 import './scout.css';
 
 /**
@@ -12,6 +13,7 @@ import './scout.css';
  */
 export function ScoutScreen() {
   const save = useSave();
+  const odds = scoutOdds(save.club.reputation);
   const waiting = unopenedPacks(save);
   const toGo = matchesUntilScoutPack(save.matchNumber);
   const recent = save.packs
@@ -87,8 +89,12 @@ export function ScoutScreen() {
       )}
 
       <section className="scout__odds paper" aria-labelledby="scout-odds">
-        <h2 id="scout-odds">Local Scout odds</h2>
+        <h2 id="scout-odds">Scout odds</h2>
         <p>Every pack holds one real, unique footballer. Rarity is a sign of potential, not a guarantee of power.</p>
+        <p className="scout__rep">
+          As a <b>{repTier(save.club.reputation).label}</b> club, better footballers return your calls.{' '}
+          {nextRepTier(save.club.reputation) ? `Reach ${nextRepTier(save.club.reputation)!.label} reputation for better odds.` : 'These are the best odds there are.'}
+        </p>
         <table>
           <tbody>
             {TIER_ORDER.map((t) => (
@@ -96,7 +102,9 @@ export function ScoutScreen() {
                 <th scope="row">
                   <TierEmblem tier={t} size={14} /> {TIER_DEFS[t].label}
                 </th>
-                <td>{TIER_DEFS[t].odds}%</td>
+                <td>
+                  {odds[t]}%{odds[t] !== TIER_DEFS[t].odds && <small className={odds[t] > TIER_DEFS[t].odds ? 'is-up' : 'is-down'}> ({odds[t] > TIER_DEFS[t].odds ? '+' : '−'}{Math.abs(Math.round((odds[t] - TIER_DEFS[t].odds) * 10) / 10)})</small>}
+                </td>
                 <td className="scout__odds-meaning">{TIER_DEFS[t].meaning}</td>
               </tr>
             ))}

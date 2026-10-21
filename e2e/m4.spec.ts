@@ -69,3 +69,23 @@ test('captain and penalty taker: chosen from the lineup by tapping, shown on car
   await page.goto('/#/squad');
   await expect(page.locator('.squad__mood .role-badge.is-captain')).toHaveCount(1);
 });
+
+test('reputation and the ground: hub panel explains what an upgrade needs, scout odds follow reputation', async ({ page }) => {
+  test.setTimeout(120_000);
+  await startCareerSkippingTutorial(page);
+  await page.goto('/#/club');
+  const panel = page.getByRole('region', { name: 'Reputation and ground' });
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('.ground__tier')).toHaveText('Local');
+  await expect(panel.getByRole('meter', { name: 'Reputation' })).toBeVisible();
+  // A new club can't afford the next level yet: the button says so instead of pretending.
+  const upgrade = panel.getByRole('button', { name: /A lick of paint: 600 coins/ });
+  await expect(upgrade).toBeDisabled();
+  await expect(panel).toContainText(/Needs Rising reputation \(15\)/);
+  await page.goto('/#/scout');
+  await expect(page.locator('.scout__rep')).toContainText('Local');
+  await playAndSkip(page);
+  // Rewards tell you who came and what the club's name is worth now (only home games have a gate).
+  const lines = await page.locator('.result__lines').innerText();
+  if (/Gate receipts/.test(lines)) await expect(page.locator('.result__rep')).toContainText(/at /);
+});

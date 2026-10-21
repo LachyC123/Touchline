@@ -3,7 +3,7 @@ import { createCareer } from '../domain/club/newCareer';
 import { openEvent } from '../domain/club/dressingRoom';
 import { TouchlineDB, setDbForTests } from './db';
 import { migrateSave } from './migrations';
-import { kickOff, loadSave, mutateSave, onboardingEvent, resolveEvent, settleMatchOnce, startNewCareer } from './saveRepo';
+import { buyGroundUpgrade, kickOff, loadSave, mutateSave, onboardingEvent, resolveEvent, settleMatchOnce, startNewCareer } from './saveRepo';
 
 let db: TouchlineDB;
 let n = 0;
@@ -58,5 +58,24 @@ describe('dressing room (persisted)', () => {
     expect(m.dressingRoom).toEqual({ events: [], promises: [], away: [], lastEventMatch: 0, backed: [] });
     expect(m.captainId).toBeNull();
     expect(m.footballers[m.anchorPlayerId]!.morale).toBe(v7.footballers[v7.anchorPlayerId]!.morale);
+  });
+});
+
+describe('ground upgrades (persisted)', () => {
+  it('a double tap buys the next level once; a blocked upgrade changes nothing', async () => {
+    await startNewCareer('ground-flow', db);
+    await expect(buyGroundUpgrade(db)).rejects.toThrow(/reputation/);
+    await mutateSave((s) => {
+      s.club.reputation = 20;
+      s.coins = 1000;
+    }, {}, db);
+    const [a, b] = await Promise.all([buyGroundUpgrade(db), buyGroundUpgrade(db)]);
+    expect([a.applied, b.applied].sort()).toEqual([false, true]);
+    const after = (await loadSave(db))!;
+    expect(after.club.stadiumLevel).toBe(2);
+    expect(after.coins).toBe(400);
+    expect(after.rewardClaimIds.filter((c) => c === 'ground:2')).toHaveLength(1);
+    await expect(buyGroundUpgrade(db)).rejects.toThrow(/reputation/);
+    expect((await loadSave(db))!.coins).toBe(400);
   });
 });

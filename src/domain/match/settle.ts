@@ -14,6 +14,7 @@ import { penaltyShootout, type ShootoutResult } from '../cup/shootout';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
 import { awayFor, dressingRoomAfterMatch } from '../club/dressingRoom';
+import { gateMoney, matchAttendance, REP_GAIN } from '../club/reputation';
 import { dreamsAfterMatch } from '../players/dreams';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
 import { xpToNext } from '../players/progression';
@@ -306,6 +307,17 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
       storyHeadline = cupHeadline(settled, k, draft.club.name, oppName, shootout, side, draft.league.division) ?? storyHeadline;
     }
   }
+  // A home crowd pays at the gate; reputation grows with results.
+  const fans = matchAttendance(draft, pending);
+  if (fans > 0) {
+    rewards.lines.push({ label: `Gate receipts (${fans.toLocaleString('en-GB')} fans)`, coins: gateMoney(fans) });
+    rewards.coins = rewards.lines.reduce((sum, l) => sum + l.coins, 0);
+  }
+  const cupTie = isCup ? draft.cup?.rounds[pending.cupRound ?? -1]?.find((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID) : undefined;
+  const repGain =
+    (won ? REP_GAIN.win : gf === ga ? REP_GAIN.draw : 0) +
+    (cupTie?.winner === PLAYER_CLUB_ID ? REP_GAIN.cupTieWon + (pending.cupRound === CUP_ROUNDS.length - 1 ? REP_GAIN.cupWon : 0) : 0);
+  draft.club.reputation += repGain;
   draft.coins += rewards.coins;
   const unlockedCards = grantClubXp(draft, rewards.clubXp);
 
@@ -351,6 +363,8 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     storyHeadline,
     moments: matchMoments(result, pending),
     ...(milestones.length ? { milestones } : {}),
+    ...(fans > 0 ? { attendance: fans } : {}),
+    ...(repGain > 0 ? { repGain } : {}),
     ...(unlockedCards.length ? { unlockedCards } : {}),
     ...(pending.season !== undefined ? { season: pending.season } : {}),
     ...(pending.round !== undefined && !isCup ? { round: pending.round } : {}),

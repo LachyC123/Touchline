@@ -312,6 +312,8 @@ const matchRecordSchema = z.object({
     .optional(),
   morale: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), delta: z.number().int().min(-100).max(100), reasons: z.array(z.string().max(40)).max(8) })).max(12).optional(),
   dreams: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), text: z.string().max(120) })).max(14).optional(),
+  attendance: z.number().int().min(0).max(100_000).optional(),
+  repGain: z.number().int().min(0).max(1000).optional(),
 });
 
 const ownedPackSchema = z.object({

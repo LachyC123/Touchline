@@ -75,7 +75,7 @@ export class MatchScene extends Phaser.Scene {
     for (const [side, team] of [['home', this.controller.home], ['away', this.controller.away]] as const) {
       // Substitutes get a figure up front; it is shown once they appear in a snapshot.
       for (const p of [...team.players, ...(team.bench ?? [])]) {
-        this.figures.set(p.id, this.makeFigure(p, side, team.kit));
+        this.figures.set(p.id, this.makeFigure(p, side, team.kit, p.id === team.captainId));
         this.players.set(p.id, p);
         this.pace.set(p.id, p.attributes.pace);
       }
@@ -209,10 +209,10 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
-  private makeFigure(p: LineupPlayer, side: TeamSide, kit: TeamLineup['kit']): Figure {
+  private makeFigure(p: LineupPlayer, side: TeamSide, kit: TeamLineup['kit'], captain = false): Figure {
     const S = this.S;
     const isUser = side === this.controller.userSide;
-    const rig = new FootballerRig(this, p, kit, S, isUser, this.opts.reducedMotion);
+    const rig = new FootballerRig(this, p, kit, S, isUser, this.opts.reducedMotion, captain);
     const label = this.add
       .text(0, 0, p.shortName.toUpperCase(), {
         fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif',
