@@ -86,7 +86,7 @@ export function RoadScreen() {
           );
         })}
       </ol>
-      {burst?.packId && (
+      {burst?.packId && !chest && (
         <Button variant="primary" size="lg" block icon="pack" onClick={() => navigate({ name: 'pack', id: burst.packId! })}>
           Open the pack
         </Button>

@@ -19,9 +19,13 @@ export function RivalryPanel() {
       <h2 className="eyebrow">Rivalries</h2>
       {nemesis ? (
         <div className="rivalry__nemesis">
-          {card && (
+          {card ? (
             <span className="rivalry__card">
               <FootballerCard player={card} kit={nemesisClub?.kit ?? save.club.kit} variant="mini" showNewSticker={false} />
+            </span>
+          ) : (
+            <span className="rivalry__card rivalry__card--unknown" aria-hidden="true">
+              ?
             </span>
           )}
           <div>

@@ -66,3 +66,15 @@
   color: var(--orange);
   font-weight: 800;
 }
+
+.rivalry__card--unknown {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 5 / 7;
+  border-radius: var(--r-md);
+  background: rgb(0 0 0 / 0.35);
+  border: 2px dashed rgb(255 255 255 / 0.3);
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--text-muted);
+}
