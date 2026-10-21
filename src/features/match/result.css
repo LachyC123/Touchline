@@ -824,3 +824,23 @@
   display: grid;
   gap: var(--s-2);
 }
+
+.result__offers {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.result__offer {
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid rgb(244 198 83 / 0.5);
+  background: rgb(244 198 83 / 0.1);
+  color: inherit;
+  text-align: left;
+  font-size: var(--text-sm);
+}
+
+.result__offer b {
+  color: var(--gold);
+}

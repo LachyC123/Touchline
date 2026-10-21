@@ -343,6 +343,39 @@ const injurySchema = z.object({
   fragileUntil: z.number().int().min(0).max(100_000).optional(),
 });
 
+const transfersSchema = z.object({
+  bought: z.array(z.string().uuid()).max(2000),
+  haggles: z.array(z.object({ listingId: z.string().uuid(), won: z.boolean() })).max(2000),
+  listed: z.array(z.string().uuid()).max(40),
+  offers: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        playerId: z.string().uuid(),
+        clubId: z.string().max(40),
+        fee: z.number().int().min(0).max(1_000_000),
+        atMatch: z.number().int().min(0).max(100_000),
+        expiresAfter: z.number().int().min(0).max(100_000),
+        unsolicited: z.boolean(),
+        status: z.enum(['open', 'accepted', 'rejected', 'expired']),
+      }),
+    )
+    .max(60),
+  log: z
+    .array(
+      z.object({
+        kind: z.enum(['in', 'out']),
+        playerId: z.string().uuid(),
+        name: z.string().max(80),
+        clubId: z.string().max(40).nullable(),
+        fee: z.number().int().min(0).max(1_000_000),
+        atMatch: z.number().int().min(0).max(100_000),
+        season: z.number().int().min(1).max(999),
+      }),
+    )
+    .max(80),
+});
+
 const clubDefSchema = z.object({
   id: z.string().min(1).max(40),
   name: z.string().min(1).max(40),
@@ -369,6 +402,7 @@ const worldSchema = z
     clubs: z.array(clubDefSchema).min(2).max(64),
     divisions: z.array(z.object({ name: z.string().max(60), clubIds: z.array(z.string().max(40)).min(1).max(20), promote: z.number().int().min(0).max(8), relegate: z.number().int().min(0).max(8) })).min(1).max(8),
     cupGuestIds: z.array(z.string().max(40)).max(8),
+    departed: z.array(z.string().uuid()).max(2000),
   })
   .superRefine((w, ctx) => {
     const ids = new Set(w.clubs.map((c) => c.id));
@@ -415,6 +449,7 @@ export const clubSaveSchema = z
     deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX),
     newCards: z.array(cardId).max(CARD_IDS.length),
     injuries: z.array(injurySchema).max(60),
+    transfers: transfersSchema,
     world: worldSchema,
     league: leagueSchema,
     cup: cupSchema.nullable(),
@@ -445,6 +480,7 @@ export const clubSaveSchema = z
       if (!slots.includes(key)) ctx.addIssue({ code: 'custom', message: `lineup slot ${key} is not in formation ${save.formationId}` });
     }
     if (save.league.round > save.league.rounds.length) ctx.addIssue({ code: 'custom', message: 'league round is past the end of the season' });
+    for (const id of save.transfers.listed) if (!save.squadIds.includes(id)) ctx.addIssue({ code: 'custom', message: `listed player ${id} is not in the squad` });
     if (save.dressingRoom.events.filter((e) => e.status === 'open').length > 1) ctx.addIssue({ code: 'custom', message: 'only one dressing-room request can be open' });
     if (save.cup) {
       if (save.cup.rounds.length < Math.min(save.cup.round + 1, CUP_ROUNDS.length) || save.cup.round > CUP_ROUNDS.length) ctx.addIssue({ code: 'custom', message: 'cup rounds do not match its progress' });

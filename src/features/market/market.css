@@ -1,0 +1,302 @@
+.market__coins {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: rgb(0 0 0 / 0.3);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+}
+
+.market__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: var(--s-3);
+  border-radius: var(--r-pill);
+  background: rgb(0 0 0 / 0.25);
+}
+
+.market__tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.market__tabs button[aria-selected='true'] {
+  background: var(--royal);
+  color: var(--cream);
+}
+
+.market__list,
+.market__sell {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.market__window,
+.market__note {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.listing {
+  display: grid;
+  grid-template-columns: 116px 1fr;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--panel, rgb(255 255 255 / 0.06));
+  border: 1px solid var(--line);
+}
+
+.listing__card {
+  width: 116px;
+}
+
+.listing__body {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  min-width: 0;
+}
+
+.listing__from {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs, 0.78rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.listing__name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.listing__meta,
+.listing__reason {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.listing__hook {
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--orange);
+}
+
+.listing__price {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.listing__price b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--gold);
+}
+
+.listing__price small {
+  font-size: var(--text-xs, 0.78rem);
+  color: var(--text-muted);
+}
+
+.listing__price small.is-down {
+  color: var(--lime);
+}
+
+.listing__price small.is-up {
+  color: var(--orange);
+}
+
+.listing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.listing__blocker {
+  font-size: var(--text-xs, 0.78rem);
+  color: var(--orange);
+}
+
+.listing.is-blocked .listing__card {
+  filter: saturate(0.6);
+}
+
+.offer {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: rgb(244 198 83 / 0.1);
+  border: 1px solid rgb(244 198 83 / 0.4);
+}
+
+.offer.is-unsolicited {
+  background: rgb(203 242 56 / 0.08);
+  border-color: rgb(203 242 56 / 0.4);
+}
+
+.offer__card {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.offer__club {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.offer__tag {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--lime);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.offer__line {
+  font-size: var(--text-sm);
+}
+
+.offer__line b {
+  color: var(--gold);
+}
+
+.offer__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.market__listed,
+.market__log {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.market__listed li,
+.market__log li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  background: rgb(0 0 0 / 0.2);
+  font-size: var(--text-sm);
+}
+
+.market__log li.is-in span:first-child {
+  color: var(--lime);
+}
+
+.market__log li.is-out span:first-child {
+  color: var(--orange);
+}
+
+.market__empty {
+  text-align: center;
+}
+
+.signed {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: radial-gradient(90% 70% at 50% 35%, rgb(244 198 83 / 0.25), transparent 70%), rgb(11 21 38 / 0.95);
+  text-align: center;
+  overflow: hidden;
+}
+
+.signed__kicker {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.signed__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(3rem, 16vw, 4.5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+  color: var(--lime);
+  text-shadow: 0 4px 0 var(--ink);
+  animation: signed-stamp 600ms var(--ease-spring) both;
+}
+
+.signed__card {
+  width: min(62vw, 240px);
+  animation: signed-card 700ms 150ms var(--ease-spring) both;
+}
+
+.signed__line {
+  font-weight: 700;
+}
+
+@keyframes signed-stamp {
+  0% {
+    transform: scale(2.4) rotate(-12deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(-4deg);
+    opacity: 1;
+  }
+}
+
+@keyframes signed-card {
+  0% {
+    transform: translateY(40px) rotateY(90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signed__title,
+  .signed__card {
+    animation: none;
+  }
+}

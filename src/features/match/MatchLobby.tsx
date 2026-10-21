@@ -71,7 +71,7 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
   const table = leagueTable(save.league, (id) => (id === PLAYER_CLUB_ID ? save.club.name : (clubOf(save.world, id)?.name ?? id)));
   const ourPos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const theirPos = table.findIndex((r) => r.clubId === club.id) + 1;
-  const theirSquad = opponentSquad(save.careerSeed, club, fixture.lap);
+  const theirSquad = opponentSquad(save.careerSeed, club, fixture.lap, save.world.departed);
   const theirPower = squadAverage(theirSquad);
   const ourPower = squadPower(save);
   const danger = [...theirSquad].sort((a, b) => overall(b) - overall(a))[0];

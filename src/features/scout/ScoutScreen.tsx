@@ -5,6 +5,7 @@ import { TierEmblem } from '../../components/icons/Icon';
 import { TIER_DEFS, TIER_ORDER } from '../../data/tiers';
 import { matchesUntilScoutPack, PACK_DEFS, PITY_AT, SCOUT_PACK_EVERY, unopenedPacks } from '../../domain/packs/packs';
 import { nextRepTier, repTier, scoutOdds } from '../../domain/club/reputation';
+import { marketListings, matchesUntilNewList } from '../../domain/transfers/market';
 import './scout.css';
 
 /**
@@ -14,6 +15,7 @@ import './scout.css';
 export function ScoutScreen() {
   const save = useSave();
   const odds = scoutOdds(save.club.reputation);
+  const offers = save.transfers.offers.filter((o) => o.status === 'open').length;
   const waiting = unopenedPacks(save);
   const toGo = matchesUntilScoutPack(save.matchNumber);
   const recent = save.packs
@@ -32,6 +34,17 @@ export function ScoutScreen() {
           Scout room
         </h1>
       </header>
+
+      <button type="button" className="scout__market" onClick={() => navigate({ name: 'market' })}>
+        <span className="scout__market-icon" aria-hidden="true">
+          ⇄
+        </span>
+        <span>
+          <b>Transfer market</b>
+          <small>{offers > 0 ? `${offers} offer${offers === 1 ? '' : 's'} for your players` : `${marketListings(save).length} players available · new list in ${matchesUntilNewList(save)}`}</small>
+        </span>
+        {offers > 0 && <span className="scout__count">{offers}</span>}
+      </button>
 
       <section aria-labelledby="scout-waiting">
         <h2 id="scout-waiting" className="eyebrow">

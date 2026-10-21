@@ -34,6 +34,10 @@ import {
   buyGroundUpgrade as repoBuyGround,
   treatInjuryOnce as repoTreatInjury,
   coverAbsencesInLineup as repoCoverAbsences,
+  buyFromMarket as repoBuy,
+  haggleInMarket as repoHaggle,
+  setTransferListed as repoSetListed,
+  answerOffer as repoAnswerOffer,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -72,6 +76,10 @@ interface GameApi {
   upgradeGround: () => Promise<boolean>;
   treatInjury: (injuryId: string, treatment: InjuryTreatment) => Promise<string>;
   coverAbsences: () => Promise<{ inId: string; outId: string | null }[]>;
+  buyPlayer: (listingId: string) => Promise<{ playerId: string; applied: boolean }>;
+  hagglePlayer: (listingId: string) => Promise<boolean | null>;
+  setListed: (playerId: string, listed: boolean) => Promise<void>;
+  answerOffer: (offerId: string, accept: boolean) => Promise<string>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -152,6 +160,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       upgradeGround: async () => (await repoBuyGround()).applied,
       treatInjury: async (id, t) => (await repoTreatInjury(id, t)).outcome,
       coverAbsences: () => repoCoverAbsences(),
+      buyPlayer: (id) => repoBuy(id),
+      hagglePlayer: async (id) => (await repoHaggle(id)).won,
+      setListed: async (id, on) => void (await repoSetListed(id, on)),
+      answerOffer: async (id, accept) => (await repoAnswerOffer(id, accept)).outcome,
     }),
     [saveState, settings, updateSettings, exportSave],
   );

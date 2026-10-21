@@ -291,6 +291,22 @@ export function ResultScreen({ id }: { id: string }) {
         </section>
       )}
 
+      {fresh && save.transfers.offers.some((o) => o.atMatch === record.number && o.status === 'open') && (
+        <section className="result__offers" aria-labelledby="offers-title">
+          <h2 id="offers-title" className="eyebrow">
+            The phone rang
+          </h2>
+          {save.transfers.offers
+            .filter((o) => o.atMatch === record.number && o.status === 'open')
+            .map((o) => (
+              <button key={o.id} type="button" className="result__offer" onClick={() => navigate({ name: 'market' })}>
+                <b>{clubOf(save.world, o.clubId)?.name ?? 'A club'}</b> bid <b>{o.fee}</b> for {save.footballers[o.playerId]?.lastName ?? 'one of yours'}
+                {o.unsolicited ? ' (unasked)' : ''}. Answer in the market.
+              </button>
+            ))}
+        </section>
+      )}
+
       {record.repTier && <RepTierUp tierId={record.repTier} rep={save.club.reputation} stadiumLevel={save.club.stadiumLevel} animate={fresh && !reduced} colours={[save.club.kit.primary, save.club.kit.secondary]} />}
 
       {record.milestones && record.milestones.length > 0 && (

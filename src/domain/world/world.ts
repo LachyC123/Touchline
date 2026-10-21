@@ -29,6 +29,8 @@ export interface World {
   clubs: ClubDef[];
   divisions: WorldDivision[];
   cupGuestIds: string[];
+  /** Players who have left their club (signed by the player's club); replaced at the club. */
+  departed: string[];
 }
 
 interface Index {
@@ -80,5 +82,6 @@ export function classicWorld(): World {
     clubs: [...CLUBS, ...DIVISION_ONE_CLUBS, ...CUP_GUEST_CLUBS].map((c) => ({ ...c, kit: { ...c.kit } })),
     divisions: tiers.map((clubs, n) => ({ name: DIVISION_NAMES[n] as string, clubIds: clubs.map((c) => c.id), ...(DIVISION_RULES[n] as { promote: number; relegate: number }) })),
     cupGuestIds: CUP_GUEST_CLUBS.map((c) => c.id),
+    departed: [],
   };
 }

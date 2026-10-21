@@ -13,6 +13,7 @@ import { seededUuid } from '../rng';
 import { CONTENT_VERSION, ENGINE_VERSION, SCHEMA_VERSION, type ClubSave } from '../save/types';
 import type { ClubIdentity } from './types';
 import { generateWorld } from '../world/generateWorld';
+import { emptyTransfers } from '../transfers/market';
 import type { World } from '../world/world';
 
 interface StarterSpec {
@@ -115,6 +116,7 @@ export function createCareer(careerSeed: string, nowIso: string, opts: { identit
     deck: [...DEFAULT_DECK],
     newCards: [],
     injuries: [],
+    transfers: emptyTransfers(),
     world,
     league: newLeague(careerSeed, world, 1, 0),
     cup: newCup(careerSeed, world, 1),

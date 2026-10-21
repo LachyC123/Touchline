@@ -18,6 +18,8 @@ import type { AttributeKey, Footballer } from '../../domain/players/types';
 import { playSfx } from '../../audio/sfx';
 import { UpgradePicker } from '../match/UpgradePicker';
 import './player.css';
+import { departureOf, playerValue, sellBlocker } from '../../domain/transfers/market';
+import { clubOf } from '../../domain/world/world';
 
 type Tab = 'overview' | 'stats' | 'story';
 
@@ -31,7 +33,7 @@ const GROUPS: { title: string; keys: AttributeKey[]; gkOnly?: boolean }[] = [
 
 export function PlayerScreen({ id }: { id: string }) {
   const save = useSave();
-  const { toggleFavourite, markInspected } = useGame();
+  const { toggleFavourite, markInspected, setListed } = useGame();
   const toast = useToast();
   const player = save.footballers[id];
   const [flipped, setFlipped] = useState(false);
@@ -62,6 +64,20 @@ export function PlayerScreen({ id }: { id: string }) {
   const currentInjury = save.injuries.find((i) => i.playerId === player.id && (i.untilMatch > save.matchNumber || (i.treatment === null && i.atMatch === save.matchNumber)));
   const need = xpToNext(player.level);
   const starterSlot = Object.entries(save.lineup).find(([, pid]) => pid === player.id)?.[0];
+  const inSquad = save.squadIds.includes(player.id);
+  const left = departureOf(save, player.id);
+  const leftFor = left?.clubId ? clubOf(save.world, left.clubId) : undefined;
+  const listed = save.transfers.listed.includes(player.id);
+  const sellWhy = sellBlocker(save, player.id);
+  const toggleListed = async () => {
+    try {
+      await setListed(player.id, !listed);
+      playSfx(listed ? 'pop' : 'thud');
+      toast.show(listed ? `${player.lastName} is off the transfer list.` : `${player.lastName} is transfer-listed. Clubs can bid after matches.`);
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : 'Could not do that.', 'error');
+    }
+  };
 
   return (
     <main className="screen player">
@@ -111,7 +127,14 @@ export function PlayerScreen({ id }: { id: string }) {
         </div>
       </section>
 
-      {currentInjury && <PhysioCard injury={currentInjury} />}
+      {!inSquad && (
+        <section className="player__left paper" role="status">
+          <p className="display">Former player</p>
+          <p>{left ? `Left for ${leftFor?.name ?? 'another club'} for ${left.fee} coins (season ${left.season}).` : 'No longer at the club.'} His story stays in the club’s history.</p>
+        </section>
+      )}
+
+      {currentInjury && inSquad && <PhysioCard injury={currentInjury} />}
 
       <section className="player__mood panel" aria-label="Mood">
         <MoraleMeter morale={player.morale} />
@@ -120,6 +143,19 @@ export function PlayerScreen({ id }: { id: string }) {
           {awayWhy ? ` Away: ${awayWhy}.` : ''}
         </p>
       </section>
+
+      {inSquad && (
+        <section className="player__transfer panel" aria-label="Transfer status">
+          <p>
+            <span className="eyebrow">Market value</span> <b>{playerValue(player)}</b> coins
+            {listed ? ' · on the transfer list' : ''}
+          </p>
+          <Button variant={listed ? 'secondary' : 'ghost'} size="sm" disabled={!listed && Boolean(sellWhy)} onClick={() => void toggleListed()}>
+            {listed ? 'Take him off the list' : 'Transfer-list him'}
+          </Button>
+          {!listed && sellWhy && <small>{sellWhy}</small>}
+        </section>
+      )}
 
       {openUpgrades
         .filter((u) => u.playerId === player.id)

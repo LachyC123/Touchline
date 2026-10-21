@@ -315,6 +315,41 @@ export interface Injury {
   fragileUntil?: number;
 }
 
+export interface TransferOffer {
+  id: string;
+  playerId: string;
+  clubId: string;
+  fee: number;
+  atMatch: number;
+  /** Last match number after which the offer can still be accepted. */
+  expiresAfter: number;
+  /** A big club came in for him without him being listed. */
+  unsolicited: boolean;
+  status: 'open' | 'accepted' | 'rejected' | 'expired';
+}
+
+export interface TransferLogEntry {
+  kind: 'in' | 'out';
+  playerId: string;
+  name: string;
+  clubId: string | null;
+  fee: number;
+  atMatch: number;
+  season: number;
+}
+
+export interface Transfers {
+  /** Market listings already bought (by listing id). */
+  bought: string[];
+  /** One haggle per listing: how it went. */
+  haggles: { listingId: string; won: boolean }[];
+  /** Our players on the transfer list. */
+  listed: string[];
+  offers: TransferOffer[];
+  /** Newest first. */
+  log: TransferLogEntry[];
+}
+
 export interface PendingUpgrade {
   playerId: string;
   level: number;
@@ -356,6 +391,8 @@ export interface ClubSave {
   deck: CardId[];
   /** Unlocked cards the player has not looked at yet. */
   newCards: CardId[];
+  /** The transfer market: bought listings, haggles, our listed players, offers, history. */
+  transfers: Transfers;
   /** Injuries, newest first (recent history kept for the scrapbook and physio). */
   injuries: Injury[];
   /** The other clubs, their towns and rivals: generated once per career. */

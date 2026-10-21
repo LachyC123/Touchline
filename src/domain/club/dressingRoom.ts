@@ -584,10 +584,10 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       const id = choice.slice('send:'.length);
       const p = d.footballers[id];
       if (!p) throw new Error('Unknown choice.');
-      const star = Object.values(d.footballers).every((x) => x.age >= p.age) ? 1 : 2;
+      const star = d.squadIds.every((x) => (d.footballers[x]?.age ?? 99) >= p.age) ? 1 : 2;
       const dd = nudge(d, id, star === 1 ? 12 : 6);
       d.club.reputation += star;
-      scrapbook(d, id, 'Visited Ashby Lane Primary. Signed thirty shirts.');
+      scrapbook(d, id, 'Visited a local primary school. Signed thirty shirts.');
       return `${p.lastName} signs thirty shirts and plays headers in the playground (${signed(dd)} morale, +${star} reputation).`;
     },
   },

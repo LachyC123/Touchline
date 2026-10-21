@@ -508,3 +508,27 @@
   font-weight: 900;
   font-size: 11px;
 }
+
+.player__transfer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.player__transfer b {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--gold);
+}
+
+.player__transfer small {
+  width: 100%;
+  font-size: var(--text-xs, 0.78rem);
+  color: var(--text-muted);
+}
+
+.player__left {
+  text-align: center;
+}

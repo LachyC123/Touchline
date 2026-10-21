@@ -20,6 +20,7 @@ import { migrateSave } from './migrations';
 import { DEFAULT_SETTINGS, settingsSchema, type Settings } from './schema';
 import { serialiseSave } from './exportImport';
 import { treatInjury, unavailableFor } from '../domain/players/injuries';
+import { acceptOffer, buyListing, haggle, rejectOffer, sellBlocker, setListed } from '../domain/transfers/market';
 
 const nowIso = () => new Date().toISOString();
 
@@ -422,6 +423,44 @@ export async function coverAbsencesInLineup(db?: TouchlineDB): Promise<{ inId: s
     swaps = r.swaps;
   }, {}, db);
   return swaps;
+}
+
+/** Signs a player from the market, once per listing. */
+export async function buyFromMarket(listingId: string, db?: TouchlineDB): Promise<{ playerId: string; applied: boolean }> {
+  let playerId = '';
+  const r = await mutateSave((s) => {
+    assertNoMatchInProgress(s);
+    playerId = buyListing(s, listingId).id;
+  }, { claimId: `buy:${listingId}` }, db);
+  return { playerId, applied: r.applied };
+}
+
+/** One haggle per listing. */
+export async function haggleInMarket(listingId: string, db?: TouchlineDB): Promise<{ won: boolean | null; applied: boolean }> {
+  let won: boolean | null = null;
+  const r = await mutateSave((s) => {
+    won = haggle(s, listingId);
+  }, { claimId: `haggle:${listingId}` }, db);
+  return { won, applied: r.applied };
+}
+
+export function setTransferListed(playerId: string, listed: boolean, db?: TouchlineDB): Promise<MutationResult> {
+  return mutateSave((s) => {
+    if (listed) {
+      const why = sellBlocker(s, playerId);
+      if (why) throw new Error(why);
+    }
+    setListed(s, playerId, listed);
+  }, {}, db);
+}
+
+/** Accepting or rejecting a bid happens once (they share the claim). */
+export async function answerOffer(offerId: string, accept: boolean, db?: TouchlineDB): Promise<{ outcome: string; applied: boolean }> {
+  let outcome = '';
+  const r = await mutateSave((s) => {
+    outcome = accept ? acceptOffer(s, offerId) : rejectOffer(s, offerId);
+  }, { claimId: `offer:${offerId}` }, db);
+  return { outcome, applied: r.applied };
 }
 
 /** The physio's call on an injury, applied once (claim = the injury). */

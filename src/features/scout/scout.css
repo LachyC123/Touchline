@@ -256,3 +256,52 @@
 .scout__odds td small.is-down {
   color: rgb(27 34 53 / 0.6);
 }
+
+.scout__market {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--s-3);
+  margin-bottom: var(--s-3);
+  border: 2px solid var(--gold);
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, rgb(244 198 83 / 0.22), rgb(244 198 83 / 0.05));
+  color: inherit;
+  text-align: left;
+  box-shadow: 0 4px 0 var(--gold-dark);
+}
+
+.scout__market:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--gold-dark);
+}
+
+.scout__market-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.scout__market b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.scout__market small {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.scout__market .scout__count {
+  margin-left: auto;
+}

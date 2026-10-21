@@ -27,6 +27,7 @@ import { openStorage } from '../storage/saveRepo';
 import { GameProvider, useGame } from './GameContext';
 import { PwaPrompt } from './PwaPrompt';
 import { DEV_TOOLS_ENABLED, navigate, useRoute } from './router';
+import { MarketScreen } from '../features/market/MarketScreen';
 
 // Developer tooling is code-split so it never ships in the main bundle.
 const CardLab = lazy(() => import('../features/dev/CardLab').then((m) => ({ default: m.CardLab })));
@@ -152,6 +153,7 @@ function Screens() {
       {route.name === 'league' && <LeagueScreen />}
       {route.name === 'season' && <SeasonScreen />}
       {route.name === 'event' && <EventScreen id={route.id} />}
+      {route.name === 'market' && <MarketScreen />}
       {route.name === 'lab' && (
         <Suspense fallback={null}>
           <CardLab />

@@ -18,14 +18,19 @@ export interface Fixture {
 
 /**
  * Opposition squads are generated from the career seed + club id, so the same club always
- * fields the same named, recognisable players (their ratings rise by lap).
+ * fields the same named, recognisable players (their ratings rise by lap). A player who has
+ * left (signed by the player's club) is replaced in his slot by the next generated one.
  */
-export function opponentSquad(careerSeed: string, club: ClubDef, lap: number): Footballer[] {
+export function opponentSquad(careerSeed: string, club: ClubDef, lap: number, departed: readonly string[] = []): Footballer[] {
   const target = club.baseOvr + lap * 2;
+  const gone = new Set(departed);
   return FORMATION_DEFS[club.formation].slots.map((slot, i) => {
-    const seed = `${careerSeed}:club:${club.id}:${i}`;
-    const jitter = stream(seed, 'roster').int(-3, 3);
-    const p = generateFootballer({ seed, position: slot.position, targetOvr: target + jitter, tier: 'street', season: 1 });
+    let seed = `${careerSeed}:club:${club.id}:${i}`;
+    let p = generateFootballer({ seed, position: slot.position, targetOvr: target + stream(seed, 'roster').int(-3, 3), tier: 'street', season: 1 });
+    for (let r = 1; gone.has(p.id) && r < 50; r++) {
+      seed = `${careerSeed}:club:${club.id}:${i}:r${r}`;
+      p = generateFootballer({ seed, position: slot.position, targetOvr: target + stream(seed, 'roster').int(-3, 3), tier: 'street', season: 1 });
+    }
     p.isNew = false;
     return p;
   });
@@ -42,8 +47,8 @@ export function opponentBench(careerSeed: string, club: ClubDef, lap: number): F
   });
 }
 
-export function opponentLineup(careerSeed: string, fixture: Fixture): { lineup: TeamLineup; squad: Footballer[] } {
-  const squad = opponentSquad(careerSeed, fixture.club, fixture.lap);
+export function opponentLineup(careerSeed: string, fixture: Fixture, departed: readonly string[] = []): { lineup: TeamLineup; squad: Footballer[] } {
+  const squad = opponentSquad(careerSeed, fixture.club, fixture.lap, departed);
   const byId = Object.fromEntries(squad.map((p) => [p.id, p]));
   const slots = Object.fromEntries(FORMATION_DEFS[fixture.club.formation].slots.map((s, i) => [s.id, (squad[i] as Footballer).id]));
   const lineup = buildTeamLineup(

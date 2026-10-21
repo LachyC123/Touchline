@@ -1,5 +1,6 @@
 import { SCHEMA_VERSION, type ClubSave } from '../domain/save/types';
 import { classicWorld } from '../domain/world/world';
+import { emptyTransfers } from '../domain/transfers/market';
 import { emptyDressingRoom } from '../domain/club/dressingRoom';
 import { cardsUnlockedAt, managerLevel } from '../domain/club/manager';
 import { newLeague } from '../domain/league/league';
@@ -61,7 +62,7 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
     return { ...raw, contentVersion: 'content-8', captainId: null, penaltyTakerId: null, dressingRoom: { ...room, backed: Array.isArray(room.backed) ? room.backed : [] } };
   },
   // v8 → v9: generated worlds. An existing career keeps the clubs it has been playing against.
-  8: (raw) => ({ ...raw, contentVersion: 'content-9', world: classicWorld(), injuries: [] }),
+  8: (raw) => ({ ...raw, contentVersion: 'content-9', world: classicWorld(), injuries: [], transfers: emptyTransfers() }),
 };
 
 export function migrateSave(input: unknown): ClubSave {

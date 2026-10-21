@@ -90,3 +90,68 @@ test('two careers, two worlds: different home towns, clubs and opponents', async
   }
   expect(seen[0]).not.toBe(seen[1]);
 });
+
+async function readSave<T>(page: Page, pick: string): Promise<T> {
+  return page.evaluate(
+    (src) =>
+      new Promise<T>((resolve) => {
+        const req = indexedDB.open('touchline');
+        req.onsuccess = () => {
+          const get = req.result.transaction('saves').objectStore('saves').get('main');
+          get.onsuccess = () => {
+            resolve(new Function('s', `return ${src}`)(get.result.save) as T);
+            req.result.close();
+          };
+        };
+      }),
+    pick,
+  );
+}
+
+test('transfers: sign a player with a moment, haggle once, sell to a bid; all of it survives a reload', async ({ page }) => {
+  await startCareerSkippingTutorial(page);
+  await patchSave(page, 's.coins = 5000; s.club.reputation = 200;');
+  await page.goto('/#/scout');
+  await page.getByRole('button', { name: /transfer market/i }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/transfer market/i);
+  const before = await readSave<number>(page, 's.squadIds.length');
+  // Haggle over the second player: the button goes, the outcome stays after a reload.
+  const second = page.locator('.listing').nth(1);
+  const secondName = (await second.locator('.listing__name b').innerText()).trim();
+  await second.getByRole('button', { name: /^haggle \d+%$/i }).click();
+  await expect(second.getByRole('button', { name: /^haggle/i })).toHaveCount(0);
+  await expect(second.locator('.listing__price small')).toContainText(/haggled down|after the haggle/);
+  await page.reload();
+  await expect(page.locator('.listing', { hasText: secondName }).getByRole('button', { name: /^haggle/i })).toHaveCount(0);
+  // Sign the first one.
+  const first = page.locator('.listing').first();
+  const name = (await first.locator('.listing__name b').innerText()).trim();
+  await first.getByRole('button', { name: 'Sign' }).click();
+  await expect(page.getByRole('dialog')).toContainText(/signed!/i);
+  await page.getByRole('button', { name: 'Meet him' }).click();
+  await expect(page.locator('.player__title')).toContainText(new RegExp(name, 'i'));
+  await page.reload();
+  expect(await readSave<number>(page, 's.squadIds.length')).toBe(before + 1);
+  await expect(page.locator('.player__title')).toContainText(new RegExp(name, 'i'));
+
+  // Selling: list a bench player from his profile, then a club bids.
+  const benchId = await readSave<string>(page, 's.squadIds.find((id) => !Object.values(s.lineup).includes(id) && s.footballers[id].primaryPosition !== "GK")');
+  await page.goto(`/#/player/${benchId}`);
+  await page.getByRole('button', { name: 'Transfer-list him' }).click();
+  await expect(page.getByRole('button', { name: 'Take him off the list' })).toBeVisible();
+  const clubId = await readSave<string>(page, 's.world.divisions[0].clubIds[0]');
+  await patchSave(
+    page,
+    `s.transfers.offers = [{ id: '00000000-0000-4000-8000-0000000000dd', playerId: '${benchId}', clubId: '${clubId}', fee: 175, atMatch: 0, expiresAfter: 2, unsolicited: false, status: 'open' }];`,
+  );
+  const coins = await readSave<number>(page, 's.coins');
+  await page.goto('/#/market');
+  await expect(page.getByRole('tab', { name: /sell \(1\)/i })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: 'Accept 175' }).click();
+  await expect(page.locator('.market__log')).toContainText(/out/i);
+  await page.reload();
+  expect(await readSave<number>(page, 's.coins')).toBe(coins + 175);
+  expect(await readSave<boolean>(page, `s.squadIds.includes('${benchId}')`)).toBe(false);
+  await page.goto(`/#/player/${benchId}`);
+  await expect(page.locator('.player__left')).toContainText(/left for .* for 175 coins/i);
+});
