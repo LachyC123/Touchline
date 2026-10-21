@@ -314,6 +314,7 @@ const matchRecordSchema = z.object({
   dreams: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), text: z.string().max(120) })).max(14).optional(),
   attendance: z.number().int().min(0).max(100_000).optional(),
   repGain: z.number().int().min(0).max(1000).optional(),
+  repTier: z.string().max(20).optional(),
 });
 
 const ownedPackSchema = z.object({

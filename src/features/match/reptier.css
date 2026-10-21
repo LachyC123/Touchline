@@ -1,0 +1,116 @@
+.reptier {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: var(--s-4) var(--s-3);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(244 198 83 / 0.35), transparent 60%),
+    linear-gradient(180deg, #2a2440, var(--ink));
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 4px rgb(244 198 83 / 0.15), var(--shadow-2, 0 8px 24px rgb(0 0 0 / 0.35));
+  text-align: center;
+}
+
+.reptier__kicker {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: var(--text-sm);
+  color: var(--gold);
+}
+
+.reptier__ladder {
+  display: flex;
+  gap: 6px;
+  padding: 0;
+  margin: 2px 0;
+  list-style: none;
+}
+
+.reptier__ladder li {
+  width: 22px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 0.15);
+}
+
+.reptier__ladder li.is-past {
+  background: var(--gold-dark);
+}
+
+.reptier__ladder li.is-now {
+  background: var(--gold);
+  box-shadow: 0 0 10px var(--gold);
+}
+
+.reptier__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(2.4rem, 12vw, 3.4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-shadow: 0 3px 0 rgb(0 0 0 / 0.35);
+}
+
+.reptier.is-fresh .reptier__title {
+  animation: reptier-stamp 700ms var(--ease-spring) both;
+}
+
+.reptier.is-fresh .reptier__ladder li.is-now {
+  animation: reptier-pip 900ms 300ms var(--ease-spring) both;
+}
+
+.reptier__blurb {
+  font-weight: 700;
+  max-width: 30ch;
+}
+
+.reptier__perks {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.reptier__perks li::before {
+  content: '★ ';
+  color: var(--gold);
+}
+
+@keyframes reptier-stamp {
+  0% {
+    transform: scale(2.2) rotate(-6deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.94) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes reptier-pip {
+  0% {
+    transform: scaleX(0.2);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reptier.is-fresh .reptier__title,
+  .reptier.is-fresh .reptier__ladder li.is-now {
+    animation: none;
+  }
+}

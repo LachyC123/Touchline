@@ -94,6 +94,23 @@ describe('reputation', () => {
     expect(checkedWin).toBe(true);
   });
 
+  it('a win that crosses a tier is recorded as the moment the club moved up (and only then)', () => {
+    let seen = 0;
+    for (let i = 0; i < 30 && seen < 2; i++) {
+      const s = createCareer(`rep-tier-${i}`, 'x');
+      s.club.reputation = 13;
+      const pm = prepareMatch(s);
+      const result = replayMatch(matchArgs(pm), []);
+      const draft = structuredClone(s);
+      const record = settleMatch(draft, pm, result);
+      if (draft.club.reputation >= 15) {
+        seen++;
+        expect(record.repTier).toBe('rising');
+      } else expect(record.repTier).toBeUndefined();
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
   it('request quotes vary between events but never on a re-read', () => {
     const lines = ['a', 'b', 'c'];
     const picks = new Set(Array.from({ length: 30 }, (_, i) => vary({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}` }, lines)));

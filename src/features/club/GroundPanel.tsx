@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { playSfx } from '../../audio/sfx';
 import { useGame, useSave } from '../../app/GameContext';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
+import { GroundReveal } from './GroundReveal';
 import { attendance, gateMoney, groundBlocker, groundOf, nextGround, nextRepTier, repTier } from '../../domain/club/reputation';
 
 /** Reputation and the ground: how big the club's name is, how full the ground gets, what's next. */
@@ -11,6 +11,7 @@ export function GroundPanel() {
   const { upgradeGround } = useGame();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [reveal, setReveal] = useState<{ from: number; to: number } | null>(null);
   const rep = save.club.reputation;
   const tier = repTier(rep);
   const next = nextRepTier(rep);
@@ -24,9 +25,9 @@ export function GroundPanel() {
   const buy = async () => {
     setBusy(true);
     try {
-      await upgradeGround();
-      playSfx('cheer');
-      toast.show(`${upgrade?.name ?? 'Ground upgraded'}! Capacity ${upgrade?.capacity.toLocaleString('en-GB')}.`);
+      const from = save.club.stadiumLevel;
+      const applied = await upgradeGround();
+      if (applied && upgrade) setReveal({ from, to: upgrade.level });
     } catch (err) {
       toast.show(err instanceof Error ? err.message : 'Could not upgrade the ground.', 'error');
     } finally {
@@ -60,6 +61,9 @@ export function GroundPanel() {
           <Button variant={blocker ? 'ghost' : 'primary'} block icon="star" disabled={busy || Boolean(blocker)} onClick={() => void buy()}>
             {`${upgrade.name}: ${upgrade.cost} coins`}
           </Button>
+        )}
+        {reveal && (
+          <GroundReveal club={save.club} from={reveal.from} to={reveal.to} fill={Math.min(1, attendance({ club: { ...save.club, stadiumLevel: reveal.to } }, false) / groundOf(reveal.to).capacity)} onClose={() => setReveal(null)} />
         )}
         {upgrade && <p className="ground__note">{blocker ?? `${upgrade.change} Capacity ${upgrade.capacity.toLocaleString('en-GB')}.`}</p>}
       </div>

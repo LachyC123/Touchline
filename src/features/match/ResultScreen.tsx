@@ -15,6 +15,7 @@ import { MoraleMeter } from '../../components/players/MoraleMeter';
 import { eventHeadline } from '../../domain/club/dressingRoom';
 import { navigate } from '../../app/router';
 import { repTier } from '../../domain/club/reputation';
+import { RepTierUp } from './RepTierUp';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
 import { Icon, type IconName } from '../../components/icons/Icon';
@@ -275,6 +276,8 @@ export function ResultScreen({ id }: { id: string }) {
           </ol>
         </section>
       )}
+
+      {record.repTier && <RepTierUp tierId={record.repTier} rep={save.club.reputation} stadiumLevel={save.club.stadiumLevel} animate={fresh && !reduced} colours={[save.club.kit.primary, save.club.kit.secondary]} />}
 
       {record.milestones && record.milestones.length > 0 && (
         <section className="result__milestones" aria-labelledby="milestones-title">

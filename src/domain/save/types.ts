@@ -113,6 +113,8 @@ export interface MatchRecord {
   attendance?: number;
   /** Reputation the club earned from this result. */
   repGain?: number;
+  /** The reputation tier reached, when this result moved the club up one. */
+  repTier?: string;
   /** Dreams that came true in this match. */
   dreams?: { playerId: string; name: string; text: string }[];
   /** Morale swings worth showing (largest first). */

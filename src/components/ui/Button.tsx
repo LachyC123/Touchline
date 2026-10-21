@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { playSfx, type SfxName } from '../../audio/sfx';
 import { Icon, type IconName } from '../icons/Icon';
 import './ui.css';
@@ -10,6 +10,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: IconName;
   sfx?: SfxName | null;
   children: ReactNode;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /** Chunky plate button: press-in on pointer down, spring release, tick sound. Never delays the click. */

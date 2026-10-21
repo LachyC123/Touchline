@@ -30,7 +30,7 @@ export function nextRepTier(rep: number): RepTier | null {
 }
 
 /** Reputation earned by results. */
-export const REP_GAIN = { win: 2, draw: 1, cupTieWon: 3, cupWon: 12, promoted: 15, champions: 20 } as const;
+export const REP_GAIN = { win: 3, draw: 1, cupTieWon: 3, cupWon: 12, promoted: 15, champions: 20 } as const;
 
 /**
  * Scout odds at a reputation: points move from Street towards the rarer tiers (published on the

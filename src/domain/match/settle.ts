@@ -14,7 +14,7 @@ import { penaltyShootout, type ShootoutResult } from '../cup/shootout';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
 import { awayFor, dressingRoomAfterMatch } from '../club/dressingRoom';
-import { gateMoney, matchAttendance, REP_GAIN } from '../club/reputation';
+import { gateMoney, matchAttendance, REP_GAIN, repTier } from '../club/reputation';
 import { dreamsAfterMatch } from '../players/dreams';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
 import { xpToNext } from '../players/progression';
@@ -317,7 +317,9 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   const repGain =
     (won ? REP_GAIN.win : gf === ga ? REP_GAIN.draw : 0) +
     (cupTie?.winner === PLAYER_CLUB_ID ? REP_GAIN.cupTieWon + (pending.cupRound === CUP_ROUNDS.length - 1 ? REP_GAIN.cupWon : 0) : 0);
+  const tierBefore = repTier(draft.club.reputation).id;
   draft.club.reputation += repGain;
+  const tierAfter = repTier(draft.club.reputation).id;
   draft.coins += rewards.coins;
   const unlockedCards = grantClubXp(draft, rewards.clubXp);
 
@@ -365,6 +367,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     ...(milestones.length ? { milestones } : {}),
     ...(fans > 0 ? { attendance: fans } : {}),
     ...(repGain > 0 ? { repGain } : {}),
+    ...(tierAfter !== tierBefore ? { repTier: tierAfter } : {}),
     ...(unlockedCards.length ? { unlockedCards } : {}),
     ...(pending.season !== undefined ? { season: pending.season } : {}),
     ...(pending.round !== undefined && !isCup ? { round: pending.round } : {}),

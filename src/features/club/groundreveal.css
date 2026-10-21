@@ -1,0 +1,140 @@
+.groundreveal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: rgb(11 21 38 / 0.94);
+  text-align: center;
+  overflow: hidden;
+}
+
+.groundreveal__kicker {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.groundreveal__scene {
+  position: relative;
+  width: min(100%, 420px);
+  aspect-ratio: 400 / 220;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 0.15);
+}
+
+.groundreveal__scene > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.groundreveal__scene.is-building .stadium {
+  filter: saturate(0.4) brightness(0.8);
+}
+
+.groundreveal__scene.is-built .stadium {
+  animation: groundreveal-pop 700ms var(--ease-spring) both;
+}
+
+.groundreveal__crane {
+  transform-origin: 322px 20px;
+  animation: groundreveal-swing 1.6s ease-in-out infinite alternate;
+}
+
+.groundreveal__scaffold {
+  animation: groundreveal-rise 600ms var(--ease-out) both;
+}
+
+.groundreveal__scaffold:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.groundreveal__scaffold:nth-child(4) {
+  animation-delay: 240ms;
+}
+
+.groundreveal__scaffold:nth-child(5) {
+  animation-delay: 360ms;
+}
+
+.groundreveal__bar {
+  width: min(80%, 300px);
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 0.12);
+  overflow: hidden;
+}
+
+.groundreveal__bar span {
+  display: block;
+  height: 100%;
+  background: repeating-linear-gradient(-45deg, #f4c653 0 10px, #1b2235 10px 20px);
+  animation: groundreveal-fill 1.8s linear both;
+}
+
+.groundreveal__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-2xl, 2rem);
+  text-transform: uppercase;
+}
+
+.groundreveal__line {
+  max-width: 32ch;
+  font-weight: 700;
+}
+
+.groundreveal__cap b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--gold);
+}
+
+@keyframes groundreveal-swing {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(5deg);
+  }
+}
+
+@keyframes groundreveal-rise {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes groundreveal-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes groundreveal-pop {
+  0% {
+    transform: scale(0.92);
+    filter: brightness(1.8);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
