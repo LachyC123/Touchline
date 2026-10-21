@@ -121,7 +121,7 @@ test('a reload mid-match resumes the same match at the same minute', async ({ pa
 test('after two matches players level up and a training focus applies once', async ({ page }) => {
   await newClub(page);
   await playAndSkip(page);
-  await page.getByRole('button', { name: /next match/i }).click();
+  await page.getByRole('button', { name: 'Next match', exact: true }).click();
   await playAndSkip(page);
   const picker = page.locator('.upgrade').first();
   await expect(picker).toBeVisible();

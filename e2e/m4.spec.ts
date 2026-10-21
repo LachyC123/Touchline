@@ -33,7 +33,8 @@ test('dressing room: morale moves after a match, a player knocks, the answer sti
   await page.goto('/#/club');
   const request = page.locator('.room__request');
   await expect(request).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Club \(1 new\)$/ })).toBeVisible();
+  // The badge counts the request (and any Reputation Road reward the wins have unlocked).
+  await expect(page.getByRole('button', { name: /^Club \([12] new\)$/ })).toBeVisible();
   await request.click();
   await expect(page.locator('.dressing__quote')).toBeVisible();
   const choices = page.locator('.dressing__choice:not([disabled])');
