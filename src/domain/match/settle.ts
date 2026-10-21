@@ -18,6 +18,7 @@ import { injuriesAfterMatch, unavailableFor } from '../players/injuries';
 import { offersAfterMatch } from '../transfers/market';
 import { objectivesFor, settleObjectives } from './objectives';
 import { rivalryAfterMatch } from '../club/rivalry';
+import { earnNicknames } from '../players/nicknames';
 import { gateMoney, matchAttendance, REP_GAIN, repTier } from '../club/reputation';
 import { dreamsAfterMatch } from '../players/dreams';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
@@ -415,12 +416,17 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   // Knocks taken on the pitch: did anyone pick up an injury?
   const hurt = injuriesAfterMatch(draft, { matchId: pending.matchId, number: pending.number, side, events: result.events, played: new Set([...starters, ...subRole.keys()]), nameOf });
   const injuries = hurt.map((i) => ({ playerId: i.playerId, name: nameOf(i.playerId), kind: i.kind, minute: i.minute, byName: i.byName, outFor: i.outFor }));
+  // The fans' verdict: nicknames earned by what players actually did.
+  const goalsByScorer = new Map<string, number>();
+  for (const g of myGoals) goalsByScorer.set(g.scorerId, (goalsByScorer.get(g.scorerId) ?? 0) + 1);
+  const winner = won && club?.rival ? myGoals[ga]?.scorerId : undefined;
+  const nicknames = earnNicknames(draft, [...starters, ...subRole.keys()], { town: draft.world.home.town, hatTricks: new Set([...goalsByScorer].filter(([, n]) => n >= 3).map(([id]) => id)), ...(winner ? { derbyWinnerId: winner } : {}) });
   // Rivalries: who scored against us, the nemesis, old boys in their colours.
   const theirOnPitch = new Set([...theirs.players.map((p) => p.id), ...result.events.flatMap((e) => (e.type === 'SUB' && e.team === opp ? [e.inId] : []))]);
   const rivalry = rivalryAfterMatch(draft, { events: result.events, side, opponentId: pending.opponentId, number: pending.number, theirPlayers: theirOnPitch, nameOf });
   // The market moves: bids for listed players, interest in stars.
   offersAfterMatch(draft);
-  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}), ...(dreams.length ? { dreams } : {}), ...(injuries.length ? { injuries } : {}), ...(rivalry.length ? { rivalry } : {}) };
+  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}), ...(dreams.length ? { dreams } : {}), ...(injuries.length ? { injuries } : {}), ...(rivalry.length ? { rivalry } : {}), ...(nicknames.length ? { nicknames } : {}) };
   draft.matchRecords[0] = withMorale;
   return withMorale;
 }

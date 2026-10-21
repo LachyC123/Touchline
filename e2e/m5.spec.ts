@@ -177,9 +177,14 @@ test('arcade layer: objectives before kick-off and stars at full time; the Reput
   await page.locator('.ground__road').click();
   const coins = await readSave<number>(page, 's.coins');
   await page.locator('.road__step.is-ready', { hasText: '100 coins' }).getByRole('button', { name: 'Open' }).click();
+  // A chest wobbles open and shows the reward.
+  await expect(page.locator('.chest__title')).toHaveText('+100 coins');
+  await page.getByRole('button', { name: 'Nice!' }).click();
   await expect(page.locator('.road__burst')).toContainText('+100 coins');
   await page.locator('.road__step.is-ready', { hasText: 'Local Scout pack' }).getByRole('button', { name: 'Open' }).click();
+  await expect(page.locator('.chest__title')).toHaveText(/Local Scout pack!/);
   await expect(page.getByRole('button', { name: 'Open the pack' })).toBeVisible();
+  await page.getByRole('button', { name: 'Later' }).click();
   await page.reload();
   await expect(page.locator('.road__step.is-ready')).toHaveCount(0);
   expect(await readSave<number>(page, 's.coins')).toBe(coins + 100);

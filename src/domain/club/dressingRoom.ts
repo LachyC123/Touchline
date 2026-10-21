@@ -1,6 +1,8 @@
 import { clubOf, divisionOf } from '../world/world';
 import { DREAM_BY_ID, PERSONALITY_BY_ID } from '../../data/personality';
 import { scoringRuns } from '../league/stories';
+import { userFixture } from '../league/league';
+import { nemesisOf } from './rivalry';
 import { clampMorale, matchMoraleDelta, type MoraleChange } from '../players/morale';
 import { xpToNext } from '../players/progression';
 import { overall } from '../players/rating';
@@ -18,7 +20,7 @@ import type { ClubEvent, ClubSave, DressingRoom, EventKind, MatchRecord } from '
 
 /** Matches between one request and the next. */
 export const EVENT_GAP = 2;
-export const COSTS = { familyVisit: 80, nightOut: 120, hamper: 30 } as const;
+export const COSTS = { familyVisit: 80, nightOut: 120, hamper: 30, luckyCharm: 25 } as const;
 const MAX_EVENTS = 40;
 
 export function emptyDressingRoom(): DressingRoom {
@@ -50,7 +52,7 @@ export interface ChoiceDef {
   disabled?: string;
 }
 
-type View = Pick<ClubSave, 'footballers' | 'coins' | 'club' | 'captainId' | 'penaltyTakerId' | 'matchRecords' | 'season' | 'squadIds' | 'dressingRoom' | 'world'>;
+type View = Pick<ClubSave, 'footballers' | 'coins' | 'club' | 'captainId' | 'penaltyTakerId' | 'matchRecords' | 'season' | 'squadIds' | 'dressingRoom' | 'world' | 'foes'>;
 
 // ── Shared effects ─────────────────────────────────────────────────────────────────────────
 
@@ -589,6 +591,106 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       d.club.reputation += star;
       scrapbook(d, id, 'Visited a local primary school. Signed thirty shirts.');
       return `${p.lastName} signs thirty shirts and plays headers in the playground (${signed(dd)} morale, +${star} reputation).`;
+    },
+  },
+
+  mentor: {
+    rule: false,
+    trigger: (c) => {
+      if (c.draft.matchNumber < 4 || recently(c.draft, 'mentor', 12)) return null;
+      const vets = c.squad.filter((p) => p.age >= 29 && p.personality.professionalism >= 55);
+      const kids = c.squad.filter((p) => p.age <= 21);
+      if (!vets.length || !kids.length) return null;
+      const vet = c.rng.pick(vets);
+      const kid = c.rng.pick(kids.filter((k) => k.primaryPosition === vet.primaryPosition).length ? kids.filter((k) => k.primaryPosition === vet.primaryPosition) : kids);
+      return { playerId: vet.id, otherId: kid.id };
+    },
+    headline: (e, s) => `${last(s, e.playerId)} wants to take ${last(s, e.otherId)} under his wing`,
+    quote: (e, s) =>
+      vary(e, [
+        `I see a lot of myself in ${last(s, e.otherId)}. Let me stay after training with him. Couple of weeks, he’ll be a different player.`,
+        `${last(s, e.otherId)} has got something, gaffer. Nobody showed me the ropes at his age. I’d like to.`,
+      ]),
+    choices: () => [
+      { id: 'pair', label: 'Pair them up', hint: 'The youngster gains 60 XP; the veteran feels valued (+6 morale).' },
+      { id: 'notNow', label: 'The kid needs to find his own way', hint: 'The veteran is a bit put out (−3).' },
+    ],
+    apply: (d, e, choice) => {
+      const vet = d.footballers[e.playerId as string] as Footballer;
+      const kid = d.footballers[e.otherId as string] as Footballer;
+      if (choice === 'pair') {
+        grantXp(d, kid.id, 60);
+        const dv = nudge(d, vet.id, 6);
+        nudge(d, kid.id, 4);
+        scrapbook(d, kid.id, `Took extra sessions with ${vet.firstName} ${vet.lastName}.`);
+        scrapbook(d, vet.id, `Mentored young ${kid.lastName}.`);
+        return `Extra sessions after training: ${kid.lastName} soaks it up (+60 XP), ${vet.lastName} loves it (${signed(dv)} morale).`;
+      }
+      return `${vet.lastName} shrugs it off, mostly (${signed(nudge(d, vet.id, -3))} morale).`;
+    },
+  },
+
+  superstition: {
+    rule: false,
+    trigger: (c) => {
+      if (c.draft.matchNumber < 3 || recently(c.draft, 'superstition', 12)) return null;
+      const scorers = c.squad.filter((p) => c.records[0]?.scorers.some((x) => x.playerId === p.id));
+      return scorers.length ? { playerId: c.rng.pick(scorers).id } : null;
+    },
+    headline: (e, s) => `${last(s, e.playerId)} has a lucky charm`,
+    quote: (e) =>
+      vary(e, [
+        'I scored in these socks, gaffer. Same socks, same pre-match beans, same seat on the bus. Can the kit man not wash them?',
+        'There’s a pigeon on the stand roof every time I score. I want someone to feed it before every home game. I’m serious.',
+        'Same boots, same left-first, same song in the tunnel. It works. Just let me have my routine.',
+      ]),
+    choices: (_e, s) => [
+      { id: 'humour', label: `Humour him (${COSTS.luckyCharm} coins)`, hint: '+10 morale. It’s only a little madness.', ...(s.coins < COSTS.luckyCharm ? { disabled: `Needs ${COSTS.luckyCharm} coins` } : {}) },
+      { id: 'nonsense', label: '“Football isn’t magic, son”', hint: 'A professional respects it (+3); anyone else sulks (−5).' },
+    ],
+    apply: (d, e, choice) => {
+      const p = d.footballers[e.playerId as string] as Footballer;
+      if (choice === 'humour') {
+        d.coins -= COSTS.luckyCharm;
+        scrapbook(d, p.id, 'Has a lucky routine the whole club now respects.');
+        return `The ritual stays (${signed(nudge(d, p.id, 10))} morale). The kit man is not amused.`;
+      }
+      const pro = p.personality.professionalism >= 65;
+      return pro ? `${p.lastName} nods: fair enough (${signed(nudge(d, p.id, 3))} morale).` : `${p.lastName} mutters something about bad luck (${signed(nudge(d, p.id, -5))} morale).`;
+    },
+  },
+
+  nemesisTalk: {
+    rule: true,
+    trigger: (c) => {
+      const nemesis = nemesisOf(c.draft);
+      const next = userFixture(c.draft);
+      if (!nemesis || !next || next.club.id !== nemesis.clubId || recently(c.draft, 'nemesisTalk', 6)) return null;
+      return { clubId: nemesis.clubId };
+    },
+    headline: (_e, s) => `${nemesisOf(s)?.name ?? 'Their striker'} is talking`,
+    quote: (e, s) => {
+      const n = nemesisOf(s);
+      return vary(e, [
+        `“I always score against ${s.club.shortName}. Their defence knows it, I know it.” — ${n?.name ?? 'their striker'} in the Touchline Post.`,
+        `${n?.name ?? 'Their striker'} has told the papers he’s “already planned the celebration” for Saturday.`,
+      ]);
+    },
+    choices: (_e, s) => [
+      { id: 'fireBack', label: 'Fire back in the press', hint: 'The whole squad gets a lift (+4 morale each).' },
+      { id: 'captain', label: 'Let the captain do the talking', hint: s.captainId ? 'Your captain rallies the lads (+8 for him, +2 for the rest).' : 'You have no captain: nobody answers.', ...(s.captainId ? {} : { disabled: 'Name a captain first' }) },
+      { id: 'silence', label: 'Say nothing. Let the football talk', hint: 'No change. Very dignified.' },
+    ],
+    apply: (d, _e, choice) => {
+      if (choice === 'fireBack') {
+        for (const id of d.squadIds) nudge(d, id, 4);
+        return '“He can plan what he likes.” The back page is yours, and the dressing room is buzzing (+4 morale each).';
+      }
+      if (choice === 'captain' && d.captainId) {
+        for (const id of d.squadIds) nudge(d, id, id === d.captainId ? 8 : 2);
+        return `${d.footballers[d.captainId]?.lastName ?? 'The captain'} gathers the lads: “Nobody scores against us twice.”`;
+      }
+      return 'You say nothing. The players notice the calm.';
     },
   },
 };

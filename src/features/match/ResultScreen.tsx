@@ -326,6 +326,31 @@ function ResultView({ id }: { id: string }) {
         </section>
       )}
 
+      {record.nicknames && record.nicknames.length > 0 && (
+        <section className="result__nicknames" aria-labelledby="nicknames-title">
+          <h2 id="nicknames-title" className="eyebrow">
+            The fans have a new name
+          </h2>
+          {record.nicknames.map((n) => {
+            const p = save.footballers[n.playerId];
+            return (
+              <button key={n.playerId} type="button" className="result__nickname" onClick={() => navigate({ name: 'player', id: n.playerId })}>
+                {p && (
+                  <span className="result__nickname-card">
+                    <FootballerCard player={p} kit={save.club.kit} variant="mini" />
+                  </span>
+                )}
+                <span>
+                  <small>{n.name}</small>
+                  <b>“{n.nickname}”</b>
+                  <small>{n.reason.replace(/^for |^after /, (m) => (m === 'for ' ? 'For ' : 'After '))}</small>
+                </span>
+              </button>
+            );
+          })}
+        </section>
+      )}
+
       {record.rivalry && record.rivalry.length > 0 && (
         <section className="result__grudges" aria-labelledby="grudges-title">
           <h2 id="grudges-title" className="eyebrow">

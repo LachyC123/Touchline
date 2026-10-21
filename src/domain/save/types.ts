@@ -123,6 +123,8 @@ export interface MatchRecord {
   objectives?: (Objective & { done: boolean })[];
   /** Rivalry moments: a new nemesis, the nemesis again, kept quiet, an old boy haunting us. */
   rivalry?: { kind: 'newNemesis' | 'nemesisAgain' | 'nemesisQuiet' | 'exHaunts' | 'exQuiet'; playerId: string; name: string; text: string }[];
+  /** Nicknames the fans gave in this match. */
+  nicknames?: { playerId: string; name: string; nickname: string; reason: string }[];
   /** Injuries picked up in this match. */
   injuries?: { playerId: string; name: string; kind: string; minute: number; byName: string; outFor: number }[];
   /** Dreams that came true in this match. */
@@ -239,6 +241,9 @@ export const EVENT_KINDS = [
   'schoolVisit',
   'captaincy',
   'armband',
+  'mentor',
+  'superstition',
+  'nemesisTalk',
 ] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 

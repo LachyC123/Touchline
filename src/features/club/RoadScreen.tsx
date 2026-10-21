@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { isReducedMotion } from '../../accessibility/motion';
-import { playSfx } from '../../audio/sfx';
 import { useGame, useSave } from '../../app/GameContext';
 import { goBack, navigate } from '../../app/router';
 import { TierEmblem } from '../../components/icons/Icon';
@@ -10,6 +9,7 @@ import { useToast } from '../../components/ui/Toast';
 import { REP_TIERS, repTier } from '../../domain/club/reputation';
 import { ROAD, roadState, type RoadStep } from '../../domain/club/road';
 import { PACK_DEFS } from '../../domain/packs/packs';
+import { RewardChest } from './RewardChest';
 import './road.css';
 
 /**
@@ -22,6 +22,7 @@ export function RoadScreen() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [burst, setBurst] = useState<{ at: number; text: string; packId: string | null } | null>(null);
+  const [chest, setChest] = useState<{ gold: boolean; title: string; detail: string; packId: string | null } | null>(null);
   const rep = save.club.reputation;
 
   const claim = async (step: RoadStep) => {
@@ -29,8 +30,15 @@ export function RoadScreen() {
     try {
       const r = await claimRoad(step.at);
       if (r.applied) {
-        playSfx(r.packId ? 'reveal' : 'coin');
-        setBurst({ at: step.at, text: r.packId ? `${PACK_DEFS[step.reward.kind === 'pack' ? step.reward.pack : 'local-scout'].name} pack!` : `+${r.coins} coins`, packId: r.packId });
+        const packName = step.reward.kind === 'pack' ? PACK_DEFS[step.reward.pack].name : '';
+        const text = r.packId ? `${packName} pack!` : `+${r.coins} coins`;
+        setBurst({ at: step.at, text, packId: r.packId });
+        setChest({
+          gold: step.reward.kind === 'pack' && step.reward.pack === 'gold-scout',
+          title: text,
+          detail: r.packId ? (step.reward.kind === 'pack' && step.reward.pack === 'gold-scout' ? 'Breakout or better, guaranteed. Your scout is already on the phone.' : 'A new recruit is waiting on the scout’s desk.') : 'Straight into the club account.',
+          packId: r.packId,
+        });
       }
     } catch (err) {
       toast.show(err instanceof Error ? err.message : 'Could not claim that.', 'error');
@@ -83,6 +91,7 @@ export function RoadScreen() {
           Open the pack
         </Button>
       )}
+      {chest && <RewardChest gold={chest.gold} title={chest.title} detail={chest.detail} {...(chest.packId ? { onOpenPack: () => navigate({ name: 'pack', id: chest.packId! }) } : {})} onClose={() => setChest(null)} />}
       <p className="road__note">Reputation comes from wins, cup runs, promotion and titles, and from how you treat people in the dressing room.</p>
     </main>
   );

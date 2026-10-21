@@ -321,6 +321,7 @@ const matchRecordSchema = z.object({
   repGain: z.number().int().min(0).max(1000).optional(),
   repTier: z.string().max(20).optional(),
   objectives: z.array(objectiveSchema.extend({ done: z.boolean() })).max(3).optional(),
+  nicknames: z.array(z.object({ playerId: z.string().uuid(), name: z.string().max(80), nickname: z.string().max(40), reason: z.string().max(80) })).max(8).optional(),
   rivalry: z.array(z.object({ kind: z.enum(['newNemesis', 'nemesisAgain', 'nemesisQuiet', 'exHaunts', 'exQuiet']), playerId: z.string().max(80), name: z.string().max(80), text: z.string().max(200) })).max(6).optional(),
   injuries: z.array(z.object({ playerId: z.string().uuid(), name: z.string().max(80), kind: z.enum(INJURY_KIND_IDS), minute: z.number().int().min(0).max(130), byName: z.string().max(80), outFor: z.number().int().min(0).max(20) })).max(4).optional(),
 });

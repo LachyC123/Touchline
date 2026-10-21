@@ -27,6 +27,7 @@ import { clubOf } from '../../domain/world/world';
 import { unavailableFor } from '../../domain/players/injuries';
 import { objectivesFor } from '../../domain/match/objectives';
 import { ObjectivesCard } from './Objectives';
+import { managerOf } from '../../domain/world/managers';
 
 export function MatchLobby() {
   const save = useSave();
@@ -74,6 +75,7 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
   const ourPos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const theirPos = table.findIndex((r) => r.clubId === club.id) + 1;
   const theirSquad = opponentSquad(save.careerSeed, club, fixture.lap, save.world);
+  const manager = managerOf(save.careerSeed, club);
   const theirPower = squadAverage(theirSquad);
   const ourPower = squadPower(save);
   const danger = [...theirSquad].sort((a, b) => overall(b) - overall(a))[0];
@@ -181,6 +183,9 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
           )}
           <p className="fixture__style">{club.styleLine}</p>
           {club.quirk && <p className="fixture__quirk">{club.quirk}</p>}
+          <p className="fixture__manager">
+            Manager <b>{manager.name}</b> (“{manager.known}”) {manager.habit}.
+          </p>
 
           <div className="fixture__bars" aria-label={`Team power: you ${ourPower}, ${club.name} ${theirPower}`}>
             <div className="fixture__bar">
