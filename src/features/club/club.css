@@ -326,3 +326,47 @@
   background: linear-gradient(180deg, #d4ae74, #b98c55);
   color: var(--ink);
 }
+
+.club__league {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 56px;
+  margin: var(--s-2) 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--cream);
+  text-align: left;
+  box-shadow: 0 3px 0 rgb(0 0 0 / 0.3);
+}
+
+.club__league-pos {
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  height: 40px;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  background: var(--lime);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-xl);
+}
+
+.club__league-text {
+  display: grid;
+}
+
+.club__league-text b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.club__league-text small {
+  color: var(--text-muted);
+}

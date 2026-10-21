@@ -1,0 +1,341 @@
+.league {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.league .screen-head {
+  margin-bottom: 0;
+}
+
+.league__table {
+  padding: var(--s-2);
+}
+
+.league__table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.league__table th {
+  padding: 4px 4px 8px;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.league__table th:nth-child(2) {
+  text-align: left;
+}
+
+.league__table td {
+  padding: 8px 4px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.league__table tr.is-us td {
+  background: rgb(203 242 56 / 0.12);
+  font-weight: 800;
+}
+
+.league__table tr.is-up td.lt__pos {
+  box-shadow: inset 3px 0 0 var(--lime);
+}
+
+.league__table tr.is-down td.lt__pos {
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
+.lt__pos {
+  width: 26px;
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.lt__club {
+  text-align: left !important;
+}
+
+.lt__club {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lt__club span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lt__pts {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-md);
+}
+
+.lt__form {
+  white-space: nowrap;
+}
+
+.lt__dot {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 1px;
+  border-radius: 3px;
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.lt__dot--W {
+  background: var(--lime);
+}
+
+.lt__dot--D {
+  background: var(--cream-3);
+}
+
+.lt__dot--L {
+  background: var(--orange);
+}
+
+@media (max-width: 380px) {
+  .lt__form {
+    display: none;
+  }
+}
+
+.league__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin: var(--s-2) 4px 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.league__key-up {
+  border-left: 3px solid var(--lime);
+  padding-left: 6px;
+}
+
+.league__key-down {
+  border-left: 3px solid var(--orange);
+  padding-left: 6px;
+}
+
+.league__fixtures {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.league__round.is-next {
+  outline: 2px solid var(--lime);
+}
+
+.league__round ul,
+.league__scorers ol,
+.league__history ul {
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.league__round li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: var(--text-sm);
+}
+
+.league__round li.is-us {
+  color: var(--lime);
+  font-weight: 800;
+}
+
+.lf__home {
+  text-align: right;
+}
+
+.lf__score {
+  min-width: 40px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-align: center;
+}
+
+.league__scorers li,
+.league__history li {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.league__history li {
+  grid-template-columns: auto 1fr auto;
+  font-size: var(--text-sm);
+}
+
+.league__scorers li.is-us {
+  color: var(--lime);
+}
+
+.ls__pos {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.ls__name {
+  display: grid;
+  font-weight: 700;
+}
+
+.ls__name small {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.league__scorers b {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.league__empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.league__outcome {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+}
+
+.league__outcome--promoted,
+.league__outcome--champions {
+  color: var(--lime);
+}
+
+.league__outcome--relegated {
+  color: var(--orange);
+}
+
+/* ---- Season end ------------------------------------------------------------ */
+.season {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.season__card {
+  margin-top: var(--s-6);
+  display: grid;
+  gap: var(--s-2);
+  text-align: center;
+}
+
+.season__hero {
+  position: relative;
+  --confetti-top: 30%;
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  margin: calc(-1 * max(var(--s-3), var(--inset-top))) calc(-1 * var(--gutter)) 0;
+  padding: max(var(--s-5), calc(var(--inset-top) + var(--s-4))) var(--gutter) var(--s-5);
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 0%, rgb(255 255 255 / 0.18), transparent 70%),
+    linear-gradient(180deg, var(--navy-600), var(--bg));
+  text-align: center;
+}
+
+.season--promoted .season__hero,
+.season--champions .season__hero {
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 0%, rgb(203 242 56 / 0.35), transparent 70%),
+    linear-gradient(180deg, var(--pitch-dark), var(--bg));
+}
+
+.season__kicker {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+}
+
+.season__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-3xl);
+  line-height: 0.9;
+  text-transform: uppercase;
+  animation: crest-pop 520ms var(--ease-spring);
+}
+
+.season__line {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--text-muted);
+}
+
+.season__line b {
+  color: var(--cream);
+}
+
+.season__table ol {
+  margin: var(--s-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.season__table li {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.season__table li.is-us {
+  color: var(--lime);
+  font-weight: 800;
+}
+
+.season__club {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.season__prize p {
+  margin: 0;
+}
+
+.season__prize p + p {
+  margin-top: 6px;
+}
+
+@keyframes crest-pop {
+  from {
+    scale: 0.6;
+  }
+}

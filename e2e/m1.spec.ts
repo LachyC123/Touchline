@@ -93,7 +93,7 @@ test('match: manager card, skip to full time, rewards paid exactly once across r
   }
 
   await tab(page, 'Match').click();
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(/match 2/i);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/round 2 of 14/i);
 });
 
 test('a reload mid-match resumes the same match at the same minute', async ({ page }) => {

@@ -149,6 +149,42 @@ const teamLineupSchema = z.object({
     .length(7),
 });
 
+const clubRef = z.string().min(1).max(40);
+const leagueSchema = z.object({
+  division: z.number().int().min(0).max(9),
+  rounds: z.array(z.array(z.object({ home: clubRef, away: clubRef })).max(8)).max(40),
+  round: z.number().int().min(0).max(40),
+  results: z
+    .array(
+      z.object({
+        round: z.number().int().min(0).max(40),
+        home: clubRef,
+        away: clubRef,
+        hg: z.number().int().min(0).max(99),
+        ag: z.number().int().min(0).max(99),
+        scorers: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), clubId: clubRef })).max(40),
+      }),
+    )
+    .max(200),
+});
+
+const seasonSummarySchema = z.object({
+  season: z.number().int().min(1).max(999),
+  division: z.number().int().min(0).max(9),
+  divisionName: z.string().max(60),
+  position: z.number().int().min(1).max(20),
+  played: safeCount,
+  won: safeCount,
+  drawn: safeCount,
+  lost: safeCount,
+  gf: safeCount,
+  ga: safeCount,
+  points: safeCount,
+  outcome: z.enum(['promoted', 'relegated', 'champions', 'stayed']),
+  prizeCoins: safeCount,
+  topScorer: z.object({ name: z.string().max(90), goals: safeCount }).optional(),
+});
+
 const pendingMatchSchema = z.object({
   matchId: z.string().min(1).max(40),
   number: z.number().int().min(1),
@@ -160,6 +196,8 @@ const pendingMatchSchema = z.object({
   away: teamLineupSchema,
   commands: z.array(commandSchema).max(200),
   checkpointTick: z.number().int().min(0).max(100_000),
+  season: z.number().int().min(1).max(999).optional(),
+  round: z.number().int().min(0).max(40).optional(),
 });
 
 const matchRecordSchema = z.object({
@@ -202,6 +240,8 @@ const matchRecordSchema = z.object({
   replay: z.object({ home: teamLineupSchema, away: teamLineupSchema }).optional(),
   packId: z.string().uuid().optional(),
   unlockedCards: z.array(cardId).max(CARD_IDS.length).optional(),
+  season: z.number().int().min(1).max(999).optional(),
+  round: z.number().int().min(0).max(40).optional(),
 });
 
 const ownedPackSchema = z.object({
@@ -249,6 +289,8 @@ export const clubSaveSchema = z
     cardsUnlocked: z.array(cardId).min(1).max(CARD_IDS.length),
     deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX),
     newCards: z.array(cardId).max(CARD_IDS.length),
+    league: leagueSchema,
+    seasons: z.array(seasonSummarySchema).max(999),
     matchNumber: z.number().int().min(0).max(100_000),
     pendingMatch: pendingMatchSchema.nullable(),
     matchRecords: z.array(matchRecordSchema).max(100),
@@ -271,6 +313,7 @@ export const clubSaveSchema = z
     for (const key of Object.keys(save.lineup)) {
       if (!slots.includes(key)) ctx.addIssue({ code: 'custom', message: `lineup slot ${key} is not in formation ${save.formationId}` });
     }
+    if (save.league.round > save.league.rounds.length) ctx.addIssue({ code: 'custom', message: 'league round is past the end of the season' });
     if (new Set(save.deck).size !== save.deck.length) ctx.addIssue({ code: 'custom', message: 'a card is in the deck twice' });
     for (const c of save.deck) if (!save.cardsUnlocked.includes(c)) ctx.addIssue({ code: 'custom', message: `deck card ${c} is not unlocked` });
     for (const pack of save.packs) {

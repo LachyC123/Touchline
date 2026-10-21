@@ -4,7 +4,7 @@ import { setSfxEnabled, setSfxVolume } from '../audio/sfx';
 import { freshSeed } from '../domain/rng';
 import type { FormationId } from '../domain/formations';
 import type { ClubIdentityChoice, OnboardingEvent } from '../domain/club/onboarding';
-import type { ClubSave, PendingMatch, TipId } from '../domain/save/types';
+import type { ClubSave, PendingMatch, SeasonSummary, TipId } from '../domain/save/types';
 import type { CardId } from '../game/simulation/cards';
 import { getDb, MAIN_SLOT } from '../storage/db';
 import { parseSaveFile } from '../storage/exportImport';
@@ -27,6 +27,7 @@ import {
   setClubIdentity as repoSetClubIdentity,
   setDeck as repoSetDeck,
   markCardsSeen as repoMarkCardsSeen,
+  beginNextSeason as repoBeginNextSeason,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -58,6 +59,7 @@ interface GameApi {
   setClubIdentity: (choice: ClubIdentityChoice) => Promise<void>;
   setDeck: (deck: CardId[]) => Promise<void>;
   markCardsSeen: () => Promise<void>;
+  beginNextSeason: () => Promise<SeasonSummary>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -131,6 +133,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setClubIdentity: async (choice) => void (await repoSetClubIdentity(choice)),
       setDeck: async (deck) => void (await repoSetDeck(deck)),
       markCardsSeen: async () => void (await repoMarkCardsSeen()),
+      beginNextSeason: async () => (await repoBeginNextSeason()).summary,
     }),
     [saveState, settings, updateSettings, exportSave],
   );

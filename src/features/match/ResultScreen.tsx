@@ -5,7 +5,8 @@ import { useSave } from '../../app/GameContext';
 import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
 import { PACK_DEFS } from '../../domain/packs/packs';
-import type { MatchMoment } from '../../domain/save/types';
+import { PLAYER_CLUB_ID, type MatchMoment } from '../../domain/save/types';
+import { clubName, leagueTable, ordinal, seasonComplete } from '../../domain/league/league';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
@@ -75,6 +76,14 @@ export function ResultScreen({ id }: { id: string }) {
   const potm = save.footballers[record.playerOfMatchId];
   const pack = record.packId ? save.packs.find((p) => p.id === record.packId) : undefined;
   const firstRun = save.onboarding === 'club';
+  // League context (only while that season is still the current one).
+  const sameSeason = record.season !== undefined && record.season === save.season && record.round !== undefined;
+  const roundResults = sameSeason ? save.league.results.filter((r) => r.round === record.round) : [];
+  const nameFn = (id: string) => clubName(id, save.club.name);
+  const posAt = (rounds: number) => leagueTable({ rounds: save.league.rounds, results: save.league.results.filter((r) => r.round < rounds) }, nameFn).findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
+  const posAfter = sameSeason ? posAt((record.round ?? 0) + 1) : 0;
+  const posBefore = sameSeason && (record.round ?? 0) > 0 ? posAt(record.round ?? 0) : null;
+  const seasonOver = !save.pendingMatch && seasonComplete(save.league) && sameSeason;
   const gains = [...record.gains].filter((g) => save.footballers[g.playerId]).sort((a, b) => b.xp - a.xp);
   const stats: [string, number | string, number | string, number, number][] = [
     ['Possession', `${record.stats.possession.home}%`, `${record.stats.possession.away}%`, record.stats.possession.home, record.stats.possession.away],
@@ -128,6 +137,34 @@ export function ResultScreen({ id }: { id: string }) {
         <p className="result__paper">The Touchline Post</p>
         <h2>{record.storyHeadline}</h2>
       </article>
+
+      {roundResults.length > 0 && (
+        <section className="result__league panel" aria-labelledby="around-title">
+          <div className="result__league-head">
+            <h2 id="around-title" className="eyebrow">
+              Around the league · round {(record.round ?? 0) + 1}
+            </h2>
+            <span className="result__pos">
+              {ordinal(posAfter)}
+              {posBefore && posBefore !== posAfter ? <small className={posAfter < posBefore ? 'is-up' : 'is-down'}>{posAfter < posBefore ? `▲${posBefore - posAfter}` : `▼${posAfter - posBefore}`}</small> : null}
+            </span>
+          </div>
+          <ul>
+            {roundResults.map((r) => (
+              <li key={`${r.home}-${r.away}`} className={r.home === PLAYER_CLUB_ID || r.away === PLAYER_CLUB_ID ? 'is-us' : ''}>
+                <span className="lf__home">{clubName(r.home, save.club.name)}</span>
+                <span className="lf__score">
+                  {r.hg}–{r.ag}
+                </span>
+                <span className="lf__away">{clubName(r.away, save.club.name)}</span>
+              </li>
+            ))}
+          </ul>
+          <Button variant="ghost" size="sm" icon="sort" onClick={() => navigate({ name: 'league' })}>
+            League table
+          </Button>
+        </section>
+      )}
 
       {record.moments && record.moments.length > 0 && (
         <section className="result__moments panel" aria-labelledby="moments-title">
@@ -266,7 +303,11 @@ export function ResultScreen({ id }: { id: string }) {
         <Button variant="ghost" icon="club" onClick={() => navigate({ name: 'club' })}>
           Club
         </Button>
-        {firstRun ? (
+        {seasonOver ? (
+          <Button variant="primary" size="lg" icon="star" onClick={() => navigate({ name: 'season' })}>
+            Final day
+          </Button>
+        ) : firstRun ? (
           <Button variant="primary" size="lg" icon="shield" onClick={() => navigate({ name: 'setup' })}>
             Make it yours
           </Button>

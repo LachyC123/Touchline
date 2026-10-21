@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { assignToSlot, changeFormation, LineupError, lineupProblems } from '../domain/club/lineup';
 import { createCareer } from '../domain/club/newCareer';
-import { fixtureFor, opponentSquad } from '../domain/club/opponents';
+import { opponentSquad } from '../domain/club/opponents';
+import { CLUBS } from '../data/clubs';
 import { matchArgs, matchMoments, prepareMatch, settleMatch, XP } from '../domain/match/settle';
 import { xpToNext } from '../domain/players/progression';
 import { overall } from '../domain/players/rating';
@@ -62,10 +63,10 @@ describe('lineup rules', () => {
 describe('save migration', () => {
   it('upgrades an M0 (v1) save all the way to the current version without touching players', () => {
     const v2 = createCareer('mig-1', 'x');
-    const { matchNumber: _a, pendingMatch: _b, matchRecords: _c, pendingUpgrades: _d, packs: _e, onboarding: _f, tipsSeen: _g, cardsUnlocked: _h, deck: _i, newCards: _j, ...rest } = v2;
+    const { matchNumber: _a, pendingMatch: _b, matchRecords: _c, pendingUpgrades: _d, packs: _e, onboarding: _f, tipsSeen: _g, cardsUnlocked: _h, deck: _i, newCards: _j, league: _k, seasons: _l, ...rest } = v2;
     const v1 = { ...rest, schemaVersion: 1, contentVersion: 'content-1', packInventory: {}, tutorialStep: 'start' };
     const migrated = migrateSave(v1);
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.deck).toEqual(['QUICK_PASS', 'PRESS', 'GO_WIDE', 'PARK_BUS']);
     expect(migrated.matchNumber).toBe(0);
     expect(migrated.pendingMatch).toBeNull();
@@ -75,9 +76,9 @@ describe('save migration', () => {
 
 describe('opponents', () => {
   it('the same club fields the same named players every time, a little stronger each lap', () => {
-    const a = opponentSquad('career-x', fixtureFor(1).club, 0);
-    const b = opponentSquad('career-x', fixtureFor(1).club, 0);
-    const lap2 = opponentSquad('career-x', fixtureFor(1).club, 1);
+    const a = opponentSquad('career-x', CLUBS[1]!, 0);
+    const b = opponentSquad('career-x', CLUBS[1]!, 0);
+    const lap2 = opponentSquad('career-x', CLUBS[1]!, 1);
     expect(a.map((p) => p.lastName)).toEqual(b.map((p) => p.lastName));
     expect(lap2.map((p) => p.lastName)).toEqual(a.map((p) => p.lastName));
     const avg = (xs: typeof a) => xs.reduce((s, p) => s + overall(p), 0) / xs.length;

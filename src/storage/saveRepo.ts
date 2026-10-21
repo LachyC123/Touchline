@@ -8,7 +8,8 @@ import type { FormationId } from '../domain/formations';
 import { matchArgs, prepareMatch, settleMatch } from '../domain/match/settle';
 import { applyFocus, FOCUSES } from '../domain/players/upgrades';
 import { seededUuid } from '../domain/rng';
-import type { ClubSave, MatchRecord, PendingMatch, TipId } from '../domain/save/types';
+import type { ClubSave, MatchRecord, PendingMatch, SeasonSummary, TipId } from '../domain/save/types';
+import { startNextSeason } from '../domain/league/league';
 import { ENGINE_VERSION } from '../game/simulation/constants';
 import { replayMatch } from '../game/simulation/replay';
 import type { MatchCommand } from '../game/simulation/types';
@@ -343,4 +344,24 @@ export function markCardsSeen(db?: TouchlineDB): Promise<MutationResult> {
   return mutateSave((s) => {
     s.newCards = [];
   }, {}, db);
+}
+
+// ---------------------------------------------------------------------------- league
+
+/** Closes the finished season exactly once (claim id = season number) and starts the next. */
+export async function beginNextSeason(db?: TouchlineDB): Promise<{ summary: SeasonSummary; applied: boolean }> {
+  const current = await loadSave(db);
+  if (!current) throw new Error('No career to update.');
+  const finishing = current.season;
+  let summary: SeasonSummary | undefined;
+  const r = await mutateSave(
+    (s) => {
+      summary = startNextSeason(s);
+    },
+    { claimId: `season-end:${finishing}` },
+    db,
+  );
+  summary ??= r.save.seasons.find((x) => x.season === finishing);
+  if (!summary) throw new Error('Season summary missing.');
+  return { summary, applied: r.applied };
 }

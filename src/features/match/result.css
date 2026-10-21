@@ -479,3 +479,61 @@
 .result__unlock-cards .mc {
   width: min(180px, 46%);
 }
+
+.result__league-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.result__pos {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-xl);
+  color: var(--lime);
+}
+
+.result__pos small {
+  font-size: var(--text-sm);
+}
+
+.result__pos .is-up {
+  color: var(--lime);
+}
+
+.result__pos .is-down {
+  color: var(--orange);
+}
+
+.result__league ul {
+  margin: var(--s-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result__league li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: var(--text-sm);
+}
+
+.result__league li.is-us {
+  color: var(--lime);
+  font-weight: 800;
+}
+
+.result__league .lf__home {
+  text-align: right;
+}
+
+.result__league .lf__score {
+  min-width: 40px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-align: center;
+}

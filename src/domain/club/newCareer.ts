@@ -4,6 +4,7 @@ import { overallAt } from '../players/rating';
 import { autoLineup } from './lineup';
 import type { Footballer, Position, Tier } from '../players/types';
 import { DEFAULT_DECK } from '../../game/simulation/cards';
+import { newLeague } from '../league/league';
 import { grantPack } from '../packs/packs';
 import { cardsUnlockedAt } from './manager';
 import { seededUuid } from '../rng';
@@ -102,6 +103,8 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     cardsUnlocked: cardsUnlockedAt(1),
     deck: [...DEFAULT_DECK],
     newCards: [],
+    league: newLeague(careerSeed, 1, 0),
+    seasons: [],
     matchNumber: 0,
     pendingMatch: null,
     matchRecords: [],

@@ -1,4 +1,5 @@
 import { CARD_DEFS, CARD_IDS, DECK_MAX, DECK_MIN, type CardId } from '../../game/simulation/cards';
+import type { ClubSave } from '../save/types';
 
 /** Club XP needed to reach each manager level (index = level − 1). */
 export const MANAGER_LEVEL_XP: readonly number[] = [0, 80, 200, 360, 560, 800, 1100];
@@ -36,4 +37,22 @@ export function deckProblem(deck: readonly CardId[], unlocked: readonly CardId[]
   if (new Set(deck).size !== deck.length) return 'A card can only be in the deck once.';
   if (deck.some((c) => !unlocked.includes(c))) return 'That card is still locked.';
   return null;
+}
+
+/**
+ * Adds club XP on a save draft and applies any card unlocks that crosses (new cards join the
+ * deck while there is room). Returns the newly unlocked cards.
+ */
+export function grantClubXp(draft: Pick<ClubSave, 'clubXp' | 'cardsUnlocked' | 'newCards' | 'deck'>, amount: number): CardId[] {
+  const before = managerLevel(draft.clubXp);
+  draft.clubXp += amount;
+  const after = managerLevel(draft.clubXp);
+  if (after <= before) return [];
+  const unlocked = cardsUnlockedAt(after).filter((c) => !draft.cardsUnlocked.includes(c));
+  for (const c of unlocked) {
+    draft.cardsUnlocked.push(c);
+    draft.newCards.push(c);
+    if (draft.deck.length < DECK_MAX) draft.deck.push(c);
+  }
+  return unlocked;
 }

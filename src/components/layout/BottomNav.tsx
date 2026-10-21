@@ -7,7 +7,7 @@ import { Icon, type IconName } from '../icons/Icon';
 const TABS: { route: Route; label: string; icon: IconName; match: Route['name'][] }[] = [
   { route: { name: 'club' }, label: 'Club', icon: 'club', match: ['club'] },
   { route: { name: 'squad' }, label: 'Squad', icon: 'squad', match: ['squad', 'player'] },
-  { route: { name: 'match' }, label: 'Match', icon: 'whistle', match: ['match', 'lineup', 'result', 'cards'] },
+  { route: { name: 'match' }, label: 'Match', icon: 'whistle', match: ['match', 'lineup', 'result', 'cards', 'league', 'season'] },
   { route: { name: 'scout' }, label: 'Scout', icon: 'scout', match: ['scout', 'pack'] },
   { route: { name: 'more' }, label: 'More', icon: 'more', match: ['more', 'lab'] },
 ];

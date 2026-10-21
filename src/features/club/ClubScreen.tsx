@@ -10,7 +10,9 @@ import { StadiumScene } from '../../components/club/StadiumScene';
 import { Icon } from '../../components/icons/Icon';
 import { Button } from '../../components/ui/Button';
 import { squadPower } from '../../domain/club/newCareer';
-import { fixtureFor } from '../../domain/club/opponents';
+import { CLUB_BY_ID } from '../../data/clubs';
+import { clubName, divisionOf, leagueTable, ordinal, seasonComplete, userFixture } from '../../domain/league/league';
+import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import './club.css';
 
 export function ClubScreen() {
@@ -23,7 +25,11 @@ export function ClubScreen() {
   const power = squadPower(save);
   const anchorModel = anchor ? toCardModel(anchor) : null;
   const starters = Object.keys(save.lineup).length;
-  const fixture = fixtureFor(save.matchNumber);
+  const fixture = userFixture(save);
+  const over = !save.pendingMatch && seasonComplete(save.league);
+  const table = leagueTable(save.league, (id) => clubName(id, save.club.name));
+  const pos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
+  const pendingOpp = save.pendingMatch ? CLUB_BY_ID[save.pendingMatch.opponentId] : undefined;
   const last = save.matchRecords[0];
 
   return (
@@ -81,18 +87,31 @@ export function ClubScreen() {
         className={`club__next ${showNextTip ? 'coach-target' : ''}`}
         onClick={() => {
           if (showNextTip && step === 'done') void seeTip('next-match');
-          navigate({ name: save.pendingMatch ? 'live' : 'match' });
+          navigate(over ? { name: 'season' } : { name: save.pendingMatch ? 'live' : 'match' });
         }}
       >
-        <span className="club__next-kicker">{save.pendingMatch ? 'Match in progress' : 'Next match'}</span>
+        <span className="club__next-kicker">{save.pendingMatch ? 'Match in progress' : over ? 'Season complete' : `Round ${save.league.round + 1} of ${save.league.rounds.length}`}</span>
         <span className="club__next-vs">
-          vs {save.pendingMatch ? (save.pendingMatch.userSide === 'home' ? save.pendingMatch.away.name : save.pendingMatch.home.name) : fixture.club.name}
+          {over ? `You finished ${ordinal(pos)}` : `vs ${save.pendingMatch ? (pendingOpp?.name ?? 'Opponents') : (fixture?.club.name ?? '')}`}
         </span>
         <span className="club__next-meta">
-          {save.pendingMatch ? 'Tap to resume where you left off' : `${fixture.home ? 'Home' : 'Away'} · ${fixture.club.rival ? 'Local rivals · ' : ''}${fixture.club.styleLine}`}
+          {save.pendingMatch
+            ? 'Tap to resume where you left off'
+            : over || !fixture
+              ? 'See the final day and start the next season'
+              : `${fixture.home ? 'Home' : 'Away'} · ${fixture.club.rival ? 'Local rivals · ' : ''}${fixture.club.styleLine}`}
         </span>
         <span className="club__next-go" aria-hidden="true">
           <Icon name="whistle" size={26} />
+        </span>
+      </button>
+      <button type="button" className="club__league" onClick={() => navigate({ name: 'league' })}>
+        <span className="club__league-pos">{save.league.results.length ? ordinal(pos) : '—'}</span>
+        <span className="club__league-text">
+          <b>{divisionOf(save.league.division).name}</b>
+          <small>
+            Season {save.season} · {save.league.results.length ? `${table[pos - 1]?.points ?? 0} pts · tap for the table` : 'kicks off with your next match'}
+          </small>
         </span>
       </button>
       {last && <p className="club__latest">Latest: {last.storyHeadline}</p>}

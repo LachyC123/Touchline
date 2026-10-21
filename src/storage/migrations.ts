@@ -1,5 +1,6 @@
 import { SCHEMA_VERSION, type ClubSave } from '../domain/save/types';
 import { cardsUnlockedAt, managerLevel } from '../domain/club/manager';
+import { newLeague } from '../domain/league/league';
 import { DEFAULT_DECK } from '../game/simulation/cards';
 import { clubSaveSchema } from './schema';
 
@@ -40,6 +41,13 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
     const level = managerLevel(typeof raw.clubXp === 'number' ? raw.clubXp : 0);
     const unlocked = cardsUnlockedAt(level);
     return { ...raw, contentVersion: 'content-4', cardsUnlocked: unlocked, deck: [...DEFAULT_DECK], newCards: unlocked.filter((c) => !DEFAULT_DECK.includes(c)) };
+  },
+  // v4 → v5: the league. Existing careers start a fresh Division Two season from their current
+  // season number (earlier friendlies stay in the match history).
+  4: (raw) => {
+    const seed = typeof raw.careerSeed === 'string' ? raw.careerSeed : 'career';
+    const season = typeof raw.season === 'number' ? raw.season : 1;
+    return { ...raw, contentVersion: 'content-5', league: newLeague(seed, season, 0), seasons: [] };
   },
 };
 

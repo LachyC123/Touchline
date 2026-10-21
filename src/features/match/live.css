@@ -718,3 +718,11 @@
     opacity: 0;
   }
 }
+
+.live__coach--momentum.coach--down::after {
+  left: 12%;
+}
+
+.live__coach--played.coach--down::after {
+  display: none;
+}

@@ -8,7 +8,10 @@ import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { lineupProblems } from '../../domain/club/lineup';
 import { squadPower } from '../../domain/club/newCareer';
-import { fixtureFor, opponentSquad, squadAverage } from '../../domain/club/opponents';
+import { opponentSquad, squadAverage } from '../../domain/club/opponents';
+import { CLUB_BY_ID } from '../../data/clubs';
+import { divisionOf, leagueTable, ordinal, strengthLap, userFixture, type UserFixture } from '../../domain/league/league';
+import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import { FORMATION_DEFS } from '../../domain/formations';
 import { overall } from '../../domain/players/rating';
 import { CoachMark } from '../../components/ui/CoachMark';
@@ -19,12 +22,49 @@ import './match.css';
 
 export function MatchLobby() {
   const save = useSave();
+  const pm = save.pendingMatch;
+  const fx = userFixture(save);
+  const pendingClub = pm ? CLUB_BY_ID[pm.opponentId] : undefined;
+  const fixture: UserFixture | null = pm && pendingClub ? { club: pendingClub, home: pm.userSide === 'home', round: pm.round ?? save.league.round, lap: strengthLap(save.season) } : fx;
+  if (!fixture) return <SeasonComplete />;
+  return <LobbyInner fixture={fixture} />;
+}
+
+/** All fixtures played: point to the final table and the next season. */
+function SeasonComplete() {
+  const save = useSave();
+  const table = leagueTable(save.league, (id) => (id === PLAYER_CLUB_ID ? save.club.name : (CLUB_BY_ID[id]?.name ?? id)));
+  const pos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
+  return (
+    <main className="screen lobby">
+      <header className="screen-head">
+        <h1>
+          <small>Season {save.season}</small>
+          Season over
+        </h1>
+      </header>
+      <section className="paper lobby__season-over">
+        <p className="lobby__kicker">{divisionOf(save.league.division).name}</p>
+        <p className="display">You finished {ordinal(pos)}</p>
+        <Button variant="primary" size="lg" block icon="star" onClick={() => navigate({ name: 'season' })}>
+          See the final day
+        </Button>
+      </section>
+    </main>
+  );
+}
+
+function LobbyInner({ fixture }: { fixture: UserFixture }) {
+  const save = useSave();
   const { kickOff } = useGame();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const pending = save.pendingMatch;
-  const fixture = fixtureFor(save.matchNumber);
   const club = fixture.club;
+  const division = divisionOf(save.league.division);
+  const table = leagueTable(save.league, (id) => (id === PLAYER_CLUB_ID ? save.club.name : (CLUB_BY_ID[id]?.name ?? id)));
+  const ourPos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
+  const theirPos = table.findIndex((r) => r.clubId === club.id) + 1;
   const theirSquad = opponentSquad(save.careerSeed, club, fixture.lap);
   const theirPower = squadAverage(theirSquad);
   const ourPower = squadPower(save);
@@ -54,10 +94,20 @@ export function MatchLobby() {
     <main className="screen lobby">
       <header className="screen-head">
         <h1>
-          <small>Match {save.matchNumber + 1}</small>
+          <small>
+            Round {fixture.round + 1} of {save.league.rounds.length} · {division.name.replace('County League ', '')}
+          </small>
           Matchday
         </h1>
+        <Button variant="ghost" size="sm" icon="sort" onClick={() => navigate({ name: 'league' })}>
+          Table
+        </Button>
       </header>
+      {save.league.results.length > 0 && (
+        <p className="lobby__standing">
+          You are <b>{ordinal(ourPos)}</b> · {club.shortName} are <b>{ordinal(theirPos)}</b>
+        </p>
+      )}
 
       {pending && (
         <section className="lobby__resume paper">

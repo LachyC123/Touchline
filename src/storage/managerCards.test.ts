@@ -73,7 +73,7 @@ describe('manager levels and card unlocks', () => {
 
   it('a v3 save migrates with unlocks matching the club XP it already earned', () => {
     const v4 = createCareer('cards-mig', 'x');
-    const { cardsUnlocked: _c, deck: _d, newCards: _n, ...rest } = v4;
+    const { cardsUnlocked: _c, deck: _d, newCards: _n, league: _l, seasons: _s, ...rest } = v4;
     const v3 = { ...rest, schemaVersion: 3, contentVersion: 'content-3', clubXp: MANAGER_LEVEL_XP[2]! + 1 };
     const m = migrateSave(v3);
     expect(m.cardsUnlocked).toEqual(cardsUnlockedAt(3));

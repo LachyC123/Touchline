@@ -50,16 +50,16 @@ test('cold install → story → first pack → lineup → guided match → upgr
 
   await page.getByRole('button', { name: /play match/i }).click();
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
-  await page.locator('.live__speed').click();
-  // The guided tactic prompt appears once we have the ball (or is dismissible); tapping the chip uses it.
+  // The guided first match runs at 2× and teaches Momentum, then prompts the first card.
+  await expect(page.locator('.live__speed')).toHaveText('2×');
   const coach = page.locator('.live__coach');
-  await expect(coach).toBeVisible({ timeout: 90_000 });
+  await expect(coach).toContainText(/momentum/i, { timeout: 30_000 });
   const target = page.locator('.mcard.coach-target');
+  await expect(target).toBeVisible({ timeout: 90_000 });
   const name = ((await target.locator('.mc__name').textContent()) ?? '').trim();
   await target.click();
-  await expect(coach).toHaveCount(0);
-  await expect(page.locator('.tray__active')).toContainText(new RegExp(name, 'i'));
-
+  await expect(coach).toContainText(/card played/i);
+  await expect(page.locator('.tray__active')).toContainText(new RegExp(name.replace(/[!]/g, ''), 'i'));
   await page.getByRole('button', { name: /skip to ft/i }).click();
   await page.getByRole('button', { name: /simulate the rest/i }).click();
   await expect(page.locator('.result__hero')).toBeVisible({ timeout: 20_000 });

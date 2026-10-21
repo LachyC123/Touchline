@@ -12,7 +12,7 @@ export interface ClubDef {
   crest: CrestShape;
   formation: FormationId;
   aiStyle: AiStyle;
-  /** Squad strength on the first meeting; each lap of the fixture list adds +2. */
+  /** Squad strength in season 1; each later season adds a little. */
   baseOvr: number;
   styleLine: string;
   rival?: boolean;
@@ -49,7 +49,7 @@ export const CLUBS: readonly ClubDef[] = [
     name: 'Stagmoor Town',
     shortName: 'STG',
     stadiumName: 'Heathside',
-    kit: { primary: '#2F6B3A', secondary: '#E8D9A8', pattern: 'sash', cut: 'vneck' },
+    kit: { primary: '#8A3324', secondary: '#E8D9A8', pattern: 'sash', cut: 'vneck' },
     crest: 'pennant',
     formation: '3-2-1',
     aiStyle: 'direct',
@@ -73,7 +73,7 @@ export const CLUBS: readonly ClubDef[] = [
     name: 'Harbour Rovers',
     shortName: 'HAR',
     stadiumName: 'Quayside Park',
-    kit: { primary: '#1FA3A0', secondary: '#FFF7E9', pattern: 'stripes', cut: 'crew' },
+    kit: { primary: '#2E4DA8', secondary: '#FFF7E9', pattern: 'stripes', cut: 'crew' },
     crest: 'shield',
     formation: '2-2-2',
     aiStyle: 'balanced',
@@ -107,7 +107,108 @@ export const CLUBS: readonly ClubDef[] = [
   },
 ];
 
-export const CLUB_BY_ID: Readonly<Record<string, ClubDef>> = Object.fromEntries(CLUBS.map((c) => [c.id, c]));
+/** Division One: the level above. Stronger, more varied benches. */
+export const DIVISION_ONE_CLUBS: readonly ClubDef[] = [
+  {
+    id: 'wexham',
+    name: 'Wexham Orient',
+    shortName: 'WEX',
+    stadiumName: 'The Tannery',
+    kit: { primary: '#C8382E', secondary: '#1B2235', pattern: 'stripes', cut: 'collar' },
+    crest: 'shield',
+    formation: '2-2-2',
+    aiStyle: 'press',
+    baseOvr: 58,
+    styleLine: 'Loud, proud and relentless. They press from the first whistle.',
+    rival: true,
+  },
+  {
+    id: 'saltmarsh',
+    name: 'Saltmarsh Albion',
+    shortName: 'SAL',
+    stadiumName: 'Marsh Road',
+    kit: { primary: '#E9E4D4', secondary: '#2C6E8F', pattern: 'hoops', cut: 'crew' },
+    crest: 'round',
+    formation: '3-2-1',
+    aiStyle: 'counter',
+    baseOvr: 58,
+    styleLine: 'A back three that never panics, and a striker who never stops running.',
+  },
+  {
+    id: 'fernhill',
+    name: 'Fernhill Wanderers',
+    shortName: 'FER',
+    stadiumName: 'Bracken Park',
+    kit: { primary: '#7B2D8E', secondary: '#F4C653', pattern: 'halves', cut: 'vneck' },
+    crest: 'pennant',
+    formation: '2-2-2',
+    aiStyle: 'passing',
+    baseOvr: 59,
+    styleLine: 'Neat, patient passers who will happily keep the ball all day.',
+  },
+  {
+    id: 'gallowmere',
+    name: 'Gallowmere City',
+    shortName: 'GAL',
+    stadiumName: 'The Mere',
+    kit: { primary: '#2A2D5C', secondary: '#9FD3F0', pattern: 'sash', cut: 'collar' },
+    crest: 'shield',
+    formation: '3-2-1',
+    aiStyle: 'direct',
+    baseOvr: 60,
+    styleLine: 'Big, direct and dangerous from every cross.',
+  },
+  {
+    id: 'brightwater',
+    name: 'Brightwater Town',
+    shortName: 'BRT',
+    stadiumName: 'The Lido Ground',
+    kit: { primary: '#F28C28', secondary: '#FFF7E9', pattern: 'plain', cut: 'crew' },
+    crest: 'round',
+    formation: '2-2-2',
+    aiStyle: 'balanced',
+    baseOvr: 61,
+    styleLine: 'Seaside favourites with a winger everyone is talking about.',
+  },
+  {
+    id: 'corran',
+    name: 'Corran Athletic',
+    shortName: 'CRN',
+    stadiumName: 'Slate Yard',
+    kit: { primary: '#3A3F4A', secondary: '#E8D9A8', pattern: 'stripes', cut: 'vneck' },
+    crest: 'pennant',
+    formation: '3-2-1',
+    aiStyle: 'counter',
+    baseOvr: 62,
+    styleLine: 'Quarry-hard defenders. Score first or you will not score at all.',
+  },
+  {
+    id: 'halverton',
+    name: 'Halverton Rangers',
+    shortName: 'HAL',
+    stadiumName: 'Halverton Common',
+    kit: { primary: '#1D3557', secondary: '#F4F1EA', pattern: 'hoops', cut: 'collar' },
+    crest: 'shield',
+    formation: '2-2-2',
+    aiStyle: 'passing',
+    baseOvr: 63,
+    styleLine: 'The money club of the division, and they play like it.',
+  },
+];
 
-/** Order the opponents are met in, repeating with +2 strength each lap. */
-export const FIXTURE_ORDER: readonly string[] = ['cinderfield', 'copperton', 'stagmoor', 'beacon', 'harbour', 'kingsyard', 'ironbridge'];
+export interface DivisionDef {
+  index: number;
+  name: string;
+  clubs: readonly ClubDef[];
+  /** Places promoted at the end of a season (0 = top division for now). */
+  promote: number;
+  /** Places relegated (bottom); 0 = the lowest division. */
+  relegate: number;
+}
+
+export const DIVISIONS: readonly DivisionDef[] = [
+  { index: 0, name: 'County League Division Two', clubs: CLUBS, promote: 2, relegate: 0 },
+  { index: 1, name: 'County League Division One', clubs: DIVISION_ONE_CLUBS, promote: 0, relegate: 2 },
+];
+
+export const CLUB_BY_ID: Readonly<Record<string, ClubDef>> = Object.fromEntries([...CLUBS, ...DIVISION_ONE_CLUBS].map((c) => [c.id, c]));

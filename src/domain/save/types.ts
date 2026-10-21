@@ -4,8 +4,8 @@ import type { Footballer, Tier } from '../players/types';
 import type { CardId } from '../../game/simulation/cards';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
-export const SCHEMA_VERSION = 4;
-export const CONTENT_VERSION = 'content-4';
+export const SCHEMA_VERSION = 5;
+export const CONTENT_VERSION = 'content-5';
 export { ENGINE_VERSION } from '../../game/simulation/constants';
 
 export type { FormationId };
@@ -24,6 +24,9 @@ export interface PendingMatch {
   commands: MatchCommand[];
   /** Last tick the presentation reached (resume point). */
   checkpointTick: number;
+  /** League season and round this fixture belongs to. */
+  season?: number;
+  round?: number;
 }
 
 export interface ScorerLine {
@@ -87,6 +90,9 @@ export interface MatchRecord {
   packId?: string;
   /** Manager cards unlocked by the club XP from this match. */
   unlockedCards?: CardId[];
+  /** League season and round this match belonged to. */
+  season?: number;
+  round?: number;
   storyHeadline: string;
   /** Notable non-routine incidents (screamers, double saves, penalties, skills, bookings). */
   moments?: MatchMoment[];
@@ -125,6 +131,55 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 /** One-off coach marks; replaying the tutorial clears them. */
 export const TIP_IDS = ['tactic', 'upgrade', 'next-match'] as const;
 export type TipId = (typeof TIP_IDS)[number];
+
+/** Club id used for the player's own club in fixtures and results. */
+export const PLAYER_CLUB_ID = 'player-club';
+
+export interface LeagueFixture {
+  home: string;
+  away: string;
+}
+
+export interface LeagueScorer {
+  playerId: string;
+  name: string;
+  clubId: string;
+}
+
+export interface LeagueResult {
+  round: number;
+  home: string;
+  away: string;
+  hg: number;
+  ag: number;
+  scorers: LeagueScorer[];
+}
+
+/** The current season of the division: fixed schedule (generated once), results so far. */
+export interface LeagueState {
+  division: number;
+  rounds: LeagueFixture[][];
+  /** Next round to be played (= rounds played this season). */
+  round: number;
+  results: LeagueResult[];
+}
+
+export interface SeasonSummary {
+  season: number;
+  division: number;
+  divisionName: string;
+  position: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  gf: number;
+  ga: number;
+  points: number;
+  outcome: 'promoted' | 'relegated' | 'champions' | 'stayed';
+  prizeCoins: number;
+  topScorer?: { name: string; goals: number };
+}
 
 export interface PendingUpgrade {
   playerId: string;
@@ -167,6 +222,9 @@ export interface ClubSave {
   deck: CardId[];
   /** Unlocked cards the player has not looked at yet. */
   newCards: CardId[];
+  league: LeagueState;
+  /** Finished seasons, oldest first. */
+  seasons: SeasonSummary[];
   /** Completed matches (also the index of the next fixture). */
   matchNumber: number;
   pendingMatch: PendingMatch | null;

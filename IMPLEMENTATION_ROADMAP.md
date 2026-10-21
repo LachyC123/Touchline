@@ -85,14 +85,16 @@ Also added in M2 (needed so the pack system is not a one-off): a **Scout** tab (
 **M2.6 known gaps:** no drag-to-play (tap only, by design for one-thumb play); no card art beyond the icon set; the AI manager's card logic is rule-based, not adaptive; opponents' decks are fixed per club style.
 
 ## M3. Competitive mode and career attachment
-- [ ] Stable fictional AI club identities and generated opponents with distinct tactics and named captains.
-- [ ] 8-club division fixtures, results, league table, promotion, season archive; AI fixtures simulated consistently.
-- [ ] Two additional formations, Go Wide and contextual decision Moments; substitutions and fatigue.
+- [~] Stable fictional AI club identities and generated opponents with distinct tactics and named captains. *(14 authored clubs across two divisions, each with a style, formation, card deck and a fixed, seeded squad that improves a little each season. Named captains not yet.)*
+- [x] 8-club division fixtures, results, league table, promotion, season archive; AI fixtures simulated consistently. *(`src/domain/league/league.ts`: seeded double round robin (14 rounds, fixed once generated), every AI-vs-AI fixture simulated by the same engine with both benches AI-managed, table from results only (3/1, GD, GF), scorers chart, top-2 promotion from Division Two and bottom-2 relegation from Division One, season prize money and club XP, season history. A career opens at home to the weakest side.)*
+- [~] Two additional formations, Go Wide and contextual decision Moments; substitutions and fatigue. *(Go Wide shipped as a manager card in M2.6; formations, Moments and substitutions not yet.)*
 - [ ] Expanded trait set and generated player personalities.
 - [ ] Player career diary, factual milestone events, locker-room requests, rivalry headlines.
 - [ ] Cup bracket and home/away stadium styles if time permits after league is working.
-- [ ] Season completion integration tests, opponent reappearance and standings invariants.
+- [x] Season completion integration tests, opponent reappearance and standings invariants. *(`src/storage/league.test.ts`: fixture fairness, determinism, a full 14-round season through the real save path with table invariants, close-once season end, promotion/relegation, v4→v5 migration; `e2e/m3.spec.ts` plays a full season in the browser.)*
 **M3 demonstration:** complete season with personal moments, persistent rivals, fair league standings and non-trivial tactics.
+
+**M3 so far (league slice):** Division Two → Division One with a real table, fixtures and scorers; "Around the league" after every match; a final-day screen with promotion/relegation and prizes. Also the guided first match now teaches Momentum and the first card at 2× speed. Save schema v5 (v4 careers start a fresh Division Two season). **Not yet:** cup, named captains, personal requests, substitutions/new formations, a third division above Division One (Division One champions stay up and are recorded as champions).
 
 ## M4. Training, scouting and living hub
 - [ ] Training mini-games: finishing, passing and goalkeeper, with auto-train accessibility.

@@ -4,16 +4,16 @@ import { ENGINE_VERSION } from '../../game/simulation/constants';
 import type { CreateMatchArgs } from '../../game/simulation/engine';
 import { possessionShare } from '../../game/simulation/summary';
 import type { FootballEvent, LineupPlayer, MatchResult, TeamLineup, TeamSide } from '../../game/simulation/types';
-import { DECK_MAX } from '../../game/simulation/cards';
-import { cardsUnlockedAt, managerLevel } from '../club/manager';
+import { grantClubXp } from '../club/manager';
 import { advanceOnboarding, colourDistance, KIT_CLASH_DISTANCE } from '../club/onboarding';
-import { fixtureFor, opponentLineup } from '../club/opponents';
+import { opponentLineup } from '../club/opponents';
+import { simulateOtherFixtures, userLeagueResult, userFixture } from '../league/league';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
 import { xpToNext } from '../players/progression';
 import { FOCUS_OPTIONS } from '../players/upgrades';
 import { seededUuid, stream } from '../rng';
-import { MAX_MATCH_RECORDS, REPLAYS_KEPT, type ClubSave, type MatchMoment, type MatchRecord, type PendingMatch, type PlayerGain, type RewardLine } from '../save/types';
+import { MAX_MATCH_RECORDS, PLAYER_CLUB_ID, REPLAYS_KEPT, type ClubSave, type MatchMoment, type MatchRecord, type PendingMatch, type PlayerGain, type RewardLine } from '../save/types';
 
 export const XP = { match: 40, win: 15, cleanSheet: 5, goal: 8, assist: 5, potm: 10, cap: 85, bench: 10, recruitDebut: 40 } as const;
 
@@ -34,9 +34,11 @@ export const CLUB_XP = { match: 30, win: 15, draw: 8 } as const;
 export function prepareMatch(save: ClubSave): PendingMatch {
   const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds);
   if (problems.length) throw new Error(problems[0]);
-  const fixture = fixtureFor(save.matchNumber);
+  const fx = userFixture(save);
+  if (!fx) throw new Error('The season is over — start the next one from the league table.');
+  const fixture = { number: save.matchNumber, club: fx.club, lap: fx.lap, home: fx.home };
   const mine = buildTeamLineup(
-    { clubId: 'player-club', name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary, pattern: save.club.kit.pattern }, aiStyle: 'balanced', deck: [...save.deck] },
+    { clubId: PLAYER_CLUB_ID, name: save.club.name, shortName: save.club.shortName, kit: { primary: save.club.kit.primary, secondary: save.club.kit.secondary, pattern: save.club.kit.pattern }, aiStyle: 'balanced', deck: [...save.deck] },
     save.formationId,
     save.lineup,
     save.footballers,
@@ -56,6 +58,8 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     away: { ...away, kit: resolveKitClash(home.kit, away.kit) },
     commands: [],
     checkpointTick: 0,
+    season: save.season,
+    round: fx.round,
   };
 }
 
@@ -241,14 +245,17 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     }
   }
   draft.coins += rewards.coins;
-  const levelBefore = managerLevel(draft.clubXp);
-  draft.clubXp += rewards.clubXp;
-  // Manager cards unlock with manager level; a new card joins the deck if there is room.
-  const unlockedCards = managerLevel(draft.clubXp) > levelBefore ? cardsUnlockedAt(managerLevel(draft.clubXp)).filter((c) => !draft.cardsUnlocked.includes(c)) : [];
-  for (const c of unlockedCards) {
-    draft.cardsUnlocked.push(c);
-    draft.newCards.push(c);
-    if (draft.deck.length < DECK_MAX) draft.deck.push(c);
+  const unlockedCards = grantClubXp(draft, rewards.clubXp);
+
+  // League: our result, the rest of the round (same engine, AI benches), then the next round.
+  const leagueRound = pending.round ?? draft.league.round;
+  if (pending.season === draft.season && leagueRound === draft.league.round && draft.league.rounds[leagueRound]) {
+    const names = new Map([...pending.home.players, ...pending.away.players].map((p) => [p.id, p.name] as const));
+    const homeId = side === 'home' ? PLAYER_CLUB_ID : pending.opponentId;
+    const awayId = side === 'home' ? pending.opponentId : PLAYER_CLUB_ID;
+    draft.league.results.push(userLeagueResult(leagueRound, homeId, awayId, result, names));
+    draft.league.results.push(...simulateOtherFixtures(draft.careerSeed, draft.season, draft.league, leagueRound));
+    draft.league.round++;
   }
 
   const pair = <T,>(h: T, a: T) => ({ home: h, away: a });
@@ -280,6 +287,8 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     storyHeadline,
     moments: matchMoments(result, pending),
     ...(unlockedCards.length ? { unlockedCards } : {}),
+    ...(pending.season !== undefined ? { season: pending.season } : {}),
+    ...(pending.round !== undefined ? { round: pending.round } : {}),
     ...(pending.number % SCOUT_PACK_EVERY === 0 ? { packId: grantPack(draft, 'local-scout', `match:${pending.matchId}`).id } : {}),
     replay: { home: pending.home, away: pending.away },
   };

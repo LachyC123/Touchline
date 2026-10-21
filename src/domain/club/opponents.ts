@@ -1,4 +1,4 @@
-import { CLUB_BY_ID, FIXTURE_ORDER, type ClubDef } from '../../data/clubs';
+import type { ClubDef } from '../../data/clubs';
 import { FORMATION_DEFS } from '../formations';
 import { AI_DECKS } from '../../game/simulation/cards';
 import { buildTeamLineup } from '../../game/simulation/fromSquad';
@@ -12,15 +12,8 @@ export interface Fixture {
   number: number;
   club: ClubDef;
   lap: number;
-  /** Is the player's club at home? Home and away alternate. */
+  /** Is the player's club at home? */
   home: boolean;
-}
-
-export function fixtureFor(matchNumber: number): Fixture {
-  const id = FIXTURE_ORDER[matchNumber % FIXTURE_ORDER.length] as string;
-  const club = CLUB_BY_ID[id];
-  if (!club) throw new Error(`Unknown club ${id}`);
-  return { number: matchNumber, club, lap: Math.floor(matchNumber / FIXTURE_ORDER.length), home: matchNumber % 2 === 0 };
 }
 
 /**

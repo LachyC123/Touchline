@@ -12,7 +12,7 @@ The full specification lives in this repo:
 
 ## Status
 
-**M0, M1 and M2** are implemented: opening comic → free First Signing pack (tear, reveal, persisted before the animation) → guided lineup placement → an animated, deterministic 7v7 match you can influence with PRESS and QUICK PASS (with a first-time prompt) → full time with real rewards, XP and the first training choice → name your club and pick its colours → hub. Scout packs are earned every 3 matches with published odds and a visible guarantee; goal replays; everything persists across reloads (including mid-match). Matches (engine-2) include long shots, crosses and headers, diving/fingertip/double saves, rebounds, slide tackles, named skill moves, fouls, free kicks with walls, penalties and bookings, all decided by player attributes; strong stats light up on the pitch as card-style chips. Tactics are **manager cards** paid for with **Momentum** that builds during the match: build a 3–5 card deck, unlock more cards by manager level, and play them from a hand of three while the opposition bench does the same. See `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred.
+**M0, M1 and M2** are implemented: opening comic → free First Signing pack (tear, reveal, persisted before the animation) → guided lineup placement → an animated, deterministic 7v7 match you can influence with PRESS and QUICK PASS (with a first-time prompt) → full time with real rewards, XP and the first training choice → name your club and pick its colours → hub. Scout packs are earned every 3 matches with published odds and a visible guarantee; goal replays; everything persists across reloads (including mid-match). Matches (engine-2) include long shots, crosses and headers, diving/fingertip/double saves, rebounds, slide tackles, named skill moves, fouls, free kicks with walls, penalties and bookings, all decided by player attributes; strong stats light up on the pitch as card-style chips. Tactics are **manager cards** paid for with **Momentum** that builds during the match: build a 3–5 card deck, unlock more cards by manager level, and play them from a hand of three while the opposition bench does the same. Every match is a league fixture: an 8-club division with a seeded fixture list, every other result simulated by the same engine, a live table, top scorers, and promotion (or relegation) at the end of each 14-round season. See `IMPLEMENTATION_ROADMAP.md` for exactly what is done and what is deferred.
 
 ## Requirements
 
@@ -55,7 +55,7 @@ src/
   storage/       Dexie DB, Zod runtime schema, migrations, atomic mutateSave (with idempotency
                  claim ids), rolling backups, checksummed JSON export/import
   components/    portrait kit (procedural SVG), FootballerCard (mini/standard/hero), icons, UI kit
-  features/      title, onboarding (story, club identity), scout (room, pack opening), club hub, squad, lineup,
+  features/      title, onboarding (story, club identity), scout (room, pack opening), league (table, season end), cards (deck), club hub, squad, lineup,
                  matchday lobby, live match, result, replay, player profile, settings, dev Card Lab
   app/           boot, hash router, GameContext (live queries), PWA update prompt
   audio/         procedural Web Audio sound grammar (no sample files)

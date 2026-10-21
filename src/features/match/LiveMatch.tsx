@@ -75,7 +75,12 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const [line, setLine] = useState<CommentaryLine | null>(null);
   const [hold, setHold] = useState<HoldReason>(() => (resumedAt > 0 && !controller.engine.isFinished() ? 'paused' : controller.holdReason));
   const [goal, setGoal] = useState<Extract<FootballEvent, { type: 'GOAL' }> | null>(null);
-  const [speed, setSpeed] = useState(1);
+  // The guided first match (tutorial still pending) runs at 2× so it lasts about a minute.
+  const [guided] = useState(() => tipPending(save, 'tactic') && livePending.number === 1);
+  const [speed, setSpeed] = useState(() => {
+    if (guided) controller.setSpeed(2);
+    return guided ? 2 : 1;
+  });
   const [confirmSkip, setConfirmSkip] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const [goalHow, setGoalHow] = useState<string | null>(null);
@@ -206,8 +211,12 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   }, [hold, pending.matchId, toast]);
 
   const triggerChip = async (type: TacticCommand) => {
-    if (tipPending(save, 'tactic')) void seeTip('tactic');
     const r = controller.dispatch(type);
+    if (r.ok && tutorialMatch && tut !== 'played' && tut !== 'done') {
+      setTut('played');
+      setTutAt(controller.snapshot.tick);
+      void seeTip('tactic');
+    }
     if (!r.ok) {
       playSfx('thud');
       toast.show(r.reason, 'error');
@@ -240,20 +249,41 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
     return { stats, poss: possessionShare(stats), best, bestName };
   }, [hold, controller, pending, snap.score, user, userTeam]);
 
-  // Tutorial: once the user's side has settled on the ball, prompt the first card.
+  // Tutorial (until the first card is played): Momentum → play a card → what it did. Each beat
+  // steps aside after a few seconds of play if ignored, and never blocks the controls.
   const playable = (c: CardId) => tactics.momentum >= CARD_DEFS[c].cost && (tactics.activeUntil[c] ?? 0) <= snap.tick;
   const tipCard = [...tactics.hand].filter(playable).sort((a, b) => CARD_DEFS[a].cost - CARD_DEFS[b].cost)[0];
-  const quickReady = Boolean(tipCard);
   const ourBall = userTeam.players.some((p) => p.id === snap.ball.ownerId);
-  // Tick at which the tip appeared; it steps aside after ~10 s of play if ignored (and comes back next match).
-  const [tipAt, setTipAt] = useState<number | null>(null);
-  const tipExpired = tipAt !== null && snap.tick > tipAt + 100;
-  const showTacticTip = tipPending(save, 'tactic') && !tipExpired && (tipAt !== null || (hold === null && quickReady && ourBall && snap.minute >= 4 && snap.phase !== 'halftime'));
-  // Latch it (derived state set during render) so the tip stays up after possession changes.
-  if (showTacticTip && tipAt === null) setTipAt(snap.tick);
+  const [tutorialMatch] = useState(() => tipPending(save, 'tactic'));
+  const [tut, setTut] = useState<'momentum' | 'play' | 'played' | 'done'>('momentum');
+  const [tutAt, setTutAt] = useState<number | null>(null);
+  const running = hold === null && snap.phase !== 'halftime' && snap.phase !== 'fulltime';
+  let showTut: 'momentum' | 'play' | 'played' | null = null;
+  if (tutorialMatch && running) {
+    if (tut === 'momentum' && snap.minute >= 1) showTut = 'momentum';
+    else if (tut === 'play' && tipCard && (tutAt !== null || (ourBall && snap.minute >= 4))) showTut = 'play';
+    else if (tut === 'played') showTut = 'played';
+  }
+  // Latch the moment a beat appears (derived state set during render), then time it out.
+  if (showTut && tutAt === null) setTutAt(snap.tick);
+  const beatTicks = showTut === 'play' ? 120 : 80;
+  if (showTut && tutAt !== null && snap.tick > tutAt + beatTicks) {
+    setTut(showTut === 'momentum' ? 'play' : 'done');
+    setTutAt(null);
+    if (showTut !== 'momentum') void seeTip('tactic');
+  }
+  const showTacticTip = showTut === 'play';
   useEffect(() => {
-    if (tipAt !== null) playSfx('pop');
-  }, [tipAt]);
+    if (showTut) playSfx('pop');
+  }, [showTut]);
+  const dismissTut = () => {
+    setTutAt(null);
+    if (tut === 'momentum') setTut('play');
+    else {
+      setTut('done');
+      void seeTip('tactic');
+    }
+  };
 
   const activeCards = (Object.entries(tactics.activeUntil) as [CardId, number][])
     .filter(([id, until]) => until > snap.tick && CARD_DEFS[id].durationMin > 0)
@@ -314,14 +344,20 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
       </div>
 
       <footer className="live__controls">
-        {showTacticTip && hold === null && (
-          <CoachMark className="live__coach" onDismiss={() => void seeTip('tactic')}>
-            {tipCard ? (
-              <>
-                Momentum is building — play <b>{CARD_DEFS[tipCard].name}</b> for {CARD_DEFS[tipCard].cost}. {CARD_DEFS[tipCard].effect}
-              </>
+        {showTut && (
+          <CoachMark className={`live__coach live__coach--${showTut}`} onDismiss={dismissTut}>
+            {showTut === 'momentum' ? (
+              <span>
+                This is your <b>Momentum</b>. It fills as the match goes on (and a little when you concede). Cards in your hand cost Momentum — the number in the green gem.
+              </span>
+            ) : showTut === 'play' && tipCard ? (
+              <span>
+                Enough Momentum — play <b>{CARD_DEFS[tipCard].name}</b> for {CARD_DEFS[tipCard].cost}. {CARD_DEFS[tipCard].effect}
+              </span>
             ) : (
-              <>Momentum fills as you play. Spend it on a card from your hand.</>
+              <span>
+                <b>Card played!</b> Watch your team change how they play. The other bench has cards too — answer theirs with yours.
+              </span>
             )}
           </CoachMark>
         )}
