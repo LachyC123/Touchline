@@ -17,6 +17,7 @@ import { navigate } from '../../app/router';
 import { repTier } from '../../domain/club/reputation';
 import { RepTierUp } from './RepTierUp';
 import { PhysioCard } from '../physio/PhysioCard';
+import { ObjectivesCard } from './Objectives';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
 import { Icon, type IconName } from '../../components/icons/Icon';
@@ -390,6 +391,8 @@ export function ResultScreen({ id }: { id: string }) {
           )}
         </section>
       )}
+
+      {record.objectives && record.objectives.length > 0 && <ObjectivesCard objectives={record.objectives} done={record.objectives.map((o) => o.done)} animate={fresh && !reduced} />}
 
       <section className="result__rewards paper" aria-label="Rewards">
         <div className="result__coins">

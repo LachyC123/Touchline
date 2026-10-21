@@ -29,6 +29,8 @@ import { HalftimeSubs } from './HalftimeSubs';
 import { bigMatch, fixtureOfPending } from '../../domain/match/bigMatch';
 import './live.css';
 import { clubOf } from '../../domain/world/world';
+import { factsFrom, judge } from '../../domain/match/objectives';
+import { ObjectivesCard } from './Objectives';
 
 export function LiveMatch() {
   const save = useSave();
@@ -105,6 +107,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const oppCardId = useRef(0);
   const [moment, setMoment] = useState<{ title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save' | 'sub'; id: number } | null>(null);
   const momentId = useRef(0);
+  const objectivesDone = useRef(new Set<number>());
   const flashMoment = useCallback((m: { title: string; sub: string; tone: 'good' | 'bad' | 'card' | 'save' | 'sub' }) => {
     const id = ++momentId.current;
     setMoment({ ...m, id });
@@ -141,6 +144,19 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
       onTick: (s) => {
         setSnap(s);
         if (s.tick % 30 === 0) void saveCheckpoint(pending.matchId, s.tick).catch(() => undefined);
+        // Objectives tick off live, judged from the same recorded events as settlement.
+        if (s.tick % 6 === 0 && pending.objectives?.length) {
+          const facts = factsFrom(controller.engine.getEvents(), pending.userSide, false);
+          pending.objectives.forEach((o, i) => {
+            if (objectivesDone.current.has(i) || judge(o, facts) !== true) return;
+            objectivesDone.current.add(i);
+            // A resumed match re-reads what was already done without fanfare.
+            if (s.tick > resumedAt) {
+              playSfx('chime');
+              flashMoment({ title: 'Objective complete! ★', sub: o.text, tone: 'good' });
+            }
+          });
+        }
       },
       onCommentary: (l) => setLine(l),
       onShot: () => playSfx('kick'),
@@ -207,7 +223,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
         if (r === 'halftime' || r === 'fulltime') playSfx('whistle');
       },
     });
-  }, [controller, pending.matchId, pending.home, pending.away, flashMoment, nameOf, user]);
+  }, [controller, pending.matchId, pending.home, pending.away, pending.objectives, pending.userSide, resumedAt, flashMoment, nameOf, user]);
 
   // Backgrounding pauses presentation and checkpoints; nothing simulates unseen.
   useEffect(() => {
@@ -490,6 +506,15 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
             <p>
               {snap.minute}' · {pending.home.shortName} {snap.score.home}–{snap.score.away} {pending.away.shortName}
             </p>
+            {pending.objectives && pending.objectives.length > 0 && (
+              <ObjectivesCard
+                objectives={pending.objectives}
+                done={(() => {
+                  const facts = factsFrom(controller.engine.getEvents(), pending.userSide, false);
+                  return pending.objectives.map((o) => judge(o, facts));
+                })()}
+              />
+            )}
             <Button variant="primary" size="lg" block onClick={() => controller.resume()} sfx="whistle">
               Resume
             </Button>

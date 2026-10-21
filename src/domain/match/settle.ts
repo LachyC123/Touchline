@@ -16,6 +16,7 @@ import { lineupProblems } from '../club/lineup';
 import { dressingRoomAfterMatch } from '../club/dressingRoom';
 import { injuriesAfterMatch, unavailableFor } from '../players/injuries';
 import { offersAfterMatch } from '../transfers/market';
+import { objectivesFor, settleObjectives } from './objectives';
 import { gateMoney, matchAttendance, REP_GAIN, repTier } from '../club/reputation';
 import { dreamsAfterMatch } from '../players/dreams';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
@@ -72,6 +73,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     checkpointTick: 0,
     season: save.season,
     ...(fx.competition === 'cup' ? { competition: 'cup' as const, cupRound: fx.cupRound ?? 0 } : { round: fx.round }),
+    objectives: objectivesFor(save),
   };
 }
 
@@ -315,6 +317,12 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     rewards.lines.push({ label: `Gate receipts (${fans.toLocaleString('en-GB')} fans)`, coins: gateMoney(fans) });
     rewards.coins = rewards.lines.reduce((sum, l) => sum + l.coins, 0);
   }
+  // Objectives: judged from the recorded events, paid in stars.
+  const obj = pending.objectives?.length ? settleObjectives(pending.objectives, result.events, side) : null;
+  if (obj) {
+    rewards.lines.push({ label: `Objectives ${'★'.repeat(obj.stars)}${'☆'.repeat(obj.results.length - obj.stars)}`, coins: obj.coins });
+    rewards.coins = rewards.lines.reduce((sum, l) => sum + l.coins, 0);
+  }
   const cupTie = isCup ? draft.cup?.rounds[pending.cupRound ?? -1]?.find((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID) : undefined;
   const repGain =
     (won ? REP_GAIN.win : gf === ga ? REP_GAIN.draw : 0) +
@@ -370,6 +378,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     ...(fans > 0 ? { attendance: fans } : {}),
     ...(repGain > 0 ? { repGain } : {}),
     ...(tierAfter !== tierBefore ? { repTier: tierAfter } : {}),
+    ...(obj ? { objectives: obj.results } : {}),
     ...(unlockedCards.length ? { unlockedCards } : {}),
     ...(pending.season !== undefined ? { season: pending.season } : {}),
     ...(pending.round !== undefined && !isCup ? { round: pending.round } : {}),

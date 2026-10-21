@@ -1,5 +1,6 @@
 import type { ClubDef } from '../../data/clubs';
 import { opponentSquad } from '../club/opponents';
+import { MAX_SQUAD } from '../packs/packs';
 import { REP_TIERS, repTier } from '../club/reputation';
 import { generateFootballer } from '../players/generator';
 import { clampMorale } from '../players/morale';
@@ -24,7 +25,7 @@ export const MARKET = {
   freeAgents: 2,
   haggleDiscount: 0.2,
   haggleInsult: 0.1,
-  squadMax: 18,
+  squadMax: MAX_SQUAD,
   squadMin: 9,
   offerOpenFor: 2,
   listedOfferChance: 0.7,

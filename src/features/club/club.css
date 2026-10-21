@@ -516,3 +516,41 @@
   font-size: var(--text-lg);
   text-transform: uppercase;
 }
+
+.ground__road {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 14px;
+  border-radius: var(--r-md);
+  border: 2px solid rgb(244 198 83 / 0.4);
+  background: rgb(244 198 83 / 0.08);
+  color: inherit;
+  font-size: var(--text-sm);
+}
+
+.ground__road b {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.ground__road.is-ready {
+  border-color: var(--gold);
+  background: rgb(244 198 83 / 0.22);
+  animation: road-nudge 1.6s ease-in-out infinite;
+}
+
+@keyframes road-nudge {
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ground__road.is-ready {
+    animation: none;
+  }
+}

@@ -1,5 +1,6 @@
 import type { ClubIdentity } from '../club/types';
 import type { World } from '../world/world';
+import type { Objective } from '../match/objectives';
 import type { FormationId } from '../formations';
 import type { Footballer, Tier } from '../players/types';
 import type { CardId } from '../../game/simulation/cards';
@@ -33,6 +34,8 @@ export interface PendingMatch {
   /** Absent = league. */
   competition?: Competition;
   cupRound?: number;
+  /** This match's three objectives, frozen at kick-off. */
+  objectives?: Objective[];
 }
 
 export interface ScorerLine {
@@ -116,6 +119,8 @@ export interface MatchRecord {
   repGain?: number;
   /** The reputation tier reached, when this result moved the club up one. */
   repTier?: string;
+  /** The match objectives and whether each was met. */
+  objectives?: (Objective & { done: boolean })[];
   /** Injuries picked up in this match. */
   injuries?: { playerId: string; name: string; kind: string; minute: number; byName: string; outFor: number }[];
   /** Dreams that came true in this match. */
@@ -134,7 +139,7 @@ export interface MatchRecord {
 /** How many recent records keep their replay lineups (bounds save size). */
 export const REPLAYS_KEPT = 5;
 
-export const PACK_KINDS = ['first-signing', 'local-scout'] as const;
+export const PACK_KINDS = ['first-signing', 'local-scout', 'gold-scout'] as const;
 export type PackKind = (typeof PACK_KINDS)[number];
 
 /**

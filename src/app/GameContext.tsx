@@ -38,6 +38,7 @@ import {
   haggleInMarket as repoHaggle,
   setTransferListed as repoSetListed,
   answerOffer as repoAnswerOffer,
+  claimRoad as repoClaimRoad,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -80,6 +81,7 @@ interface GameApi {
   hagglePlayer: (listingId: string) => Promise<boolean | null>;
   setListed: (playerId: string, listed: boolean) => Promise<void>;
   answerOffer: (offerId: string, accept: boolean) => Promise<string>;
+  claimRoad: (at: number) => Promise<{ packId: string | null; coins: number; applied: boolean }>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -164,6 +166,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       hagglePlayer: async (id) => (await repoHaggle(id)).won,
       setListed: async (id, on) => void (await repoSetListed(id, on)),
       answerOffer: async (id, accept) => (await repoAnswerOffer(id, accept)).outcome,
+      claimRoad: (at) => repoClaimRoad(at),
     }),
     [saveState, settings, updateSettings, exportSave],
   );

@@ -3,7 +3,7 @@ import { createCareer } from '../domain/club/newCareer';
 import { openEvent } from '../domain/club/dressingRoom';
 import { TouchlineDB, setDbForTests } from './db';
 import { migrateSave } from './migrations';
-import { buyGroundUpgrade, coverAbsencesInLineup, treatInjuryOnce, kickOff, loadSave, mutateSave, onboardingEvent, resolveEvent, settleMatchOnce, startNewCareer } from './saveRepo';
+import { buyGroundUpgrade, claimRoad, coverAbsencesInLineup, treatInjuryOnce, kickOff, loadSave, mutateSave, onboardingEvent, resolveEvent, settleMatchOnce, startNewCareer } from './saveRepo';
 
 let db: TouchlineDB;
 let n = 0;
@@ -97,5 +97,21 @@ describe('the physio (persisted)', () => {
     expect(after.injuries[0]!.untilMatch).toBe(1);
     // Still out for the next match: kick-off refuses him until he is replaced.
     await expect(kickOff(db)).rejects.toThrow(/injured/);
+  });
+});
+
+describe('reputation road (persisted)', () => {
+  it('a double tap opens a step once', async () => {
+    await startNewCareer('road-flow', db);
+    await mutateSave((s) => {
+      s.club.reputation = 12;
+    }, {}, db);
+    const coins = (await loadSave(db))!.coins;
+    const [a, b] = await Promise.all([claimRoad(5, db), claimRoad(5, db)]);
+    expect([a.applied, b.applied].sort()).toEqual([false, true]);
+    expect((await loadSave(db))!.coins).toBe(coins + 100);
+    const pack = await claimRoad(10, db);
+    expect(pack.packId).toBeTruthy();
+    expect((await loadSave(db))!.packs.some((p) => p.id === pack.packId && p.playerId === null)).toBe(true);
   });
 });

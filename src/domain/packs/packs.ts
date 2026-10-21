@@ -17,6 +17,7 @@ export interface PackDef {
 export const PACK_DEFS: Readonly<Record<PackKind, PackDef>> = {
   'first-signing': { kind: 'first-signing', name: 'First Signing', blurb: 'The scout’s pick for your weakest position. A real upgrade, not a lottery ticket.' },
   'local-scout': { kind: 'local-scout', name: 'Local Scout', blurb: 'One recruit from the local leagues. Rarity follows the published odds.' },
+  'gold-scout': { kind: 'gold-scout', name: 'Gold Scout', blurb: 'A reward from the Reputation Road: Breakout or better, guaranteed.' },
 };
 
 /** A Local Scout pack is earned every this-many completed matches. */
@@ -76,6 +77,12 @@ export function grantPack(draft: ClubSave, kind: PackKind, source: string): Owne
     if (target && overallAt(recruit, position) <= target.rating) {
       recruit = uniqueRecruit(draft, `${seed}:lift`, (s) => generateFootballer({ seed: s, tier: 'prospect', position, targetOvr: ovr + 2, ageRange: [19, 25], season: draft.season }));
     }
+  } else if (kind === 'gold-scout') {
+    // Guaranteed Breakout or better, in the published proportions of the strong tiers.
+    const rng = stream(seed, 'reward');
+    const odds = scoutOdds(draft.club.reputation);
+    const tier: Tier = rng.weighted(TIER_ORDER.filter((t) => STRONG.has(t)).map((t) => [t, odds[t]] as const));
+    recruit = uniqueRecruit(draft, seed, (s) => generateFootballer({ seed: s, tier, season: draft.season }));
   } else {
     const rng = stream(seed, 'reward');
     const odds = scoutOdds(draft.club.reputation);

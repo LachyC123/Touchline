@@ -1,0 +1,85 @@
+.objectives {
+  display: grid;
+  gap: 6px;
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: rgb(0 0 0 / 0.22);
+  border: 1px solid var(--line);
+}
+
+.objectives__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.objectives__stars span {
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 1.4rem;
+  color: rgb(255 255 255 / 0.2);
+}
+
+.objectives__stars span.is-on {
+  color: var(--gold);
+  text-shadow: 0 0 10px rgb(244 198 83 / 0.7);
+}
+
+.objectives.is-fresh .objectives__stars span.is-on {
+  animation: objective-star 600ms var(--ease-spring) both;
+}
+
+.objectives ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.objectives li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.objectives__tick {
+  width: 18px;
+  flex: none;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.objectives li.is-done .objectives__tick {
+  color: var(--lime);
+}
+
+.objectives li.is-missed {
+  color: var(--text-muted);
+}
+
+.objectives li.is-missed .objectives__tick {
+  color: var(--orange);
+}
+
+.objectives__note {
+  font-size: var(--text-xs, 0.78rem);
+  color: var(--text-muted);
+}
+
+@keyframes objective-star {
+  0% {
+    transform: scale(0) rotate(-90deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .objectives.is-fresh .objectives__stars span.is-on {
+    animation: none;
+  }
+}

@@ -3,6 +3,8 @@ import { useGame, useSave } from '../../app/GameContext';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { GroundReveal } from './GroundReveal';
+import { navigate } from '../../app/router';
+import { ROAD, roadReady } from '../../domain/club/road';
 import { attendance, gateMoney, groundBlocker, groundOf, nextGround, nextRepTier, repTier } from '../../domain/club/reputation';
 
 /** Reputation and the ground: how big the club's name is, how full the ground gets, what's next. */
@@ -19,6 +21,8 @@ export function GroundPanel() {
   const upgrade = nextGround(save.club.stadiumLevel);
   const blocker = groundBlocker(save);
   const fans = attendance(save, false);
+  const ready = roadReady(save).length;
+  const nextStep = ROAD.find((s) => s.at > rep);
   const span = next ? next.from - tier.from : 1;
   const into = next ? rep - tier.from : 1;
 
@@ -55,6 +59,10 @@ export function GroundPanel() {
         <p className="ground__note">
           {tier.blurb} {next ? `${next.from - rep} more for ${next.label}.` : 'As big as it gets.'} Better reputation, better scouting odds.
         </p>
+        <button type="button" className={`ground__road ${ready > 0 ? 'is-ready' : ''}`} onClick={() => navigate({ name: 'road' })}>
+          <b>Reputation Road</b>
+          <span>{ready > 0 ? `${ready} reward${ready === 1 ? '' : 's'} to open!` : nextStep ? `Next reward at ${nextStep.at}` : 'Every reward claimed'}</span>
+        </button>
       </div>
       <div className="ground__ground">
         <div className="ground__row">

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { startCareerSkippingTutorial } from './helpers';
+import { clickPlayMatch, kickOffIfWalkOut, startCareerSkippingTutorial } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', (err) => {
@@ -154,4 +154,33 @@ test('transfers: sign a player with a moment, haggle once, sell to a bid; all of
   expect(await readSave<boolean>(page, `s.squadIds.includes('${benchId}')`)).toBe(false);
   await page.goto(`/#/player/${benchId}`);
   await expect(page.locator('.player__left')).toContainText(/left for .* for 175 coins/i);
+});
+
+test('arcade layer: objectives before kick-off and stars at full time; the Reputation Road opens once', async ({ page }) => {
+  test.setTimeout(120_000);
+  await startCareerSkippingTutorial(page);
+  await page.goto('/#/match');
+  const card = page.getByRole('region', { name: "Today's objectives" });
+  await expect(card.locator('li')).toHaveCount(3);
+  await clickPlayMatch(page);
+  await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+  await kickOffIfWalkOut(page);
+  await page.getByRole('button', { name: /skip to ft/i }).click();
+  await page.getByRole('button', { name: /simulate the rest/i }).click();
+  await expect(page.locator('.result__hero')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('region', { name: 'Objectives' }).locator('li')).toHaveCount(3);
+  await expect(page.locator('.result__lines')).toContainText(/Objectives [★☆]{3}/);
+
+  await patchSave(page, 's.club.reputation = 12;');
+  await page.goto('/#/club');
+  await expect(page.locator('.ground__road')).toContainText(/2 rewards to open/);
+  await page.locator('.ground__road').click();
+  const coins = await readSave<number>(page, 's.coins');
+  await page.locator('.road__step.is-ready', { hasText: '100 coins' }).getByRole('button', { name: 'Open' }).click();
+  await expect(page.locator('.road__burst')).toContainText('+100 coins');
+  await page.locator('.road__step.is-ready', { hasText: 'Local Scout pack' }).getByRole('button', { name: 'Open' }).click();
+  await expect(page.getByRole('button', { name: 'Open the pack' })).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.road__step.is-ready')).toHaveCount(0);
+  expect(await readSave<number>(page, 's.coins')).toBe(coins + 100);
 });

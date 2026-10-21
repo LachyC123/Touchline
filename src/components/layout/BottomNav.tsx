@@ -2,10 +2,11 @@ import { playSfx } from '../../audio/sfx';
 import { useGame } from '../../app/GameContext';
 import { navigate, type Route } from '../../app/router';
 import { unopenedPacks } from '../../domain/packs/packs';
+import { roadReady } from '../../domain/club/road';
 import { Icon, type IconName } from '../icons/Icon';
 
 const TABS: { route: Route; label: string; icon: IconName; match: Route['name'][] }[] = [
-  { route: { name: 'club' }, label: 'Club', icon: 'club', match: ['club', 'event'] },
+  { route: { name: 'club' }, label: 'Club', icon: 'club', match: ['club', 'event', 'road'] },
   { route: { name: 'squad' }, label: 'Squad', icon: 'squad', match: ['squad', 'player'] },
   { route: { name: 'match' }, label: 'Match', icon: 'whistle', match: ['match', 'lineup', 'result', 'cards', 'league', 'season'] },
   { route: { name: 'scout' }, label: 'Scout', icon: 'scout', match: ['scout', 'pack', 'market'] },
@@ -20,7 +21,8 @@ export function BottomNav({ current }: { current: Route }) {
   const levelUps = (save?.pendingUpgrades.length ?? 0) + (save?.newCards.length ?? 0);
   const requests = save?.dressingRoom.events.filter((e) => e.status === 'open').length ?? 0;
   const offers = save?.transfers.offers.filter((o) => o.status === 'open').length ?? 0;
-  const badges: Partial<Record<string, number>> = { Club: requests, Scout: packs + offers, Match: levelUps };
+  const road = save ? roadReady(save).length : 0;
+  const badges: Partial<Record<string, number>> = { Club: requests + road, Scout: packs + offers, Match: levelUps };
   return (
     <nav className="bottom-nav" aria-label="Main">
       {TABS.map((t) => {

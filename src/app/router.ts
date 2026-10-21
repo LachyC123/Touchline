@@ -20,7 +20,8 @@ export type Route =
   | { name: 'league' }
   | { name: 'season' }
   | { name: 'event'; id: string }
-  | { name: 'market' };
+  | { name: 'market' }
+  | { name: 'road' };
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -61,6 +62,8 @@ export function parseHash(hash: string): Route {
       return { name: 'season' };
     case 'market':
       return { name: 'market' };
+    case 'road':
+      return { name: 'road' };
     case 'event':
       return parts[1] ? { name: 'event', id: decodeURIComponent(parts[1]) } : { name: 'club' };
     default:

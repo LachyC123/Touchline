@@ -11,7 +11,7 @@ import { isReducedMotion } from '../../accessibility/motion';
 import type { Kit } from '../../domain/club/types';
 import { overall } from '../../domain/players/rating';
 import type { Footballer } from '../../domain/players/types';
-import { buyBlocker, haggleChance, haggleOf, marketListings, matchesUntilNewList, playerValue, priceOf, type Listing } from '../../domain/transfers/market';
+import { buyBlocker, MARKET, haggleChance, haggleOf, marketListings, matchesUntilNewList, playerValue, priceOf, type Listing } from '../../domain/transfers/market';
 import { clubOf } from '../../domain/world/world';
 import './market.css';
 
@@ -60,7 +60,7 @@ function SignTab({ onSigned }: { onSigned: (p: Footballer) => void }) {
   return (
     <section className="market__list" aria-label="Players available">
       <p className="market__window">
-        New list in <b>{left}</b> match{left === 1 ? '' : 'es'}. Squad {save.squadIds.length}/18.
+        New list in <b>{left}</b> match{left === 1 ? '' : 'es'}. Squad {save.squadIds.length}/{MARKET.squadMax}.
       </p>
       {listings.length === 0 && (
         <div className="paper market__empty">

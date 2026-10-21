@@ -21,6 +21,7 @@ import { DEFAULT_SETTINGS, settingsSchema, type Settings } from './schema';
 import { serialiseSave } from './exportImport';
 import { treatInjury, unavailableFor } from '../domain/players/injuries';
 import { acceptOffer, buyListing, haggle, rejectOffer, sellBlocker, setListed } from '../domain/transfers/market';
+import { claimRoadStep, roadClaimId } from '../domain/club/road';
 
 const nowIso = () => new Date().toISOString();
 
@@ -423,6 +424,15 @@ export async function coverAbsencesInLineup(db?: TouchlineDB): Promise<{ inId: s
     swaps = r.swaps;
   }, {}, db);
   return swaps;
+}
+
+/** Claims a Reputation Road step, once (claim = the step). */
+export async function claimRoad(at: number, db?: TouchlineDB): Promise<{ packId: string | null; coins: number; applied: boolean }> {
+  let out = { packId: null as string | null, coins: 0 };
+  const r = await mutateSave((s) => {
+    out = claimRoadStep(s, at);
+  }, { claimId: roadClaimId(at) }, db);
+  return { ...out, applied: r.applied };
 }
 
 /** Signs a player from the market, once per listing. */

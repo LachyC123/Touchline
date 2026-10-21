@@ -25,6 +25,8 @@ import { CUP_NAME, CUP_ROUNDS, cupRoundName } from '../../domain/cup/cup';
 import './match.css';
 import { clubOf } from '../../domain/world/world';
 import { unavailableFor } from '../../domain/players/injuries';
+import { objectivesFor } from '../../domain/match/objectives';
+import { ObjectivesCard } from './Objectives';
 
 export function MatchLobby() {
   const save = useSave();
@@ -277,6 +279,7 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
 
       {!pending && (
         <div className="lobby__cta">
+          <ObjectivesCard objectives={objectivesFor(save)} title="Today's objectives" />
           {problems.length > 0 && (
             <p className="lineup__problem" role="alert">
               <Icon name="info" size={16} /> {problems[0]}

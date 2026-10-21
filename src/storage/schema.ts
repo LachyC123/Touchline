@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CREST_SHAPES, KIT_CUTS, KIT_PATTERNS } from '../domain/club/types';
 import { INJURY_KIND_IDS } from '../domain/players/injuries';
+import { OBJECTIVE_IDS } from '../domain/match/objectives';
 import {
   ACCESSORY_IDS,
   ATTRIBUTE_KEYS,
@@ -238,6 +239,8 @@ const cupSchema = z.object({
   round: z.number().int().min(0).max(8),
 });
 
+const objectiveSchema = z.object({ id: z.enum(OBJECTIVE_IDS), text: z.string().max(80), playerId: z.string().uuid().optional() });
+
 const pendingMatchSchema = z.object({
   matchId: z.string().min(1).max(40),
   number: z.number().int().min(1),
@@ -253,6 +256,7 @@ const pendingMatchSchema = z.object({
   round: z.number().int().min(0).max(40).optional(),
   competition: z.enum(['league', 'cup']).optional(),
   cupRound: z.number().int().min(0).max(9).optional(),
+  objectives: z.array(objectiveSchema).max(3).optional(),
 });
 
 const matchRecordSchema = z.object({
@@ -316,6 +320,7 @@ const matchRecordSchema = z.object({
   attendance: z.number().int().min(0).max(100_000).optional(),
   repGain: z.number().int().min(0).max(1000).optional(),
   repTier: z.string().max(20).optional(),
+  objectives: z.array(objectiveSchema.extend({ done: z.boolean() })).max(3).optional(),
   injuries: z.array(z.object({ playerId: z.string().uuid(), name: z.string().max(80), kind: z.enum(INJURY_KIND_IDS), minute: z.number().int().min(0).max(130), byName: z.string().max(80), outFor: z.number().int().min(0).max(20) })).max(4).optional(),
 });
 
