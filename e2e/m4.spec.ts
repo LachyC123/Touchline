@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { kickOffIfWalkOut, startCareerSkippingTutorial } from './helpers';
+import { kickOffIfWalkOut, startCareerSkippingTutorial, clickPlayMatch } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', (err) => {
@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 
 async function playAndSkip(page: Page) {
   await page.goto('/#/match');
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await kickOffIfWalkOut(page);
   await page.getByRole('button', { name: /skip to ft/i }).click();

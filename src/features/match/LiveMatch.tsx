@@ -10,7 +10,6 @@ import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
 import { Dialog } from '../../components/ui/Dialog';
 import { useToast } from '../../components/ui/Toast';
-import { CLUB_BY_ID } from '../../data/clubs';
 import { matchArgs } from '../../domain/match/settle';
 import type { PendingMatch } from '../../domain/save/types';
 import { TICKS_PER_MINUTE } from '../../game/simulation/constants';
@@ -29,6 +28,7 @@ import { Icon } from '../../components/icons/Icon';
 import { HalftimeSubs } from './HalftimeSubs';
 import { bigMatch, fixtureOfPending } from '../../domain/match/bigMatch';
 import './live.css';
+import { clubOf } from '../../domain/world/world';
 
 export function LiveMatch() {
   const save = useSave();
@@ -77,7 +77,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   // Resume = replay the exact recorded inputs up to the checkpoint (deterministic).
   // Big matches (cup ties, derbies, deciders) open with a walk-out; held at minute 0 until kick-off.
   const [walkOut] = useState(() => {
-    const club = CLUB_BY_ID[livePending.opponentId];
+    const club = clubOf(save.world, livePending.opponentId);
     const fx = club ? fixtureOfPending(save, club) : null;
     const firstRun = tipPending(save, 'tactic') && livePending.number === 1;
     return livePending.checkpointTick === 0 && !firstRun && fx ? bigMatch(save, fx) : null;
@@ -114,7 +114,7 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const nameOf = useCallback((id: string) => [...matchSquad(pending.home), ...matchSquad(pending.away)].find((p) => p.id === id)?.name ?? '', [pending]);
   const settling = useRef(false);
   const user = pending.userSide;
-  const oppClub = CLUB_BY_ID[pending.opponentId];
+  const oppClub = clubOf(save.world, pending.opponentId);
 
   // Phaser lifecycle
   useEffect(() => {

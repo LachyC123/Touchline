@@ -320,3 +320,26 @@
   text-align: left;
   box-shadow: 0 4px 0 var(--royal-dark);
 }
+
+.fixture__town {
+  margin-top: -4px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.fixture__quirk {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.fixture__quirk::before {
+  content: 'Did you know? ';
+  font-style: normal;
+  font-weight: 800;
+}

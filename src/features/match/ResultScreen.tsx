@@ -5,7 +5,7 @@ import { useSave } from '../../app/GameContext';
 import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
 import { PACK_DEFS } from '../../domain/packs/packs';
-import { PLAYER_CLUB_ID, type CupState, type MatchMoment, type RecordMilestone } from '../../domain/save/types';
+import { PLAYER_CLUB_ID, type ClubSave, type MatchMoment, type RecordMilestone } from '../../domain/save/types';
 import { clubName, divisionOf, leagueTable, ordinal, seasonOver } from '../../domain/league/league';
 import { fatesSealedIn, roundHeadline, type Fate } from '../../domain/league/stories';
 import { Trophy } from '../../components/league/Trophy';
@@ -16,6 +16,7 @@ import { eventHeadline } from '../../domain/club/dressingRoom';
 import { navigate } from '../../app/router';
 import { repTier } from '../../domain/club/reputation';
 import { RepTierUp } from './RepTierUp';
+import { PhysioCard } from '../physio/PhysioCard';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
 import { Icon, type IconName } from '../../components/icons/Icon';
@@ -23,16 +24,16 @@ import { Button } from '../../components/ui/Button';
 import { Confetti } from '../../components/ui/Confetti';
 import { ManagerCard } from '../../components/manager/ManagerCard';
 import { useCountUp } from '../../components/ui/useCountUp';
-import { CLUB_BY_ID } from '../../data/clubs';
 import { xpToNext } from '../../domain/players/progression';
 import { UpgradeQueue } from './UpgradeQueue';
 import './result.css';
+import { clubOf } from '../../domain/world/world';
 
 /** Who we drew in the next cup round (the draw is made as soon as a round finishes). */
-function nextCupOpponent(save: { cup: CupState | null; club: { name: string } }, round: number): string {
+function nextCupOpponent(save: Pick<ClubSave, 'cup' | 'club' | 'world'>, round: number): string {
   const tie = save.cup?.rounds[round + 1]?.find((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID);
   if (!tie) return 'the next opponents';
-  return clubName(tie.home === PLAYER_CLUB_ID ? tie.away : tie.home, save.club.name);
+  return clubName(save.world, tie.home === PLAYER_CLUB_ID ? tie.away : tie.home, save.club.name);
 }
 
 const FATE_ORDER: Fate[] = ['champions', 'promoted', 'safe', 'relegated'];
@@ -120,7 +121,7 @@ export function ResultScreen({ id }: { id: string }) {
     );
   }
 
-  const opp = CLUB_BY_ID[record.opponentId];
+  const opp = clubOf(save.world, record.opponentId);
   const us = record.userSide;
   const them = us === 'home' ? 'away' : 'home';
   const gf = record.score[us];
@@ -137,13 +138,13 @@ export function ResultScreen({ id }: { id: string }) {
   const firstRun = save.onboarding === 'club';
   // League context (only while that season is still the current one).
   const roundResults = sameSeason ? save.league.results.filter((r) => r.round === record.round) : [];
-  const nameFn = (id: string) => clubName(id, save.club.name);
+  const nameFn = (id: string) => clubName(save.world, id, save.club.name);
   const posAt = (rounds: number) => leagueTable({ rounds: save.league.rounds, results: save.league.results.filter((r) => r.round < rounds) }, nameFn).findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const posAfter = sameSeason ? posAt((record.round ?? 0) + 1) : 0;
   const posBefore = sameSeason && (record.round ?? 0) > 0 ? posAt(record.round ?? 0) : null;
   // Dressing-room fallout from this match: news and any new knock on the door.
   const roomNews = fresh ? save.dressingRoom.events.filter((e) => e.atMatch === record.number) : [];
-  const headline = sameSeason ? roundHeadline(save.league, record.round ?? 0, save.club.name) : null;
+  const headline = sameSeason ? roundHeadline(save.world, save.league, record.round ?? 0, save.club.name) : null;
   const seasonEnded = !save.pendingMatch && seasonOver(save) && sameSeason;
   const gains = [...record.gains].filter((g) => save.footballers[g.playerId]).sort((a, b) => b.xp - a.xp);
   const stats: [string, number | string, number | string, number, number][] = [
@@ -218,7 +219,7 @@ export function ResultScreen({ id }: { id: string }) {
           {(fate === 'champions' || fate === 'promoted') && <Trophy kind={fate === 'champions' ? 'cup' : 'pennant'} ribbon={save.club.kit.primary} trim={save.club.kit.secondary} size={84} />}
           <div>
             <p className="result__sealed-title">{FATE_TITLE[fate]}</p>
-            <p className="result__sealed-line">{fateLine(fate, save.league.rounds.length - (record.round ?? 0) - 1, divisionOf(save.league.division))}</p>
+            <p className="result__sealed-line">{fateLine(fate, save.league.rounds.length - (record.round ?? 0) - 1, divisionOf(save.world, save.league.division))}</p>
           </div>
         </section>
       )}
@@ -243,11 +244,11 @@ export function ResultScreen({ id }: { id: string }) {
           <ul>
             {roundResults.map((r) => (
               <li key={`${r.home}-${r.away}`} className={r.home === PLAYER_CLUB_ID || r.away === PLAYER_CLUB_ID ? 'is-us' : ''}>
-                <span className="lf__home">{clubName(r.home, save.club.name)}</span>
+                <span className="lf__home">{clubName(save.world, r.home, save.club.name)}</span>
                 <span className="lf__score">
                   {r.hg}–{r.ag}
                 </span>
-                <span className="lf__away">{clubName(r.away, save.club.name)}</span>
+                <span className="lf__away">{clubName(save.world, r.away, save.club.name)}</span>
               </li>
             ))}
           </ul>
@@ -274,6 +275,19 @@ export function ResultScreen({ id }: { id: string }) {
               </li>
             ))}
           </ol>
+        </section>
+      )}
+
+      {record.injuries && record.injuries.length > 0 && (
+        <section className="result__physio" aria-labelledby="physio-title">
+          <h2 id="physio-title" className="eyebrow">
+            Physio’s room
+          </h2>
+          {save.injuries
+            .filter((i) => i.matchId === record.matchId)
+            .map((i) => (
+              <PhysioCard key={i.id} injury={i} />
+            ))}
         </section>
       )}
 

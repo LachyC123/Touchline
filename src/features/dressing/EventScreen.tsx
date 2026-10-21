@@ -8,10 +8,10 @@ import { MoraleMeter } from '../../components/players/MoraleMeter';
 import { Button, IconButton } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { PERSONALITY_BY_ID } from '../../data/personality';
-import { CLUB_BY_ID } from '../../data/clubs';
 import { choicesFor, eventHeadline, eventQuote } from '../../domain/club/dressingRoom';
 import { describeEffect } from '../../domain/players/morale';
 import './dressing.css';
+import { clubOf } from '../../domain/world/world';
 
 /**
  * A knock on the manager's door: who, what he says (in his own voice), the choices with their
@@ -44,7 +44,7 @@ export function EventScreen({ id }: { id: string }) {
 
   const p = e.playerId ? save.footballers[e.playerId] : undefined;
   const other = e.otherId ? save.footballers[e.otherId] : undefined;
-  const watcher = e.clubId ? CLUB_BY_ID[e.clubId] : undefined;
+  const watcher = e.clubId ? clubOf(save.world, e.clubId) : undefined;
   const choices = choicesFor(e, save);
   const quote = eventQuote(e, save);
   const done = e.status !== 'open';

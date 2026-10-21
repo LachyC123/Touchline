@@ -19,8 +19,8 @@ type Tab = 'table' | 'fixtures' | 'scorers' | 'cup';
 export function LeagueScreen() {
   const save = useSave();
   const [tab, setTab] = useState<Tab>('table');
-  const div = divisionOf(save.league.division);
-  const nameOf = (id: string) => clubName(id, save.club.name);
+  const div = divisionOf(save.world, save.league.division);
+  const nameOf = (id: string) => clubName(save.world, id, save.club.name);
   const table = leagueTable(save.league, nameOf);
   const scorers = topScorers(save.league);
 
@@ -151,7 +151,7 @@ export function LeagueScreen() {
         </section>
       )}
 
-      {tab === 'cup' && save.cup && <CupBracket cup={save.cup} ownName={save.club.name} />}
+      {tab === 'cup' && save.cup && <CupBracket cup={save.cup} ownName={save.club.name} world={save.world} />}
 
       {save.seasons.length > 0 && (
         <section className="league__history panel" aria-labelledby="history-title">

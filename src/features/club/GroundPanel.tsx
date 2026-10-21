@@ -37,6 +37,13 @@ export function GroundPanel() {
 
   return (
     <section className="ground panel" aria-label="Reputation and ground">
+      <div className="ground__town">
+        <span className="eyebrow">Home town</span>
+        <p>
+          <b>{save.world.home.town}</b> · {save.world.home.nickname} · est. {save.world.home.founded}
+        </p>
+        <p className="ground__note">{save.world.home.line}</p>
+      </div>
       <div className="ground__rep">
         <div className="ground__row">
           <span className="eyebrow">Reputation</span>

@@ -1,7 +1,8 @@
-import { CLUB_BY_ID, type DivisionDef } from '../../data/clubs';
+import { DIVISION_RULES, type DivisionDef } from '../../data/clubs';
+import { clubOf, divisionIndexOf, type World } from '../world/world';
 import { PLAYER_CLUB_ID, type ClubSave, type LeagueResult, type LeagueState } from '../save/types';
 import { upcomingMilestones } from '../players/milestones';
-import { CUP_NAME, CUP_ROUNDS, cupRoundName, divisionIndexOf } from '../cup/cup';
+import { CUP_NAME, CUP_ROUNDS, cupRoundName } from '../cup/cup';
 import { clubName, divisionOf, leagueTable, ordinal, topScorers, type TableRow, type UserFixture } from './league';
 
 /**
@@ -147,7 +148,7 @@ export function throughRound<T extends Pick<LeagueState, 'rounds' | 'results'>>(
 
 /** Outcomes that became certain in this round (for the result screen and season story). */
 export function fatesSealedIn(league: Pick<LeagueState, 'rounds' | 'results' | 'division'>, round: number, clubId = PLAYER_CLUB_ID): Fate[] {
-  const div = divisionOf(league.division);
+  const div = DIVISION_RULES[Math.max(0, Math.min(DIVISION_RULES.length - 1, league.division))] as Pick<DivisionDef, 'promote' | 'relegate'>;
   const before = new Set(settledFates(throughRound(league, round - 1), div, clubId));
   return settledFates(throughRound(league, round), div, clubId).filter((f) => !before.has(f));
 }
@@ -188,9 +189,9 @@ function score(m: Meeting): string {
  * Up to `limit` short lines that make the next fixture matter: what it means for the table,
  * form, the last meeting, and who is scoring. Built only from stored results.
  */
-export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | 'club' | 'season'> & Partial<Pick<ClubSave, 'footballers' | 'lineup'>>, fixture: Pick<UserFixture, 'club' | 'round' | 'home'>, limit = 3): Storyline[] {
+export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | 'club' | 'season' | 'world'> & Partial<Pick<ClubSave, 'footballers' | 'lineup'>>, fixture: Pick<UserFixture, 'club' | 'round' | 'home'>, limit = 3): Storyline[] {
   const league = save.league;
-  const div = divisionOf(league.division);
+  const div = divisionOf(save.world, league.division);
   const opp = fixture.club;
   const them = opp.shortName;
   const out: Storyline[] = [];
@@ -202,7 +203,7 @@ export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords
   if (!played) add('opener', 'info', `Opening day of season ${save.season}. Every club starts on zero.`, 60);
 
   if (played) {
-    const table = leagueTable(league, (id) => clubName(id, save.club.name));
+    const table = leagueTable(league, (id) => clubName(save.world, id, save.club.name));
     const ourIdx = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID);
     const theirIdx = table.findIndex((r) => r.clubId === opp.id);
     const us = table[ourIdx] as TableRow;
@@ -286,11 +287,11 @@ export function preMatchStorylines(save: Pick<ClubSave, 'league' | 'matchRecords
  * One headline for the other fixtures of a round: a shock result, the leaders slipping, or a
  * thrashing. Null when nothing stands out.
  */
-export function roundHeadline(league: Pick<LeagueState, 'rounds' | 'results'>, round: number, ownName: string): string | null {
+export function roundHeadline(world: World, league: Pick<LeagueState, 'rounds' | 'results'>, round: number, ownName: string): string | null {
   const others = league.results.filter((r) => r.round === round && r.home !== PLAYER_CLUB_ID && r.away !== PLAYER_CLUB_ID);
   if (others.length === 0) return null;
-  const nameOf = (id: string) => clubName(id, ownName);
-  const strength = (id: string) => CLUB_BY_ID[id]?.baseOvr ?? 0;
+  const nameOf = (id: string) => clubName(world, id, ownName);
+  const strength = (id: string) => clubOf(world, id)?.baseOvr ?? 0;
   const winner = (r: LeagueResult) => (r.hg > r.ag ? r.home : r.ag > r.hg ? r.away : null);
   const loser = (r: LeagueResult) => (r.hg > r.ag ? r.away : r.ag > r.hg ? r.home : null);
 
@@ -328,12 +329,12 @@ export interface SeasonStory {
 }
 
 /** Highlights of the player's current season (best win, longest run, when it was sealed). */
-export function seasonStory(save: Pick<ClubSave, 'league' | 'club'>, fate: Fate | null): SeasonStory {
+export function seasonStory(save: Pick<ClubSave, 'league' | 'club' | 'world'>, fate: Fate | null): SeasonStory {
   const results = clubResults(save.league, PLAYER_CLUB_ID);
   const best = [...results].filter((r) => r.res === 'W').sort((a, b) => b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf || a.round - b.round)[0];
   const home = results.filter((r) => r.home);
   return {
-    bestWin: best ? { ...best, opponentName: clubName(best.opponentId, save.club.name) } : null,
+    bestWin: best ? { ...best, opponentName: clubName(save.world, best.opponentId, save.club.name) } : null,
     longestWinRun: longestWinRun(results),
     sealedRound: fate ? roundSealed(save.league, fate) : null,
     homeRecord: { won: home.filter((r) => r.res === 'W').length, drawn: home.filter((r) => r.res === 'D').length, lost: home.filter((r) => r.res === 'L').length },
@@ -343,7 +344,7 @@ export function seasonStory(save: Pick<ClubSave, 'league' | 'club'>, fate: Fate 
 // ── Cup ties ───────────────────────────────────────────────────────────────────────────────
 
 /** Build-up for a County Cup tie: what the round is worth, who they are, and the last meeting. */
-export function cupStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | 'club' | 'season'> & Partial<Pick<ClubSave, 'footballers' | 'lineup'>>, fixture: Pick<UserFixture, 'club' | 'cupRound'>, limit = 3): Storyline[] {
+export function cupStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | 'club' | 'season' | 'world'> & Partial<Pick<ClubSave, 'footballers' | 'lineup'>>, fixture: Pick<UserFixture, 'club' | 'cupRound'>, limit = 3): Storyline[] {
   const out: Storyline[] = [];
   const add = (kind: StoryKind, tone: Storyline['tone'], text: string, weight: number) => out.push({ kind, tone, text, weight });
   const k = fixture.cupRound ?? 0;
@@ -356,11 +357,11 @@ export function cupStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | '
   else if (k > 0) add('cupRound', 'hype', `Win and you're in the ${cupRoundName(k + 1).toLowerCase()}.`, 80);
   else add('knockout', 'info', 'Knockout football: level after 90 minutes means penalties.', 70);
   const ours = save.league.division;
-  const theirs = divisionIndexOf(fixture.club.id);
-  if (theirs > ours) add('giantKilling', 'hype', `Giant-killing chance: ${them} play in ${divisionOf(theirs).name}.`, 88);
+  const theirs = divisionIndexOf(save.world, fixture.club.id);
+  if (theirs > ours) add('giantKilling', 'hype', `Giant-killing chance: ${them} play in ${divisionOf(save.world, theirs).name}.`, 88);
   else if (theirs < 0) add('bananaSkin', 'warn', `Banana skin: ${them} are non-league part-timers with nothing to lose.`, 78);
   else if (theirs < ours) add('bananaSkin', 'warn', `Banana skin: ${them} are from the division below and would love to knock you out.`, 76);
-  else add('meeting', 'info', `A league rival in the cup: you meet ${them} in ${divisionOf(ours).name} too.`, 45);
+  else add('meeting', 'info', `A league rival in the cup: you meet ${them} in ${divisionOf(save.world, ours).name} too.`, 45);
   const last = headToHead(save, fixture.club.id)[0];
   if (last && last.gf < last.ga) add('revenge', 'hype', `They beat you ${last.ga}–${last.gf} last time. Revenge is on the menu.`, 65);
   const starters = Object.values(save.lineup ?? {}).flatMap((id) => (save.footballers?.[id] ? [save.footballers[id]] : []));

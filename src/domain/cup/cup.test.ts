@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { MatchResult } from '../../game/simulation/types';
 import { createCareer } from '../club/newCareer';
 import { opponentLineup } from '../club/opponents';
-import { CLUB_BY_ID } from '../../data/clubs';
 import { PLAYER_CLUB_ID } from '../save/types';
 import { catchUpCup, completeCupRound, CUP_AFTER_LEAGUE_ROUNDS, cupEntrants, cupFinished, cupWinner, drawRound, eliminatedIn, newCup, settleTie, userCupTie } from './cup';
 import { kickChance, penaltyShootout } from './shootout';
+import { classicWorld, clubOf } from '../world/world';
 
-const lineup = (id: string) => opponentLineup('pens', { number: 1, club: CLUB_BY_ID[id]!, lap: 0, home: true }).lineup;
+const W = classicWorld();
+
+const lineup = (id: string) => opponentLineup('pens', { number: 1, club: clubOf(W, id)!, lap: 0, home: true }).lineup;
 
 describe('penalty shootout', () => {
   it('is deterministic, has a winner, and stops when it cannot be caught', () => {
@@ -44,15 +46,15 @@ describe('penalty shootout', () => {
 
 describe('the County Cup', () => {
   it('draws all sixteen clubs into eight ties, the same way every time', () => {
-    const r = drawRound('cup-1', 1, 0, cupEntrants());
+    const r = drawRound('cup-1', 1, 0, cupEntrants(W));
     expect(r).toHaveLength(8);
     expect(new Set(r.flatMap((t) => [t.home, t.away])).size).toBe(16);
-    expect(drawRound('cup-1', 1, 0, cupEntrants())).toEqual(r);
-    expect(drawRound('cup-1', 2, 0, cupEntrants())).not.toEqual(r);
+    expect(drawRound('cup-1', 1, 0, cupEntrants(W))).toEqual(r);
+    expect(drawRound('cup-1', 2, 0, cupEntrants(W))).not.toEqual(r);
   });
 
   it('is played between league rounds, and only while we are still in it', () => {
-    const save = createCareer('cup-2', 'x');
+    const save = createCareer('cup-2', 'x', { world: W });
     expect(userCupTie(save)).toBeNull();
     save.league.round = CUP_AFTER_LEAGUE_ROUNDS[0]!;
     const tie = userCupTie(save)!;
@@ -81,7 +83,7 @@ describe('the County Cup', () => {
   });
 
   it('a fresh cup starts every season', () => {
-    expect(newCup('cup-3', 4).season).toBe(4);
-    expect(newCup('cup-3', 4).rounds[0]).toHaveLength(8);
+    expect(newCup('cup-3', W, 4).season).toBe(4);
+    expect(newCup('cup-3', W, 4).rounds[0]).toHaveLength(8);
   });
 });

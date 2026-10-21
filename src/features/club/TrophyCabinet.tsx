@@ -3,11 +3,12 @@ import type { Kit } from '../../domain/club/types';
 import { clubHonours } from '../../domain/league/honours';
 import { divisionOf } from '../../domain/league/league';
 import type { CupState, SeasonSummary } from '../../domain/save/types';
+import type { World } from '../../domain/world/world';
 
 /** Silverware won so far, on a shelf; an empty shelf says exactly how to fill it. */
-export function TrophyCabinet({ seasons, division, kit, cup }: { seasons: readonly SeasonSummary[]; division: number; kit: Kit; cup: CupState | null }) {
+export function TrophyCabinet({ seasons, division, kit, cup, world }: { seasons: readonly SeasonSummary[]; division: number; kit: Kit; cup: CupState | null; world: World }) {
   const honours = clubHonours(seasons, cup);
-  const div = divisionOf(division);
+  const div = divisionOf(world, division);
   return (
     <section className="cabinet" aria-labelledby="cabinet-title">
       <h2 id="cabinet-title" className="eyebrow">

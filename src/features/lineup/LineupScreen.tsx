@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { RoleBadges } from '../../components/players/RoleBadges';
 import { MoraleMeter } from '../../components/players/MoraleMeter';
-import { awayFor } from '../../domain/club/dressingRoom';
 import { playSfx } from '../../audio/sfx';
 import { useGame, useSave } from '../../app/GameContext';
 import { goBack, navigate } from '../../app/router';
@@ -17,6 +16,7 @@ import { bestSlotFor } from '../../domain/packs/packs';
 import { overall, overallAt } from '../../domain/players/rating';
 import type { Footballer } from '../../domain/players/types';
 import './lineup.css';
+import { injuredFor, unavailableFor } from '../../domain/players/injuries';
 
 /** Spread the formation's depth range over the board so four rows of cards never overlap. */
 function slotTop(depth: number): number {
@@ -61,7 +61,8 @@ export function LineupScreen() {
     .filter((p): p is Footballer => Boolean(p) && !starters.has(p!.id))
     .sort((a, b) => overall(b) - overall(a));
   const warnings = useMemo(() => fitWarnings(save.lineup, save.formationId, save.footballers), [save]);
-  const away = awayFor(save);
+  const away = unavailableFor(save);
+  const injured = injuredFor(save);
   const starterPlayers = FORMATION_DEFS[save.formationId].slots.flatMap((sl) => (save.footballers[save.lineup[sl.id] ?? ''] ? [save.footballers[save.lineup[sl.id]!]!] : []));
   const pickCaptain = async (id: string) => {
     if (save.captainId === id) return;
@@ -265,7 +266,7 @@ export function LineupScreen() {
                     </span>
                   </span>
                   <span className="pitchboard__name">{p.lastName}</span>
-                  {away.has(p.id) && <span className="pitchboard__tag is-away">Away</span>}
+                  {away.has(p.id) && <span className={`pitchboard__tag ${injured.has(p.id) ? 'is-injured' : 'is-away'}`}>{injured.has(p.id) ? '✚ Injured' : 'Away'}</span>}
                   {warn ? (
                     <span className="pitchboard__warn" title={`Out of position: −${warn} rating`}>
                       <Icon name="info" size={12} />−{warn}
@@ -311,7 +312,7 @@ export function LineupScreen() {
                   </span>
                 </span>
                 <span className="pitchboard__name">{p.lastName}</span>
-                {away.has(p.id) ? <span className="pitchboard__tag is-away">Away</span> : promised.has(p.id) ? <span className="pitchboard__tag is-promised">Promised</span> : null}
+                {away.has(p.id) ? <span className={`pitchboard__tag ${injured.has(p.id) ? 'is-injured' : 'is-away'}`}>{injured.has(p.id) ? '✚ Injured' : 'Away'}</span> : promised.has(p.id) ? <span className="pitchboard__tag is-promised">Promised</span> : null}
               </button>
             );
           })}

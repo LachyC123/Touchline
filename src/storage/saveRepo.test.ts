@@ -116,7 +116,7 @@ describe('export / import', () => {
     const save = await startNewCareer('export-1', db);
     await toggleFavourite(save.anchorPlayerId, db);
     const { json, fileName } = await exportCurrentSave(db);
-    expect(fileName).toMatch(/^touchline-millbrook-town-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(fileName).toMatch(/^touchline-[a-z0-9-]+-\d{4}-\d{2}-\d{2}\.json$/);
     const parsed = await parseSaveFile(json);
     expect(parsed).toEqual(await loadSave(db));
     await deleteCareer(db);

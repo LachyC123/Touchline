@@ -10,6 +10,7 @@ import { overall } from '../../domain/players/rating';
 import { POSITIONS, type Footballer, type Position } from '../../domain/players/types';
 import { playSfx } from '../../audio/sfx';
 import './squad.css';
+import { injuredFor, matchesOut } from '../../domain/players/injuries';
 
 type SortKey = 'rating' | 'potential' | 'age';
 const POSITION_ORDER: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
@@ -33,6 +34,7 @@ function writePref(key: string, value: string): void {
 
 export function SquadScreen() {
   const save = useSave();
+  const injured = injuredFor(save);
   const [filter, setFilter] = useState<Position | 'ALL'>(() => readPref('squad.filter', 'ALL', ['ALL', ...POSITIONS]));
   const [sort, setSort] = useState<SortKey>(() => readPref('squad.sort', 'rating', ['rating', 'potential', 'age']));
   const starters = useMemo(() => new Set(Object.values(save.lineup)), [save.lineup]);
@@ -127,6 +129,11 @@ export function SquadScreen() {
               <span className="squad__mood">
                 <MoraleMeter morale={p.morale} compact />
                 <RoleBadges captain={save.captainId === p.id} penalties={save.penaltyTakerId === p.id} />
+                {injured.has(p.id) && (
+                  <span className="squad__injury" title={`Injured: out ${matchesOut(save, injured.get(p.id)!)}`}>
+                    ✚ {matchesOut(save, injured.get(p.id)!)}
+                  </span>
+                )}
               </span>
               {starters.has(p.id) && (
                 <span className="squad__starter" title="In the starting seven">

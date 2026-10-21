@@ -1,9 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { startCareerSkippingTutorial } from './helpers';
 
-async function startCareer(page: Page) {
+/** Starts a career and returns its generated club name (every career has its own). */
+async function startCareer(page: Page): Promise<string> {
   await startCareerSkippingTutorial(page);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(/millbrook town/i);
+  const heading = page.getByRole('heading', { level: 1 });
+  await expect(heading).not.toBeEmpty();
+  return ((await heading.textContent()) ?? '').trim();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -78,7 +81,7 @@ test('NEW sticker clears once a player is inspected, and stays cleared after rel
 });
 
 test('settings persist and export produces a valid save file that re-imports', async ({ page }) => {
-  await startCareer(page);
+  const clubName = await startCareer(page);
   await page.getByRole('button', { name: 'More', exact: true }).click();
 
   await page.getByRole('switch', { name: 'High contrast' }).click();
@@ -89,7 +92,8 @@ test('settings persist and export produces a valid save file that re-imports', a
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /export/i }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/^touchline-millbrook-town-.*\.json$/);
+  const slug = clubName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  expect(download.suggestedFilename()).toMatch(new RegExp(`^touchline-${slug}-.*\\.json$`));
   const path = await download.path();
 
   await page.reload();
@@ -98,8 +102,8 @@ test('settings persist and export produces a valid save file that re-imports', a
 
   await page.getByTestId('import-input').setInputFiles(path!);
   await expect(page.getByRole('dialog')).toContainText(/load this save/i);
-  await page.getByRole('button', { name: /^load millbrook town/i }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(/millbrook town/i);
+  await page.getByRole('button', { name: new RegExp(`^load ${clubName}`, 'i') }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(clubName);
 });
 
 test('reset career needs two confirmations', async ({ page }) => {

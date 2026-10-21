@@ -11,7 +11,9 @@ import { grantPack } from '../packs/packs';
 import { cardsUnlockedAt } from './manager';
 import { seededUuid } from '../rng';
 import { CONTENT_VERSION, ENGINE_VERSION, SCHEMA_VERSION, type ClubSave } from '../save/types';
-import { DEFAULT_CLUB, type ClubIdentity } from './types';
+import type { ClubIdentity } from './types';
+import { generateWorld } from '../world/generateWorld';
+import type { World } from '../world/world';
 
 interface StarterSpec {
   position: Position;
@@ -50,7 +52,14 @@ function generateStarter(seed: string, spec: StarterSpec): Footballer {
   });
 }
 
-export function createCareer(careerSeed: string, nowIso: string, identity: ClubIdentity = DEFAULT_CLUB): ClubSave {
+/**
+ * A new career: its own world (towns, clubs, rivals) and its own home club, all from the seed.
+ * `opts.world` lets tests and old-save tooling pin a world (e.g. the classic clubs).
+ */
+export function createCareer(careerSeed: string, nowIso: string, opts: { identity?: ClubIdentity; world?: World } = {}): ClubSave {
+  const generated = generateWorld(careerSeed);
+  const world = opts.world ?? generated.world;
+  const identity = opts.identity ?? generated.identity;
   const footballers: Record<string, Footballer> = {};
   const squadIds: string[] = [];
   let anchorPlayerId = '';
@@ -105,8 +114,10 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     cardsUnlocked: cardsUnlockedAt(1),
     deck: [...DEFAULT_DECK],
     newCards: [],
-    league: newLeague(careerSeed, 1, 0),
-    cup: newCup(careerSeed, 1),
+    injuries: [],
+    world,
+    league: newLeague(careerSeed, world, 1, 0),
+    cup: newCup(careerSeed, world, 1),
     dressingRoom: emptyDressingRoom(),
     captainId: null,
     penaltyTakerId: null,

@@ -5,12 +5,12 @@ import { createCareer } from '../domain/club/newCareer';
 import { deckProblem } from '../domain/club/manager';
 import type { CardId } from '../game/simulation/cards';
 import { openPackDraft } from '../domain/packs/packs';
-import { assignToSlot, autoLineup, changeFormation } from '../domain/club/lineup';
+import { coverAbsences, assignToSlot, autoLineup, changeFormation } from '../domain/club/lineup';
 import type { FormationId } from '../domain/formations';
 import { matchArgs, prepareMatch, settleMatch } from '../domain/match/settle';
 import { applyFocus, FOCUSES } from '../domain/players/upgrades';
 import { seededUuid } from '../domain/rng';
-import type { ClubSave, MatchRecord, PendingMatch, SeasonSummary, TipId } from '../domain/save/types';
+import type { ClubSave, InjuryTreatment, MatchRecord, PendingMatch, SeasonSummary, TipId } from '../domain/save/types';
 import { startNextSeason } from '../domain/league/league';
 import { ENGINE_VERSION } from '../game/simulation/constants';
 import { replayMatch } from '../game/simulation/replay';
@@ -19,6 +19,7 @@ import { getDb, MAIN_SLOT, MAX_BACKUPS, type BackupRow, type TouchlineDB } from 
 import { migrateSave } from './migrations';
 import { DEFAULT_SETTINGS, settingsSchema, type Settings } from './schema';
 import { serialiseSave } from './exportImport';
+import { treatInjury, unavailableFor } from '../domain/players/injuries';
 
 const nowIso = () => new Date().toISOString();
 
@@ -191,7 +192,9 @@ export function assignPlayer(slotId: string, playerId: string, db?: TouchlineDB)
 export function autoPickLineup(db?: TouchlineDB): Promise<MutationResult> {
   return mutateSave((s) => {
     assertNoMatchInProgress(s);
-    const players = s.squadIds.map((id) => s.footballers[id]).filter((p): p is NonNullable<typeof p> => Boolean(p));
+    // Only players who can actually play next match.
+    const out = unavailableFor(s);
+    const players = s.squadIds.filter((id) => !out.has(id)).map((id) => s.footballers[id]).filter((p): p is NonNullable<typeof p> => Boolean(p));
     s.lineup = autoLineup(players, s.formationId);
     checkRecruitPlaced(s);
   }, {}, db);
@@ -407,6 +410,27 @@ export function setPenaltyTaker(playerId: string | null, db?: TouchlineDB): Prom
     if (s.penaltyTakerId === playerId) return;
     givePenalties(s, playerId);
   }, {}, db);
+}
+
+/** Swaps in fit players for starters who can't play; returns who came in for whom. */
+export async function coverAbsencesInLineup(db?: TouchlineDB): Promise<{ inId: string; outId: string | null }[]> {
+  let swaps: { inId: string; outId: string | null }[] = [];
+  await mutateSave((s) => {
+    assertNoMatchInProgress(s);
+    const r = coverAbsences(s.lineup, s.formationId, s.footballers, s.squadIds, unavailableFor(s));
+    s.lineup = r.lineup;
+    swaps = r.swaps;
+  }, {}, db);
+  return swaps;
+}
+
+/** The physio's call on an injury, applied once (claim = the injury). */
+export async function treatInjuryOnce(injuryId: string, treatment: InjuryTreatment, db?: TouchlineDB): Promise<{ outcome: string; applied: boolean }> {
+  let outcome = '';
+  const r = await mutateSave((s) => {
+    outcome = treatInjury(s, injuryId, treatment);
+  }, { claimId: `treat:${injuryId}` }, db);
+  return { outcome, applied: r.applied };
 }
 
 /** Buys the next ground upgrade, once per level (claim = the level). */

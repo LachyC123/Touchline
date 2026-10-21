@@ -503,3 +503,16 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+.ground__town {
+  display: grid;
+  gap: 4px;
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.ground__town b {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}

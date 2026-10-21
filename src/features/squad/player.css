@@ -498,3 +498,13 @@
   font-size: var(--text-sm);
   opacity: 0.8;
 }
+
+.squad__injury {
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: #c8302b;
+  color: #fff7e9;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 11px;
+}

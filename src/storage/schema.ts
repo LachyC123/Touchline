@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CREST_SHAPES, KIT_CUTS, KIT_PATTERNS } from '../domain/club/types';
+import { INJURY_KIND_IDS } from '../domain/players/injuries';
 import {
   ACCESSORY_IDS,
   ATTRIBUTE_KEYS,
@@ -24,7 +25,7 @@ import {
 } from '../domain/players/types';
 import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
 import { MILESTONE_KINDS } from '../domain/players/milestones';
-import { EVENT_KINDS, ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
+import { EVENT_KINDS, INJURY_TREATMENTS, ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
 import { CARD_IDS, DECK_MAX, DECK_MIN } from '../game/simulation/cards';
 import { SUBS } from '../game/simulation/constants';
 import { CUP_ROUNDS } from '../domain/cup/cup';
@@ -315,6 +316,7 @@ const matchRecordSchema = z.object({
   attendance: z.number().int().min(0).max(100_000).optional(),
   repGain: z.number().int().min(0).max(1000).optional(),
   repTier: z.string().max(20).optional(),
+  injuries: z.array(z.object({ playerId: z.string().uuid(), name: z.string().max(80), kind: z.enum(INJURY_KIND_IDS), minute: z.number().int().min(0).max(130), byName: z.string().max(80), outFor: z.number().int().min(0).max(20) })).max(4).optional(),
 });
 
 const ownedPackSchema = z.object({
@@ -326,6 +328,56 @@ const ownedPackSchema = z.object({
   recruit: footballerSchema.nullable(),
   playerId: z.string().uuid().nullable(),
 });
+
+const injurySchema = z.object({
+  id: z.string().uuid(),
+  playerId: z.string().uuid(),
+  kind: z.enum(INJURY_KIND_IDS),
+  matchId: z.string().max(80),
+  atMatch: z.number().int().min(0).max(100_000),
+  minute: z.number().int().min(0).max(130),
+  byName: z.string().max(80),
+  outFor: z.number().int().min(0).max(20),
+  untilMatch: z.number().int().min(0).max(100_000),
+  treatment: z.enum(INJURY_TREATMENTS).nullable(),
+  fragileUntil: z.number().int().min(0).max(100_000).optional(),
+});
+
+const clubDefSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().min(1).max(40),
+  shortName: z.string().min(2).max(4),
+  stadiumName: z.string().min(1).max(60),
+  kit: z.object({ primary: hex, secondary: hex, pattern: z.enum(KIT_PATTERNS), cut: z.enum(KIT_CUTS) }),
+  crest: z.enum(CREST_SHAPES),
+  formation: z.enum(FORMATION_IDS),
+  aiStyle: z.enum(['balanced', 'press', 'passing', 'counter', 'direct']),
+  baseOvr: z.number().int().min(20).max(99),
+  styleLine: z.string().max(240),
+  rival: z.boolean().optional(),
+  town: z.string().max(40).optional(),
+  industry: z.string().max(20).optional(),
+  nickname: z.string().max(40).optional(),
+  quirk: z.string().max(160).optional(),
+  founded: z.number().int().min(1800).max(2100).optional(),
+});
+
+const worldSchema = z
+  .object({
+    kind: z.enum(['classic', 'generated']),
+    home: z.object({ town: z.string().max(40), industry: z.string().max(20), nickname: z.string().max(40), line: z.string().max(160), founded: z.number().int().min(1800).max(2100) }),
+    clubs: z.array(clubDefSchema).min(2).max(64),
+    divisions: z.array(z.object({ name: z.string().max(60), clubIds: z.array(z.string().max(40)).min(1).max(20), promote: z.number().int().min(0).max(8), relegate: z.number().int().min(0).max(8) })).min(1).max(8),
+    cupGuestIds: z.array(z.string().max(40)).max(8),
+  })
+  .superRefine((w, ctx) => {
+    const ids = new Set(w.clubs.map((c) => c.id));
+    if (ids.size !== w.clubs.length) ctx.addIssue({ code: 'custom', message: 'duplicate club id in the world' });
+    for (const id of [...w.divisions.flatMap((d) => d.clubIds), ...w.cupGuestIds]) if (!ids.has(id)) ctx.addIssue({ code: 'custom', message: `world references unknown club ${id}` });
+    // The league is eight clubs (seven plus the player's); the cup needs an even draw.
+    for (const d of w.divisions) if (d.clubIds.length !== 7) ctx.addIssue({ code: 'custom', message: `${d.name} must have seven other clubs` });
+    if ((w.divisions.reduce((n, d) => n + d.clubIds.length, 0) + w.cupGuestIds.length + 1) % 2 !== 0) ctx.addIssue({ code: 'custom', message: 'the cup draw needs an even number of clubs' });
+  });
 
 export const clubSaveSchema = z
   .object({
@@ -362,6 +414,8 @@ export const clubSaveSchema = z
     cardsUnlocked: z.array(cardId).min(1).max(CARD_IDS.length),
     deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX),
     newCards: z.array(cardId).max(CARD_IDS.length),
+    injuries: z.array(injurySchema).max(60),
+    world: worldSchema,
     league: leagueSchema,
     cup: cupSchema.nullable(),
     dressingRoom: dressingRoomSchema,

@@ -1,7 +1,7 @@
-import { CLUB_BY_ID } from '../../data/clubs';
 import { TIER_DEFS, TIER_ORDER } from '../../data/tiers';
 import type { Tier } from '../players/types';
 import type { ClubSave, PendingMatch } from '../save/types';
+import { clubOf } from '../world/world';
 
 /**
  * Reputation: how far the club's name carries. Earned on the pitch (wins, cup runs, titles) and
@@ -101,7 +101,7 @@ export function gateMoney(fans: number): number {
 }
 
 /** The crowd for a pending match (0 away from home). Cup ties and derbies are big games. */
-export function matchAttendance(save: Pick<ClubSave, 'club'>, pending: Pick<PendingMatch, 'userSide' | 'competition' | 'opponentId'>): number {
+export function matchAttendance(save: Pick<ClubSave, 'club' | 'world'>, pending: Pick<PendingMatch, 'userSide' | 'competition' | 'opponentId'>): number {
   if (pending.userSide !== 'home') return 0;
-  return attendance(save, pending.competition === 'cup' || Boolean(CLUB_BY_ID[pending.opponentId]?.rival));
+  return attendance(save, pending.competition === 'cup' || Boolean(clubOf(save.world, pending.opponentId)?.rival));
 }

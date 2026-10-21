@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { CLUBS } from '../../data/clubs';
 import { TIER_ORDER } from '../../data/tiers';
 import { matchArgs, prepareMatch, settleMatch } from '../match/settle';
 import { replayMatch } from '../../game/simulation/replay';
@@ -39,7 +38,7 @@ describe('reputation', () => {
     s.club.stadiumLevel = 5;
     expect(attendance(s, true)).toBeLessThanOrEqual(GROUND_LEVELS[4].capacity);
     expect(gateMoney(600)).toBe(24);
-    const rival = CLUBS.find((c) => c.rival)!;
+    const rival = s.world.clubs.find((c) => c.rival)!;
     s.club.reputation = 10;
     s.club.stadiumLevel = 2;
     expect(matchAttendance(s, { userSide: 'away', opponentId: rival.id })).toBe(0);

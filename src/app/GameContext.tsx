@@ -4,7 +4,7 @@ import { setSfxEnabled, setSfxVolume } from '../audio/sfx';
 import { freshSeed } from '../domain/rng';
 import type { FormationId } from '../domain/formations';
 import type { ClubIdentityChoice, OnboardingEvent } from '../domain/club/onboarding';
-import type { ClubSave, PendingMatch, SeasonSummary, TipId } from '../domain/save/types';
+import type { ClubSave, InjuryTreatment, PendingMatch, SeasonSummary, TipId } from '../domain/save/types';
 import type { CardId } from '../game/simulation/cards';
 import { getDb, MAIN_SLOT } from '../storage/db';
 import { parseSaveFile } from '../storage/exportImport';
@@ -32,6 +32,8 @@ import {
   setCaptain as repoSetCaptain,
   setPenaltyTaker as repoSetPenaltyTaker,
   buyGroundUpgrade as repoBuyGround,
+  treatInjuryOnce as repoTreatInjury,
+  coverAbsencesInLineup as repoCoverAbsences,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -68,6 +70,8 @@ interface GameApi {
   setCaptain: (playerId: string | null) => Promise<void>;
   setPenaltyTaker: (playerId: string | null) => Promise<void>;
   upgradeGround: () => Promise<boolean>;
+  treatInjury: (injuryId: string, treatment: InjuryTreatment) => Promise<string>;
+  coverAbsences: () => Promise<{ inId: string; outId: string | null }[]>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -146,6 +150,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setCaptain: async (id) => void (await repoSetCaptain(id)),
       setPenaltyTaker: async (id) => void (await repoSetPenaltyTaker(id)),
       upgradeGround: async () => (await repoBuyGround()).applied,
+      treatInjury: async (id, t) => (await repoTreatInjury(id, t)).outcome,
+      coverAbsences: () => repoCoverAbsences(),
     }),
     [saveState, settings, updateSettings, exportSave],
   );

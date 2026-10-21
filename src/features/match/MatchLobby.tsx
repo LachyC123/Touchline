@@ -9,7 +9,6 @@ import { useToast } from '../../components/ui/Toast';
 import { lineupProblems } from '../../domain/club/lineup';
 import { squadPower } from '../../domain/club/newCareer';
 import { opponentSquad, squadAverage } from '../../domain/club/opponents';
-import { CLUB_BY_ID } from '../../data/clubs';
 import { divisionOf, leagueTable, ordinal, strengthLap, userFixture, type UserFixture } from '../../domain/league/league';
 import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import { FORMATION_DEFS } from '../../domain/formations';
@@ -18,18 +17,20 @@ import { CoachMark } from '../../components/ui/CoachMark';
 import { ManagerCard } from '../../components/manager/ManagerCard';
 import { AI_DECKS, CARD_DEFS, HAND_SIZE } from '../../game/simulation/cards';
 import { UpgradeQueue } from './UpgradeQueue';
-import { awayFor, eventHeadline, openEvent } from '../../domain/club/dressingRoom';
+import { eventHeadline, openEvent } from '../../domain/club/dressingRoom';
 import { FormDots } from '../../components/league/FormDots';
 import { Storylines } from '../../components/league/Storylines';
 import { clubForm, fixtureStorylines } from '../../domain/league/stories';
 import { CUP_NAME, CUP_ROUNDS, cupRoundName } from '../../domain/cup/cup';
 import './match.css';
+import { clubOf } from '../../domain/world/world';
+import { unavailableFor } from '../../domain/players/injuries';
 
 export function MatchLobby() {
   const save = useSave();
   const pm = save.pendingMatch;
   const fx = userFixture(save);
-  const pendingClub = pm ? CLUB_BY_ID[pm.opponentId] : undefined;
+  const pendingClub = pm ? clubOf(save.world, pm.opponentId) : undefined;
   const fixture: UserFixture | null = pm && pendingClub ? { club: pendingClub, home: pm.userSide === 'home', round: pm.round ?? save.league.round, lap: strengthLap(save.season), competition: pm.competition ?? 'league', ...(pm.cupRound !== undefined ? { cupRound: pm.cupRound } : {}) } : fx;
   if (!fixture) return <SeasonComplete />;
   return <LobbyInner fixture={fixture} />;
@@ -38,7 +39,7 @@ export function MatchLobby() {
 /** All fixtures played: point to the final table and the next season. */
 function SeasonComplete() {
   const save = useSave();
-  const table = leagueTable(save.league, (id) => (id === PLAYER_CLUB_ID ? save.club.name : (CLUB_BY_ID[id]?.name ?? id)));
+  const table = leagueTable(save.league, (id) => (id === PLAYER_CLUB_ID ? save.club.name : (clubOf(save.world, id)?.name ?? id)));
   const pos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   return (
     <main className="screen lobby">
@@ -49,7 +50,7 @@ function SeasonComplete() {
         </h1>
       </header>
       <section className="paper lobby__season-over">
-        <p className="lobby__kicker">{divisionOf(save.league.division).name}</p>
+        <p className="lobby__kicker">{divisionOf(save.world, save.league.division).name}</p>
         <p className="display">You finished {ordinal(pos)}</p>
         <Button variant="primary" size="lg" block icon="star" onClick={() => navigate({ name: 'season' })}>
           See the final day
@@ -61,20 +62,27 @@ function SeasonComplete() {
 
 function LobbyInner({ fixture }: { fixture: UserFixture }) {
   const save = useSave();
-  const { kickOff } = useGame();
+  const { kickOff, coverAbsences } = useGame();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const pending = save.pendingMatch;
   const club = fixture.club;
-  const division = divisionOf(save.league.division);
-  const table = leagueTable(save.league, (id) => (id === PLAYER_CLUB_ID ? save.club.name : (CLUB_BY_ID[id]?.name ?? id)));
+  const division = divisionOf(save.world, save.league.division);
+  const table = leagueTable(save.league, (id) => (id === PLAYER_CLUB_ID ? save.club.name : (clubOf(save.world, id)?.name ?? id)));
   const ourPos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const theirPos = table.findIndex((r) => r.clubId === club.id) + 1;
   const theirSquad = opponentSquad(save.careerSeed, club, fixture.lap);
   const theirPower = squadAverage(theirSquad);
   const ourPower = squadPower(save);
   const danger = [...theirSquad].sort((a, b) => overall(b) - overall(a))[0];
-  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, awayFor(save));
+  const unavailable = unavailableFor(save);
+  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, unavailable);
+  const absentStarters = Object.values(save.lineup).filter((id) => unavailable.has(id) || !save.squadIds.includes(id));
+  const cover = async () => {
+    const swaps = await coverAbsences();
+    const names = swaps.map((x) => save.footballers[x.inId]?.lastName ?? 'a sub');
+    toast.show(swaps.length ? `${names.join(' and ')} ${swaps.length === 1 ? 'comes' : 'come'} in.` : 'Nobody fit enough to come in.');
+  };
   const request = openEvent(save);
   const requester = request?.playerId ? save.footballers[request.playerId] : undefined;
   const last = save.matchRecords[0];
@@ -164,7 +172,13 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
           <h2 id="fixture-title" className="fixture__name">
             {club.name}
           </h2>
+          {club.town && (
+            <p className="fixture__town">
+              {club.nickname} · {club.town}, est. {club.founded}
+            </p>
+          )}
           <p className="fixture__style">{club.styleLine}</p>
+          {club.quirk && <p className="fixture__quirk">{club.quirk}</p>}
 
           <div className="fixture__bars" aria-label={`Team power: you ${ourPower}, ${club.name} ${theirPower}`}>
             <div className="fixture__bar">
@@ -267,6 +281,11 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
             <p className="lineup__problem" role="alert">
               <Icon name="info" size={16} /> {problems[0]}
             </p>
+          )}
+          {absentStarters.length > 0 && (
+            <Button variant="blue" block icon="sort" onClick={() => void cover()}>
+              {absentStarters.length === 1 ? 'Pick a replacement' : 'Pick replacements'}
+            </Button>
           )}
           {save.onboarding === 'match' && save.matchNumber === 0 && (
             <CoachMark className="lobby__coach">

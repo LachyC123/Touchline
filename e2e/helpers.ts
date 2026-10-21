@@ -20,3 +20,13 @@ export async function kickOffIfWalkOut(page: Page): Promise<void> {
   const go = page.getByRole('button', { name: /^kick off$/i });
   if (await go.isVisible().catch(() => false)) await go.click();
 }
+
+/** Plays the next match from the lobby, first swapping in fit players for any injured starter. */
+export async function clickPlayMatch(page: Page): Promise<void> {
+  const cover = page.getByRole('button', { name: /^pick (a )?replacements?$/i });
+  if (await cover.isVisible().catch(() => false)) {
+    await cover.click();
+    await expect(cover).toHaveCount(0);
+  }
+  await page.getByRole('button', { name: /play match/i }).click();
+}

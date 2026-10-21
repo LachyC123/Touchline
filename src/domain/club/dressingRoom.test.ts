@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTeamLineup } from '../../game/simulation/fromSquad';
 import { lineupProblems } from './lineup';
+import { unavailableFor } from '../players/injuries';
 import { createCareer } from './newCareer';
 import { applyChoice, awayFor, choicesFor, COSTS, dressingRoomAfterMatch, openEvent, type AfterMatchInput } from './dressingRoom';
 import { matchMoraleDelta, moraleBand, moraleEffect } from '../players/morale';
@@ -125,7 +126,7 @@ describe('requests and promises', () => {
     save.dressingRoom.events = [{ id: '00000000-0000-4000-8000-000000000001', kind: 'homesick', playerId: id, atMatch: 0, status: 'open' }];
     applyChoice(save, '00000000-0000-4000-8000-000000000001', 'daysOff');
     expect(awayFor(save).has(id)).toBe(true);
-    expect(lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, awayFor(save)).join(' ')).toMatch(/is away/);
+    expect(lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, unavailableFor(save)).join(' ')).toMatch(/is away/);
     play(save, 'draw', { started: new Set([...starters(save)].filter((x) => x !== id)) });
     expect(awayFor(save).has(id)).toBe(false);
   });

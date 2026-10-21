@@ -1,4 +1,4 @@
-import { CLUB_BY_ID, DIVISIONS } from '../../data/clubs';
+import { clubOf, divisionOf } from '../world/world';
 import { DREAM_BY_ID, PERSONALITY_BY_ID } from '../../data/personality';
 import { scoringRuns } from '../league/stories';
 import { clampMorale, matchMoraleDelta, type MoraleChange } from '../players/morale';
@@ -50,7 +50,7 @@ export interface ChoiceDef {
   disabled?: string;
 }
 
-type View = Pick<ClubSave, 'footballers' | 'coins' | 'club' | 'captainId' | 'penaltyTakerId' | 'matchRecords' | 'season' | 'squadIds' | 'dressingRoom'>;
+type View = Pick<ClubSave, 'footballers' | 'coins' | 'club' | 'captainId' | 'penaltyTakerId' | 'matchRecords' | 'season' | 'squadIds' | 'dressingRoom' | 'world'>;
 
 // ── Shared effects ─────────────────────────────────────────────────────────────────────────
 
@@ -354,12 +354,12 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
       if (c.draft.matchNumber < 5) return null;
       const best = [...c.squad].sort((a, b) => overall(b) - overall(a)).slice(0, 3).filter((p) => p.personality.ambition >= 55 && !recently(c.draft, 'rivalInterest', 12, p.id));
       if (!best.length) return null;
-      const bigger = DIVISIONS[Math.min(DIVISIONS.length - 1, c.draft.league.division + 1)]?.clubs ?? [];
+      const bigger = divisionOf(c.draft.world, c.draft.league.division + 1).clubs;
       return { playerId: c.rng.pick(best).id, clubId: c.rng.pick(bigger).id };
     },
-    headline: (e, s) => `${CLUB_BY_ID[e.clubId ?? '']?.shortName ?? 'A big club'} are watching ${last(s, e.playerId)}`,
-    quote: (e) => {
-      const them = CLUB_BY_ID[e.clubId ?? '']?.name ?? 'a bigger club';
+    headline: (e, s) => `${clubOf(s.world, e.clubId ?? '')?.shortName ?? 'A big club'} are watching ${last(s, e.playerId)}`,
+    quote: (e, s) => {
+      const them = clubOf(s.world, e.clubId ?? '')?.name ?? 'a bigger club';
       return vary(e, [
         `My agent says ${them} have been at the last two games. I’m not saying I want to go… but I’m listening.`,
         `${them} rang my agent last night. I’m happy here, gaffer — I just want to know I matter.`,
@@ -373,7 +373,7 @@ const REQUESTS: Partial<Record<EventKind, RequestDef>> = {
     ],
     apply: (d, e, choice) => {
       const p = d.footballers[e.playerId as string] as Footballer;
-      const club = CLUB_BY_ID[e.clubId ?? '']?.name ?? 'them';
+      const club = clubOf(d.world, e.clubId ?? '')?.name ?? 'them';
       if (choice === 'heart') {
         nudge(d, p.id, 6);
         promise(d, e, p.id, 2, 3);

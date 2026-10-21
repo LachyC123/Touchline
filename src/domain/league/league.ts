@@ -1,4 +1,5 @@
-import { CLUB_BY_ID, DIVISIONS, type ClubDef, type DivisionDef } from '../../data/clubs';
+import type { ClubDef } from '../../data/clubs';
+import { clubOf, divisionOf, divisionsOf, type World } from '../world/world';
 import { matchSquad } from '../../game/simulation/fromSquad';
 import { replayMatch } from '../../game/simulation/replay';
 import type { MatchResult } from '../../game/simulation/types';
@@ -16,17 +17,13 @@ export const ROUNDS_PER_SEASON = 14;
 export const SEASON_STRENGTH_STEP = 2;
 export const MAX_SEASON_STRENGTH_STEPS = 5;
 
-export function divisionOf(index: number): DivisionDef {
-  return DIVISIONS[Math.max(0, Math.min(DIVISIONS.length - 1, index))] as DivisionDef;
-}
-
 /**
  * Double round robin for 8 clubs (circle method): 7 rounds, then the same 7 with home and away
  * swapped. Club order is shuffled from the career seed + season, so every career has its own
  * calendar, and the same save always gets the same one.
  */
-export function scheduleSeason(careerSeed: string, season: number, division: number): LeagueFixture[][] {
-  const ids = [PLAYER_CLUB_ID, ...divisionOf(division).clubs.map((c) => c.id)];
+export function scheduleSeason(careerSeed: string, world: World, season: number, division: number): LeagueFixture[][] {
+  const ids = [PLAYER_CLUB_ID, ...divisionOf(world, division).clubs.map((c) => c.id)];
   const rng = createRng(`${careerSeed}::league:s${season}:d${division}`);
   for (let i = ids.length - 1; i > 0; i--) {
     const j = rng.int(0, i);
@@ -51,7 +48,7 @@ export function scheduleSeason(careerSeed: string, season: number, division: num
   // A career's very first match is against the division's weakest side (a gentle opener):
   // swap whole rounds, so every club still plays everyone home and away.
   if (season === 1) {
-    const weakest = [...divisionOf(division).clubs].sort((a, b) => a.baseOvr - b.baseOvr)[0]?.id;
+    const weakest = [...divisionOf(world, division).clubs].sort((a, b) => a.baseOvr - b.baseOvr)[0]?.id;
     const k = firstHalf.findIndex((round) => round.some((f) => (f.home === PLAYER_CLUB_ID && f.away === weakest) || (f.away === PLAYER_CLUB_ID && f.home === weakest)));
     if (k > 0) [firstHalf[0], firstHalf[k]] = [firstHalf[k] as LeagueFixture[], firstHalf[0] as LeagueFixture[]];
     // …and at home.
@@ -62,8 +59,8 @@ export function scheduleSeason(careerSeed: string, season: number, division: num
   return [...firstHalf, ...secondHalf];
 }
 
-export function newLeague(careerSeed: string, season: number, division: number): LeagueState {
-  return { division, rounds: scheduleSeason(careerSeed, season, division), round: 0, results: [] };
+export function newLeague(careerSeed: string, world: World, season: number, division: number): LeagueState {
+  return { division, rounds: scheduleSeason(careerSeed, world, season, division), round: 0, results: [] };
 }
 
 export function seasonComplete(league: LeagueState): boolean {
@@ -102,15 +99,15 @@ export function strengthLap(season: number): number {
 }
 
 /** The player's next fixture (a due cup tie comes first), or null once the season is complete. */
-export function userFixture(save: Pick<ClubSave, 'league' | 'season'> & Partial<Pick<ClubSave, 'cup'>>): UserFixture | null {
-  const tie = userCupTie({ league: save.league, season: save.season, cup: save.cup ?? null });
+export function userFixture(save: Pick<ClubSave, 'league' | 'season' | 'world'> & Partial<Pick<ClubSave, 'cup'>>): UserFixture | null {
+  const tie = userCupTie({ league: save.league, season: save.season, cup: save.cup ?? null, world: save.world });
   if (tie) return { club: tie.club, home: tie.home, round: save.league.round, lap: tie.lap, competition: 'cup', cupRound: tie.cupRound };
   const round = save.league.rounds[save.league.round];
   if (!round) return null;
   const f = round.find((x) => x.home === PLAYER_CLUB_ID || x.away === PLAYER_CLUB_ID);
   if (!f) return null;
   const home = f.home === PLAYER_CLUB_ID;
-  const club = CLUB_BY_ID[home ? f.away : f.home];
+  const club = clubOf(save.world, home ? f.away : f.home);
   if (!club) throw new Error('Unknown club in the fixture list');
   return { club, home, round: save.league.round, lap: strengthLap(save.season), competition: 'league' };
 }
@@ -128,14 +125,14 @@ export function userLeagueResult(round: number, homeId: string, awayId: string, 
  * The other fixtures of a round, simulated by the same engine (both benches AI-managed) from a
  * seed tied to the career, season, round and clubs — so they never change once played.
  */
-export function simulateOtherFixtures(careerSeed: string, season: number, league: LeagueState, round: number): LeagueResult[] {
+export function simulateOtherFixtures(careerSeed: string, world: World, season: number, league: LeagueState, round: number): LeagueResult[] {
   const fixtures = league.rounds[round] ?? [];
   const lap = strengthLap(season);
   const out: LeagueResult[] = [];
   for (const f of fixtures) {
     if (f.home === PLAYER_CLUB_ID || f.away === PLAYER_CLUB_ID) continue;
-    const hc = CLUB_BY_ID[f.home];
-    const ac = CLUB_BY_ID[f.away];
+    const hc = clubOf(world, f.home);
+    const ac = clubOf(world, f.away);
     if (!hc || !ac) continue;
     const home = opponentLineup(careerSeed, { number: round, club: hc, lap, home: true }).lineup;
     const away = opponentLineup(careerSeed, { number: round, club: ac, lap, home: false }).lineup;
@@ -204,15 +201,15 @@ export const SEASON_PRIZES: readonly number[] = [600, 450, 350, 300, 250, 200, 1
 export const SEASON_CLUB_XP: readonly number[] = [160, 130, 110, 100, 90, 80, 70, 60];
 
 /** Final position, what it means and the prize, for a complete season (no mutation). */
-export function seasonOutcome(save: Pick<ClubSave, 'league' | 'club' | 'season'> & Partial<Pick<ClubSave, 'cup'>>): Omit<SeasonSummary, 'topScorer'> & { topScorer?: SeasonSummary['topScorer']; nextDivision: number } {
-  const div = divisionOf(save.league.division);
-  const table = leagueTable(save.league, (id) => clubName(id, save.club.name));
+export function seasonOutcome(save: Pick<ClubSave, 'league' | 'club' | 'season' | 'world'> & Partial<Pick<ClubSave, 'cup'>>): Omit<SeasonSummary, 'topScorer'> & { topScorer?: SeasonSummary['topScorer']; nextDivision: number } {
+  const div = divisionOf(save.world, save.league.division);
+  const table = leagueTable(save.league, (id) => clubName(save.world, id, save.club.name));
   const idx = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID);
   const row = table[idx] as TableRow;
   const position = idx + 1;
   let outcome: SeasonSummary['outcome'] = 'stayed';
   let nextDivision = save.league.division;
-  if (div.promote > 0 && position <= div.promote && nextDivision < DIVISIONS.length - 1) {
+  if (div.promote > 0 && position <= div.promote && nextDivision < divisionsOf(save.world).length - 1) {
     outcome = 'promoted';
     nextDivision++;
   } else if (div.relegate > 0 && position > table.length - div.relegate && nextDivision > 0) {
@@ -255,16 +252,18 @@ export function startNextSeason(draft: ClubSave): SeasonSummary {
   if (summary.position === 1) draft.club.reputation += REP_GAIN.champions;
   else if (summary.outcome === 'promoted') draft.club.reputation += REP_GAIN.promoted;
   // "Win promotion": comes true for everyone with that dream who played in a promotion season.
-  if (summary.outcome === 'promoted' || (summary.position === 1 && divisionOf(summary.division).promote > 0)) {
+  if (summary.outcome === 'promoted' || (summary.position === 1 && divisionOf(draft.world, summary.division).promote > 0)) {
     for (const id of seasonAppearances(draft, summary.season)) if (draft.footballers[id]?.dreamId === 'promotion') fulfilDream(draft, id);
   }
   draft.coins += prizeCoins;
   grantClubXp(draft, SEASON_CLUB_XP[idx] ?? 50);
   draft.season++;
-  draft.league = newLeague(draft.careerSeed, draft.season, division);
-  draft.cup = newCup(draft.careerSeed, draft.season);
+  draft.league = newLeague(draft.careerSeed, draft.world, draft.season, division);
+  draft.cup = newCup(draft.careerSeed, draft.world, draft.season);
   return summary;
 }
+
+export { divisionOf };
 
 export function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -273,6 +272,6 @@ export function ordinal(n: number): string {
 }
 
 /** Display name for a club id (the player's own club takes its current name). */
-export function clubName(id: string, ownName: string): string {
-  return id === PLAYER_CLUB_ID ? ownName : (CLUB_BY_ID[id]?.name ?? id);
+export function clubName(world: World, id: string, ownName: string): string {
+  return id === PLAYER_CLUB_ID ? ownName : (clubOf(world, id)?.name ?? id);
 }

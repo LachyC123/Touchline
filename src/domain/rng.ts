@@ -146,7 +146,10 @@ export type StreamLabel =
   | 'roster'
   | 'shootout'
   | 'cup'
-  | 'story';
+  | 'story'
+  | 'world'
+  | 'injury'
+  | 'market';
 
 export function stream(seed: string, label: StreamLabel | `${StreamLabel}:${string}`): Rng {
   return createRng(`${seed}::${label}`);

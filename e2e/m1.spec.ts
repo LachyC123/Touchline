@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { startCareerSkippingTutorial, tab, kickOffIfWalkOut } from './helpers';
+import { startCareerSkippingTutorial, tab, kickOffIfWalkOut, clickPlayMatch } from './helpers';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -21,7 +21,7 @@ async function coins(page: Page): Promise<number> {
 
 async function playAndSkip(page: Page) {
   await page.goto('/#/match');
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await kickOffIfWalkOut(page);
   await page.getByRole('button', { name: /skip to ft/i }).click();
@@ -53,7 +53,7 @@ test('match: manager card, skip to full time, rewards paid exactly once across r
   await newClub(page);
   const before = await coins(page);
   await page.goto('/#/match');
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await kickOffIfWalkOut(page);
   await page.waitForTimeout(1500);
@@ -102,7 +102,7 @@ test('match: manager card, skip to full time, rewards paid exactly once across r
 test('a reload mid-match resumes the same match at the same minute', async ({ page }) => {
   await newClub(page);
   await page.goto('/#/match');
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await kickOffIfWalkOut(page);
   // Wait for real match progress (rendering speed varies by device): checkpoints every 3 s of play.
@@ -150,7 +150,7 @@ test('half-time: bring a substitute on by tapping, and he shows up in the result
   test.setTimeout(150_000);
   await startCareerSkippingTutorial(page);
   await page.goto('/#/match');
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await kickOffIfWalkOut(page);
   const speed = page.locator('.live__speed');

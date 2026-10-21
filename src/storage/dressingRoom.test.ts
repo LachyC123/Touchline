@@ -3,7 +3,7 @@ import { createCareer } from '../domain/club/newCareer';
 import { openEvent } from '../domain/club/dressingRoom';
 import { TouchlineDB, setDbForTests } from './db';
 import { migrateSave } from './migrations';
-import { buyGroundUpgrade, kickOff, loadSave, mutateSave, onboardingEvent, resolveEvent, settleMatchOnce, startNewCareer } from './saveRepo';
+import { buyGroundUpgrade, coverAbsencesInLineup, treatInjuryOnce, kickOff, loadSave, mutateSave, onboardingEvent, resolveEvent, settleMatchOnce, startNewCareer } from './saveRepo';
 
 let db: TouchlineDB;
 let n = 0;
@@ -22,6 +22,8 @@ describe('dressing room (persisted)', () => {
     await startNewCareer('room-flow', db);
     await onboardingEvent('skip', db);
     for (let i = 0; i < 3; i++) {
+      // Knocks happen: injured starters are replaced, as the lobby offers.
+      await coverAbsencesInLineup(db);
       const pm = await kickOff(db);
       await settleMatchOnce(pm.matchId, db);
     }
@@ -54,7 +56,7 @@ describe('dressing room (persisted)', () => {
     const v7 = createCareer('room-mig', 'x');
     const { dressingRoom: _d, captainId: _c, penaltyTakerId: _p, ...rest } = v7;
     const m = migrateSave({ ...rest, schemaVersion: 6, contentVersion: 'content-6' });
-    expect(m.schemaVersion).toBe(8);
+    expect(m.schemaVersion).toBe(9);
     expect(m.dressingRoom).toEqual({ events: [], promises: [], away: [], lastEventMatch: 0, backed: [] });
     expect(m.captainId).toBeNull();
     expect(m.footballers[m.anchorPlayerId]!.morale).toBe(v7.footballers[v7.anchorPlayerId]!.morale);
@@ -77,5 +79,23 @@ describe('ground upgrades (persisted)', () => {
     expect(after.rewardClaimIds.filter((c) => c === 'ground:2')).toHaveLength(1);
     await expect(buyGroundUpgrade(db)).rejects.toThrow(/reputation/);
     expect((await loadSave(db))!.coins).toBe(400);
+  });
+});
+
+describe('the physio (persisted)', () => {
+  it('a double-tapped specialist is paid for once and the lineup knows when he is back', async () => {
+    const save = await startNewCareer('physio-flow', db);
+    const id = save.lineup.FWD_L!;
+    await mutateSave((s) => {
+      s.coins = 300;
+      s.injuries = [{ id: '00000000-0000-4000-8000-0000000000bb', playerId: id, kind: 'ankle', matchId: 'm0', atMatch: 0, minute: 12, byName: 'A Defender', outFor: 2, untilMatch: 2, treatment: null }];
+    }, {}, db);
+    const [a, b] = await Promise.all([treatInjuryOnce('00000000-0000-4000-8000-0000000000bb', 'specialist', db), treatInjuryOnce('00000000-0000-4000-8000-0000000000bb', 'specialist', db)]);
+    expect([a.applied, b.applied].sort()).toEqual([false, true]);
+    const after = (await loadSave(db))!;
+    expect(after.coins).toBe(300 - 80);
+    expect(after.injuries[0]!.untilMatch).toBe(1);
+    // Still out for the next match: kick-off refuses him until he is replaced.
+    await expect(kickOff(db)).rejects.toThrow(/injured/);
   });
 });

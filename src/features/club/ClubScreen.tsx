@@ -10,7 +10,6 @@ import { StadiumScene } from '../../components/club/StadiumScene';
 import { Icon } from '../../components/icons/Icon';
 import { Button } from '../../components/ui/Button';
 import { squadPower } from '../../domain/club/newCareer';
-import { CLUB_BY_ID } from '../../data/clubs';
 import { clubName, divisionOf, leagueTable, ordinal, seasonOver, userFixture } from '../../domain/league/league';
 import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import { fixtureStorylines } from '../../domain/league/stories';
@@ -20,6 +19,7 @@ import { GroundPanel } from './GroundPanel';
 import { attendance, groundOf, repTier } from '../../domain/club/reputation';
 import { DressingRoomPanel } from '../dressing/DressingRoomPanel';
 import './club.css';
+import { clubOf } from '../../domain/world/world';
 
 export function ClubScreen() {
   const save = useSave();
@@ -33,9 +33,9 @@ export function ClubScreen() {
   const starters = Object.keys(save.lineup).length;
   const fixture = userFixture(save);
   const over = !save.pendingMatch && seasonOver(save);
-  const table = leagueTable(save.league, (id) => clubName(id, save.club.name));
+  const table = leagueTable(save.league, (id) => clubName(save.world, id, save.club.name));
   const pos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
-  const pendingOpp = save.pendingMatch ? CLUB_BY_ID[save.pendingMatch.opponentId] : undefined;
+  const pendingOpp = save.pendingMatch ? clubOf(save.world, save.pendingMatch.opponentId) : undefined;
   const last = save.matchRecords[0];
   const headline = fixture && !save.pendingMatch ? fixtureStorylines(save, fixture, 1)[0] : undefined;
   const pendingCup = save.pendingMatch?.competition === 'cup';
@@ -124,7 +124,7 @@ export function ClubScreen() {
       <button type="button" className="club__league" onClick={() => navigate({ name: 'league' })}>
         <span className="club__league-pos">{save.league.results.length ? ordinal(pos) : '—'}</span>
         <span className="club__league-text">
-          <b>{divisionOf(save.league.division).name}</b>
+          <b>{divisionOf(save.world, save.league.division).name}</b>
           <small>
             Season {save.season} · {save.league.results.length ? `${table[pos - 1]?.points ?? 0} pts · tap for the table` : 'kicks off with your next match'}
           </small>
@@ -166,7 +166,7 @@ export function ClubScreen() {
 
       <GroundPanel />
 
-      <TrophyCabinet seasons={save.seasons} division={save.league.division} kit={save.club.kit} cup={save.cup} />
+      <TrophyCabinet seasons={save.seasons} division={save.league.division} kit={save.club.kit} cup={save.cup} world={save.world} />
 
       <section className="club__tiles">
         <button type="button" className="club__tile" onClick={() => navigate({ name: 'squad' })}>

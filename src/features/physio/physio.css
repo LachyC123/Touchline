@@ -1,0 +1,112 @@
+.physio {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: var(--s-3);
+  align-items: start;
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, rgb(200 48 43 / 0.18), rgb(200 48 43 / 0.06));
+  border: 1px solid rgb(200 48 43 / 0.45);
+}
+
+.physio__card {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  width: 72px;
+}
+
+.physio__cross {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #c8302b;
+  color: #fff7e9;
+  font-weight: 900;
+  box-shadow: 0 2px 0 rgb(0 0 0 / 0.35);
+}
+
+.physio.is-open .physio__cross {
+  animation: physio-pulse 1.4s ease-in-out infinite;
+}
+
+.physio__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+}
+
+.physio__how {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.physio__choices {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--s-2);
+}
+
+.physio__choice {
+  display: grid;
+  gap: 2px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 2px solid rgb(255 255 255 / 0.15);
+  background: rgb(0 0 0 / 0.25);
+  color: inherit;
+  text-align: left;
+}
+
+.physio__choice b {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.physio__choice small {
+  font-size: var(--text-xs, 0.78rem);
+  color: var(--text-muted);
+}
+
+.physio__choice.is-specialist b::after {
+  content: ' coins';
+  font-weight: 700;
+  text-transform: none;
+}
+
+.physio__choice.is-rest b {
+  color: var(--lime);
+}
+
+.physio__choice.is-rush b {
+  color: var(--orange);
+}
+
+.physio__choice:not(:disabled):active {
+  transform: translateY(2px);
+}
+
+.physio__choice:disabled {
+  opacity: 0.55;
+}
+
+@keyframes physio-pulse {
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .physio.is-open .physio__cross {
+    animation: none;
+  }
+}

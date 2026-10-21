@@ -14,6 +14,7 @@ import { StadiumScene } from "../../components/club/StadiumScene";
 import { Portrait } from "../../components/portrait/Portrait";
 import { Button } from "../../components/ui/Button";
 import type { ClubIdentity } from "../../domain/club/types";
+import type { HomeTown } from "../../domain/world/world";
 import type { Appearance } from "../../domain/players/types";
 import "./intro.css";
 
@@ -37,14 +38,14 @@ const PANEL_MS = 3600;
 
 interface Panel {
   id: string;
-  caption: string;
+  caption: (home: HomeTown) => string;
   art: (club: ClubIdentity) => ReactNode;
 }
 
 const PANELS: readonly Panel[] = [
   {
     id: "ground",
-    caption: "Once, thousands sang here every Saturday.",
+    caption: (h) => `${h.town}. ${h.line} Once, thousands sang here every Saturday.`,
     art: (club) => (
       <div className="intro__art intro__art--ground">
         <StadiumScene club={club} variant="title" />
@@ -56,18 +57,18 @@ const PANELS: readonly Panel[] = [
   },
   {
     id: "ball",
-    caption: "Now? Peeling paint, empty stands and one battered ball.",
+    caption: () => "Now? Peeling paint, empty stands and one battered ball.",
     art: (club) => <TerraceArt club={club} />,
   },
   {
     id: "keys",
-    caption:
-      "“Forty years on that terrace. Somebody has to save this place. Here — the keys are yours.”",
+    caption: (h) =>
+      `“Forty years on that terrace. Somebody has to save ${h.nickname.replace(/^The /, 'the ')}. Here — the keys are yours.”`,
     art: (club) => <KeysArt club={club} />,
   },
   {
     id: "title",
-    caption: "This club is going nowhere. Unless you change that.",
+    caption: (h) => `Founded ${h.founded}. Going nowhere. Unless you change that.`,
     art: (club) => (
       <div className="intro__art intro__art--title">
         <div className="intro__crest">
@@ -119,6 +120,7 @@ export function IntroScreen({ replay }: { replay: boolean }) {
   }, [index, last, next, paused]);
 
   const panel = PANELS[index] as Panel;
+  const caption = panel.caption(save.world.home);
 
   return (
     <main
@@ -151,7 +153,7 @@ export function IntroScreen({ replay }: { replay: boolean }) {
         className="intro__stage"
         onClick={next}
         aria-label={
-          last ? panel.caption : `${panel.caption} Tap for the next panel.`
+          last ? caption : `${caption} Tap for the next panel.`
         }
         disabled={last}
       >
@@ -161,7 +163,7 @@ export function IntroScreen({ replay }: { replay: boolean }) {
         >
           {panel.art(save.club)}
           <p className="intro__caption" aria-live="polite">
-            {panel.caption}
+            {caption}
           </p>
         </div>
       </button>

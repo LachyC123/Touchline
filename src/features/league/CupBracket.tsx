@@ -1,6 +1,7 @@
 import { CUP_AFTER_LEAGUE_ROUNDS, CUP_NAME, CUP_ROUNDS, cupFinished, cupRoundName, cupWinner, eliminatedIn } from '../../domain/cup/cup';
 import { clubName } from '../../domain/league/league';
 import { PLAYER_CLUB_ID, type CupState, type CupTie } from '../../domain/save/types';
+import type { World } from '../../domain/world/world';
 
 function score(t: CupTie): string {
   if (t.hg === undefined || t.ag === undefined) return 'v';
@@ -8,8 +9,8 @@ function score(t: CupTie): string {
 }
 
 /** The County Cup, round by round: every tie, its score, penalties, and where we stand. */
-export function CupBracket({ cup, ownName }: { cup: CupState; ownName: string }) {
-  const nameOf = (id: string) => clubName(id, ownName);
+export function CupBracket({ cup, ownName, world }: { cup: CupState; ownName: string; world: World }) {
+  const nameOf = (id: string) => clubName(world, id, ownName);
   const out = eliminatedIn(cup);
   const winner = cupWinner(cup);
   const status =

@@ -1,4 +1,5 @@
 import type { ClubIdentity } from '../club/types';
+import type { World } from '../world/world';
 import type { FormationId } from '../formations';
 import type { Footballer, Tier } from '../players/types';
 import type { CardId } from '../../game/simulation/cards';
@@ -6,8 +7,8 @@ import type { MilestoneKind } from '../players/milestones';
 import type { ShootoutResult } from '../cup/shootout';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
-export const SCHEMA_VERSION = 8;
-export const CONTENT_VERSION = 'content-8';
+export const SCHEMA_VERSION = 9;
+export const CONTENT_VERSION = 'content-9';
 export { ENGINE_VERSION } from '../../game/simulation/constants';
 
 export type { FormationId };
@@ -115,6 +116,8 @@ export interface MatchRecord {
   repGain?: number;
   /** The reputation tier reached, when this result moved the club up one. */
   repTier?: string;
+  /** Injuries picked up in this match. */
+  injuries?: { playerId: string; name: string; kind: string; minute: number; byName: string; outFor: number }[];
   /** Dreams that came true in this match. */
   dreams?: { playerId: string; name: string; text: string }[];
   /** Morale swings worth showing (largest first). */
@@ -290,6 +293,28 @@ export interface SeasonSummary {
   topScorer?: { name: string; goals: number };
 }
 
+export const INJURY_TREATMENTS = ['rest', 'specialist', 'rush'] as const;
+export type InjuryTreatment = (typeof INJURY_TREATMENTS)[number];
+
+/** An injury picked up in a match; he misses matches up to and including `untilMatch`. */
+export interface Injury {
+  id: string;
+  playerId: string;
+  kind: string;
+  matchId: string;
+  /** matchNumber of the match he was hurt in. */
+  atMatch: number;
+  minute: number;
+  /** Who caught him. */
+  byName: string;
+  /** Matches out as diagnosed. */
+  outFor: number;
+  untilMatch: number;
+  treatment: InjuryTreatment | null;
+  /** Rushed back: fragile up to and including this match number. */
+  fragileUntil?: number;
+}
+
 export interface PendingUpgrade {
   playerId: string;
   level: number;
@@ -331,6 +356,10 @@ export interface ClubSave {
   deck: CardId[];
   /** Unlocked cards the player has not looked at yet. */
   newCards: CardId[];
+  /** Injuries, newest first (recent history kept for the scrapbook and physio). */
+  injuries: Injury[];
+  /** The other clubs, their towns and rivals: generated once per career. */
+  world: World;
   league: LeagueState;
   dressingRoom: DressingRoom;
   /** Wears the armband (null = nobody yet). */

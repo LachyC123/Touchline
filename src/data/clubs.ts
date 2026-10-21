@@ -16,6 +16,12 @@ export interface ClubDef {
   baseOvr: number;
   styleLine: string;
   rival?: boolean;
+  /** Generated worlds: the town, its trade, what the fans call the team, one oddity, founding year. */
+  town?: string;
+  industry?: string;
+  nickname?: string;
+  quirk?: string;
+  founded?: number;
 }
 
 export const CLUBS: readonly ClubDef[] = [
@@ -222,9 +228,9 @@ export const CUP_GUEST_CLUBS: readonly ClubDef[] = [
   },
 ];
 
-export const DIVISIONS: readonly DivisionDef[] = [
-  { index: 0, name: 'County League Division Two', clubs: CLUBS, promote: 2, relegate: 0 },
-  { index: 1, name: 'County League Division One', clubs: DIVISION_ONE_CLUBS, promote: 0, relegate: 2 },
+export const DIVISION_NAMES = ['County League Division Two', 'County League Division One'] as const;
+/** Places promoted / relegated per division (index = division). */
+export const DIVISION_RULES: readonly { promote: number; relegate: number }[] = [
+  { promote: 2, relegate: 0 },
+  { promote: 0, relegate: 2 },
 ];
-
-export const CLUB_BY_ID: Readonly<Record<string, ClubDef>> = Object.fromEntries([...CLUBS, ...DIVISION_ONE_CLUBS, ...CUP_GUEST_CLUBS].map((c) => [c.id, c]));

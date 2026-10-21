@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { startCareerSkippingTutorial, tab, kickOffIfWalkOut } from './helpers';
+import { startCareerSkippingTutorial, tab, kickOffIfWalkOut, clickPlayMatch } from './helpers';
 
 test.describe.configure({ timeout: 150_000 });
 
@@ -48,7 +48,7 @@ test('cold install → story → first pack → lineup → guided match → upgr
   await expect(page.locator('.pitchboard__name', { hasText: new RegExp(lastName, 'i') })).toBeVisible();
   await page.getByRole('button', { name: /to the match/i }).click();
 
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await kickOffIfWalkOut(page);
   // The guided first match runs at 2× and teaches Momentum, then prompts the first card.
@@ -145,6 +145,6 @@ test('manager cards: deck screen edits persist, locked cards explain themselves,
   await expect(page.locator('.deck__slots .mc')).toHaveCount(3);
   // The match hand is the deck's first three.
   await page.goto('/#/match');
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.tray__hand .mc__name')).toHaveText([/quick pass/i, /press/i, /park the bus/i]);
 });

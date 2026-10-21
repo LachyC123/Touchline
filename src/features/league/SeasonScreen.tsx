@@ -51,10 +51,10 @@ export function SeasonScreen() {
   }
 
   const o = seasonOutcome(save);
-  const table = leagueTable(save.league, (id) => clubName(id, save.club.name)).slice(0, 4);
+  const table = leagueTable(save.league, (id) => clubName(save.world, id, save.club.name)).slice(0, 4);
   const good = o.outcome === 'promoted' || o.outcome === 'champions';
 
-  const next = divisionOf(o.nextDivision);
+  const next = divisionOf(save.world, o.nextDivision);
   // Winning the league is a title even when it also means promotion.
   const won = o.position === 1;
   const fate = won ? 'champions' : o.outcome === 'stayed' ? null : o.outcome;
@@ -132,7 +132,7 @@ export function SeasonScreen() {
             <li key={r.clubId} className={r.clubId === PLAYER_CLUB_ID ? 'is-us' : ''}>
               <span className="ls__pos">{i + 1}</span>
               <span className="season__club">
-                <Crest club={crestOf(save, r.clubId)} size={22} /> {clubName(r.clubId, save.club.name)}
+                <Crest club={crestOf(save, r.clubId)} size={22} /> {clubName(save.world, r.clubId, save.club.name)}
               </span>
               <b>{r.points}</b>
             </li>

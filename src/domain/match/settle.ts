@@ -1,4 +1,3 @@
-import { CLUB_BY_ID } from '../../data/clubs';
 import { buildTeamLineup, lineupAtFullTime, matchSquad } from '../../game/simulation/fromSquad';
 import { ENGINE_VERSION, SUBS } from '../../game/simulation/constants';
 import type { CreateMatchArgs } from '../../game/simulation/engine';
@@ -8,12 +7,14 @@ import { grantClubXp } from '../club/manager';
 import { advanceOnboarding, colourDistance, KIT_CLASH_DISTANCE } from '../club/onboarding';
 import { opponentLineup } from '../club/opponents';
 import { simulateOtherFixtures, userLeagueResult, userFixture } from '../league/league';
+import { clubOf } from '../world/world';
 import { awardCupMedals } from '../league/honours';
 import { catchUpCup, completeCupRound, cupHeadline, CUP_NAME, CUP_PRIZES, CUP_ROUNDS, cupRoundName, settleTie } from '../cup/cup';
 import { penaltyShootout, type ShootoutResult } from '../cup/shootout';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
-import { awayFor, dressingRoomAfterMatch } from '../club/dressingRoom';
+import { dressingRoomAfterMatch } from '../club/dressingRoom';
+import { injuriesAfterMatch, unavailableFor } from '../players/injuries';
 import { gateMoney, matchAttendance, REP_GAIN, repTier } from '../club/reputation';
 import { dreamsAfterMatch } from '../players/dreams';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
@@ -41,7 +42,7 @@ export const CLUB_XP = { match: 30, win: 15, draw: 8 } as const;
 
 /** Freeze both lineups and the seed at kick-off. Throws if the lineup is not valid. */
 export function prepareMatch(save: ClubSave): PendingMatch {
-  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, awayFor(save));
+  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, unavailableFor(save));
   if (problems.length) throw new Error(problems[0]);
   const fx = userFixture(save);
   if (!fx) throw new Error('The season is over — start the next one from the league table.');
@@ -74,9 +75,9 @@ export function prepareMatch(save: ClubSave): PendingMatch {
 }
 
 /** The substitutes for kick-off: everyone not starting, best first (up to the bench size). */
-export function benchFor(save: Pick<ClubSave, 'squadIds' | 'lineup' | 'footballers' | 'dressingRoom' | 'matchNumber'>): Footballer[] {
+export function benchFor(save: Pick<ClubSave, 'squadIds' | 'lineup' | 'footballers' | 'dressingRoom' | 'matchNumber' | 'injuries'>): Footballer[] {
   const starting = new Set(Object.values(save.lineup));
-  const away = awayFor(save);
+  const away = unavailableFor(save);
   return save.squadIds
     .filter((id) => !starting.has(id) && !away.has(id))
     .flatMap((id) => (save.footballers[id] ? [save.footballers[id]] : []))
@@ -191,7 +192,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   const opp: TeamSide = side === 'home' ? 'away' : 'home';
   const mine = side === 'home' ? pending.home : pending.away;
   const theirs = side === 'home' ? pending.away : pending.home;
-  const club = CLUB_BY_ID[pending.opponentId];
+  const club = clubOf(draft.world, pending.opponentId);
   const oppName = club?.name ?? theirs.name;
   const gf = result.score[side];
   const ga = result.score[opp];
@@ -304,7 +305,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
         awardCupMedals(draft, [...starters]);
       }
       rewards.coins = rewards.lines.reduce((sum, l) => sum + l.coins, 0);
-      storyHeadline = cupHeadline(settled, k, draft.club.name, oppName, shootout, side, draft.league.division) ?? storyHeadline;
+      storyHeadline = cupHeadline(draft.world, settled, k, draft.club.name, oppName, shootout, side, draft.league.division) ?? storyHeadline;
     }
   }
   // A home crowd pays at the gate; reputation grows with results.
@@ -330,7 +331,7 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     const homeId = side === 'home' ? PLAYER_CLUB_ID : pending.opponentId;
     const awayId = side === 'home' ? pending.opponentId : PLAYER_CLUB_ID;
     draft.league.results.push(userLeagueResult(leagueRound, homeId, awayId, result, names));
-    draft.league.results.push(...simulateOtherFixtures(draft.careerSeed, draft.season, draft.league, leagueRound));
+    draft.league.results.push(...simulateOtherFixtures(draft.careerSeed, draft.world, draft.season, draft.league, leagueRound));
     draft.league.round++;
     // Cup rounds we are no longer in are played as the league reaches them.
     catchUpCup(draft);
@@ -400,7 +401,10 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     rival: Boolean(club?.rival),
     won,
   });
-  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}), ...(dreams.length ? { dreams } : {}) };
+  // Knocks taken on the pitch: did anyone pick up an injury?
+  const hurt = injuriesAfterMatch(draft, { matchId: pending.matchId, number: pending.number, side, events: result.events, played: new Set([...starters, ...subRole.keys()]), nameOf });
+  const injuries = hurt.map((i) => ({ playerId: i.playerId, name: nameOf(i.playerId), kind: i.kind, minute: i.minute, byName: i.byName, outFor: i.outFor }));
+  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}), ...(dreams.length ? { dreams } : {}), ...(injuries.length ? { injuries } : {}) };
   draft.matchRecords[0] = withMorale;
   return withMorale;
 }

@@ -9,7 +9,10 @@ import { seasonAppearances } from '../domain/league/honours';
 import { PLAYER_CLUB_ID } from '../domain/save/types';
 import { TouchlineDB, setDbForTests } from './db';
 import { migrateSave } from './migrations';
-import { beginNextSeason, kickOff, loadSave, mutateSave, onboardingEvent, settleMatchOnce, startNewCareer } from './saveRepo';
+import { beginNextSeason, kickOff, loadSave, mutateSave, onboardingEvent, settleMatchOnce, startNewCareer, coverAbsencesInLineup } from './saveRepo';
+import { classicWorld } from '../domain/world/world';
+
+const W = classicWorld();
 
 let db: TouchlineDB;
 let n = 0;
@@ -25,7 +28,7 @@ afterEach(async () => {
 
 describe('fixture list', () => {
   it('is a fair double round robin: everyone plays once a round, each pair home and away', () => {
-    const rounds = scheduleSeason('sched-1', 1, 0);
+    const rounds = scheduleSeason('sched-1', W, 1, 0);
     expect(rounds).toHaveLength(ROUNDS_PER_SEASON);
     const pairs = new Map<string, number>();
     const homes = new Map<string, number>();
@@ -45,21 +48,21 @@ describe('fixture list', () => {
 
   it('a career opens at home to the weakest club in the division', () => {
     for (const seed of ['open-1', 'open-2', 'open-3', 'open-4']) {
-      const first = scheduleSeason(seed, 1, 0)[0]!.find((f) => f.home === PLAYER_CLUB_ID || f.away === PLAYER_CLUB_ID)!;
+      const first = scheduleSeason(seed, W, 1, 0)[0]!.find((f) => f.home === PLAYER_CLUB_ID || f.away === PLAYER_CLUB_ID)!;
       expect(first).toEqual({ home: PLAYER_CLUB_ID, away: 'cinderfield' });
     }
   });
 
   it('is stable for a career and season, different across seasons', () => {
-    expect(scheduleSeason('sched-2', 1, 0)).toEqual(scheduleSeason('sched-2', 1, 0));
-    expect(scheduleSeason('sched-2', 2, 0)).not.toEqual(scheduleSeason('sched-2', 1, 0));
-    expect(scheduleSeason('sched-2', 1, 1).flat().some((f) => f.home === 'halverton' || f.away === 'halverton')).toBe(true);
+    expect(scheduleSeason('sched-2', W, 1, 0)).toEqual(scheduleSeason('sched-2', W, 1, 0));
+    expect(scheduleSeason('sched-2', W, 2, 0)).not.toEqual(scheduleSeason('sched-2', W, 1, 0));
+    expect(scheduleSeason('sched-2', W, 1, 1).flat().some((f) => f.home === 'halverton' || f.away === 'halverton')).toBe(true);
   });
 
   it('AI fixtures are simulated deterministically', () => {
-    const league = newLeague('ai-fix', 1, 0);
-    const a = simulateOtherFixtures('ai-fix', 1, league, 0);
-    const b = simulateOtherFixtures('ai-fix', 1, league, 0);
+    const league = newLeague('ai-fix', W, 1, 0);
+    const a = simulateOtherFixtures('ai-fix', W, 1, league, 0);
+    const b = simulateOtherFixtures('ai-fix', W, 1, league, 0);
     expect(a).toHaveLength(3);
     expect(a).toEqual(b);
     for (const r of a) expect(r.scorers.filter((s) => s.clubId === r.home)).toHaveLength(r.hg);
@@ -80,6 +83,7 @@ describe('a full season', () => {
     for (let guard = 0; guard < 30; guard++) {
       const now = (await loadSave(db))!;
       if (seasonOver(now)) break;
+      await coverAbsencesInLineup(db);
       const pm = await kickOff(db);
       if (pm.competition === 'cup') {
         expect(pm.cupRound).toBe(cupGames);
@@ -137,6 +141,7 @@ describe('a full season', () => {
       expect(medal).toBe(outcome.position <= 2 && played.has(p.id));
     }
     // Season 2 kicks off normally.
+    await coverAbsencesInLineup(db);
     const next = await kickOff(db);
     expect(next.season).toBe(2);
   });
@@ -169,11 +174,11 @@ describe('a full season', () => {
     const { league: _l, seasons: _s, cup: _c, ...rest } = v5;
     const v4 = { ...rest, schemaVersion: 4, contentVersion: 'content-4', season: 2 };
     const m = migrateSave(v4);
-    expect(m.schemaVersion).toBe(8);
+    expect(m.schemaVersion).toBe(9);
     expect(m.cup).toBeNull();
     expect(m.league.division).toBe(0);
     expect(m.league.round).toBe(0);
-    expect(m.league.rounds).toEqual(scheduleSeason('league-mig', 2, 0));
+    expect(m.league.rounds).toEqual(scheduleSeason('league-mig', W, 2, 0));
     expect(m.seasons).toEqual([]);
   });
 
@@ -181,7 +186,7 @@ describe('a full season', () => {
     const v6 = createCareer('cup-mig', 'x');
     const { cup: _c, ...rest } = v6;
     const m = migrateSave({ ...rest, schemaVersion: 5, contentVersion: 'content-5' });
-    expect(m.schemaVersion).toBe(8);
+    expect(m.schemaVersion).toBe(9);
     expect(m.cup).toBeNull();
     expect(m.league).toEqual(v6.league);
     // The season closes without a cup and the next one has one.

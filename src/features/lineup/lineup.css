@@ -384,3 +384,8 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+.pitchboard__tag.is-injured {
+  background: #c8302b;
+  color: #fff7e9;
+}

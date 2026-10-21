@@ -39,6 +39,7 @@ export function autoLineup(players: readonly Footballer[], formation: FormationI
 }
 
 /** Problems with a lineup, in plain language (empty = valid). */
+/** `away`: who can't play, as a phrase after the name ("is injured (…)"). */
 export function lineupProblems(lineup: Lineup, formation: FormationId, footballers: Record<string, Footballer>, squadIds: readonly string[], away: ReadonlyMap<string, string> = new Map()): string[] {
   const problems: string[] = [];
   const slots = FORMATION_DEFS[formation].slots;
@@ -51,7 +52,7 @@ export function lineupProblems(lineup: Lineup, formation: FormationId, footballe
   }
   for (const id of ids) {
     const why = away.get(id);
-    if (why) problems.push(`${footballers[id]?.lastName ?? 'A starter'} is away (${why.toLowerCase()}). Pick someone else.`);
+    if (why) problems.push(`${footballers[id]?.lastName ?? 'A starter'} ${why}. Pick someone else.`);
   }
   const gk = lineup.GK ? footballers[lineup.GK] : undefined;
   if (!gk || gk.primaryPosition !== 'GK') problems.push('A goalkeeper must start in goal.');
@@ -104,4 +105,28 @@ export function fitWarnings(lineup: Lineup, formation: FormationId, footballers:
     if (penalty > 0) out[s.id] = penalty;
   }
   return out;
+}
+
+/**
+ * Replaces only the starters who can't play (injured, away, gone) with the best fit players
+ * left for those positions. Everyone else stays exactly where the manager put them.
+ */
+export function coverAbsences(lineup: Lineup, formation: FormationId, footballers: Record<string, Footballer>, squadIds: readonly string[], out: ReadonlyMap<string, string>): { lineup: Lineup; swaps: { slotId: string; outId: string | null; inId: string }[] } {
+  const next: Lineup = { ...lineup };
+  const swaps: { slotId: string; outId: string | null; inId: string }[] = [];
+  const ok = (id: string | undefined): id is string => Boolean(id && footballers[id] && squadIds.includes(id) && !out.has(id));
+  const used = new Set(Object.values(next).filter(ok));
+  for (const slot of FORMATION_DEFS[formation].slots) {
+    const current = next[slot.id];
+    if (ok(current)) continue;
+    const pick = squadIds
+      .filter((id) => ok(id) && !used.has(id))
+      .filter((id) => (slot.position === 'GK') === (footballers[id]!.primaryPosition === 'GK'))
+      .sort((a, b) => overallAt(footballers[b]!, slot.position) - overallAt(footballers[a]!, slot.position) || a.localeCompare(b))[0];
+    if (!pick) continue;
+    used.add(pick);
+    next[slot.id] = pick;
+    swaps.push({ slotId: slot.id, outId: current ?? null, inId: pick });
+  }
+  return { lineup: next, swaps };
 }

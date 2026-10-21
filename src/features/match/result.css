@@ -819,3 +819,8 @@
 .result__rep b {
   color: var(--gold-dark);
 }
+
+.result__physio {
+  display: grid;
+  gap: var(--s-2);
+}

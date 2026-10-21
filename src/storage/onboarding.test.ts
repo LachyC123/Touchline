@@ -9,7 +9,7 @@ import { replayMatch } from '../game/simulation/replay';
 import { matchArgs } from '../domain/match/settle';
 import { TouchlineDB, setDbForTests } from './db';
 import { migrateSave } from './migrations';
-import { assignPlayer, kickOff, loadSave, mutateSave, onboardingEvent, openPack, restartStaleMatch, setClubIdentity, settleMatchOnce, startNewCareer } from './saveRepo';
+import { assignPlayer, kickOff, loadSave, mutateSave, onboardingEvent, openPack, restartStaleMatch, setClubIdentity, settleMatchOnce, startNewCareer, coverAbsencesInLineup } from './saveRepo';
 import { ENGINE_VERSION } from '../game/simulation/constants';
 
 let db: TouchlineDB;
@@ -126,6 +126,7 @@ describe('scout packs from matches', () => {
     await startNewCareer('scout-run', db);
     await onboardingEvent('skip', db);
     for (let m = 1; m <= 6; m++) {
+      await coverAbsencesInLineup(db);
       const pm = await kickOff(db);
       const { record } = await settleMatchOnce(pm.matchId, db);
       await settleMatchOnce(pm.matchId, db).catch(() => undefined); // a repeat never grants again
@@ -178,7 +179,7 @@ describe('migration v2 → v3', () => {
     const { packs: _p, onboarding: _o, tipsSeen: _t, cardsUnlocked: _c, deck: _d, newCards: _n, league: _l, seasons: _s, ...rest } = v3;
     const v2 = { ...rest, schemaVersion: 2, contentVersion: 'content-2', packInventory: {}, tutorialStep: 'start' };
     const migrated = migrateSave(v2);
-    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.schemaVersion).toBe(9);
     expect(migrated.onboarding).toBe('done');
     expect(migrated.packs).toEqual([]);
     expect(migrated.footballers).toEqual(v3.footballers);

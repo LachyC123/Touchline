@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { startCareerSkippingTutorial, kickOffIfWalkOut } from './helpers';
+import { startCareerSkippingTutorial, kickOffIfWalkOut, clickPlayMatch } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', (err) => {
@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 
 async function playAndSkip(page: Page) {
   await page.goto('/#/match');
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
   await kickOffIfWalkOut(page);
   await page.getByRole('button', { name: /skip to ft/i }).click();
@@ -81,7 +81,7 @@ test('cup: after three league rounds the County Cup tie comes first, then shows 
   await expect(page.locator('.fixture--cup')).toBeVisible();
   await expect(page.locator('.lobby__buildup .storyline').first()).toBeVisible();
   // A cup tie opens with a walk-out, held at minute 0 until kick-off.
-  await page.getByRole('button', { name: /play match/i }).click();
+  await clickPlayMatch(page);
   await expect(page.locator('.walkout')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.walkout__title')).toContainText(/county cup/i);
   await expect(page.locator('.walkout__seven li')).toHaveCount(7);
