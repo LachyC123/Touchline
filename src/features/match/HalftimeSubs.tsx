@@ -5,7 +5,8 @@ import type { MatchController } from '../../game/renderer/controller';
 import type { LineupPlayer, MatchCommand, MatchSnapshot } from '../../game/simulation/types';
 import './subs.css';
 
-const TIRED = 0.72;
+/** Legs below this at half-time get the Tired tag (about the side's least fresh third). */
+const TIRED = 0.78;
 
 /**
  * Half-time changes, without dragging: tap who comes off, tap who comes on, confirm. Legs are

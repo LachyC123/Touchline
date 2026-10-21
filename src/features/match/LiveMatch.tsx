@@ -545,9 +545,11 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
                 void recordCommand(pending.matchId, c).catch((err: unknown) => toast.show(err instanceof Error ? err.message : 'Could not save that change.', 'error'));
               }}
             />
-            <Button variant="primary" size="lg" block onClick={() => controller.resume()} sfx="whistle">
-              Second half
-            </Button>
+            <div className="live__sheet-go">
+              <Button variant="primary" size="lg" block onClick={() => controller.resume()} sfx="whistle">
+                Second half
+              </Button>
+            </div>
           </div>
         </div>
       )}
