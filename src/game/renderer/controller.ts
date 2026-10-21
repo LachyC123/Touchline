@@ -18,7 +18,7 @@ export interface CommentaryLine {
   side?: TeamSide;
 }
 
-export type HoldReason = 'goal' | 'halftime' | 'paused' | 'hidden' | 'fulltime' | null;
+export type HoldReason = 'intro' | 'goal' | 'halftime' | 'paused' | 'hidden' | 'fulltime' | null;
 
 export interface ControllerListener {
   onCommentary?(line: CommentaryLine): void;
@@ -154,8 +154,13 @@ export class MatchController {
 
   resume(): void {
     this.userPaused = false;
-    if (this.hold === 'halftime' || this.hold === 'hidden') this.setHold(null);
+    if (this.hold === 'halftime' || this.hold === 'hidden' || this.hold === 'intro') this.setHold(null);
     else for (const l of this.listeners) l.onHold?.(this.hold);
+  }
+
+  /** Hold at kick-off for the walk-out of a big match; `resume()` starts play. */
+  holdForWalkOut(): void {
+    if (this.hold === null && this.curr.tick === 0) this.hold = 'intro';
   }
 
   /** Backgrounded tab: freeze presentation (the sim never runs ahead unseen). */

@@ -128,12 +128,6 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
         </section>
       )}
 
-      {upgrades.length > 0 && !pending && (
-        <div className="lobby__upgrades">
-          <UpgradeQueue heading="Ready to level up" />
-        </div>
-      )}
-
       {!pending && (
         <section className={`fixture ${cup ? 'fixture--cup' : ''}`} aria-labelledby="fixture-title">
           <div className="fixture__ticket">
@@ -199,6 +193,12 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
           </h2>
           <Storylines lines={storylines} />
         </section>
+      )}
+
+      {upgrades.length > 0 && !pending && (
+        <div className="lobby__upgrades">
+          <UpgradeQueue heading="Ready to level up" />
+        </div>
       )}
 
       {!pending && (

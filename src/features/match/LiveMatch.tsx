@@ -22,6 +22,8 @@ import { MatchController, type CommentaryLine, type HoldReason } from '../../gam
 import { createMatchGame } from '../../game/renderer/createMatchGame';
 import { recordCommand, restartStaleMatch, saveCheckpoint, settleMatchOnce } from '../../storage/saveRepo';
 import { ENGINE_VERSION } from '../../game/simulation/constants';
+import { WalkOut } from './WalkOut';
+import { bigMatch, fixtureOfPending } from '../../domain/match/bigMatch';
 import './live.css';
 
 export function LiveMatch() {
@@ -69,7 +71,18 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
   const args = useMemo(() => matchArgs(pending), [pending]);
   const resumedAt = pending.checkpointTick;
   // Resume = replay the exact recorded inputs up to the checkpoint (deterministic).
-  const [controller] = useState(() => new MatchController(replayTo(args, pending.commands, pending.checkpointTick), pending.home, pending.away, pending.userSide));
+  // Big matches (cup ties, derbies, deciders) open with a walk-out; held at minute 0 until kick-off.
+  const [walkOut] = useState(() => {
+    const club = CLUB_BY_ID[livePending.opponentId];
+    const fx = club ? fixtureOfPending(save, club) : null;
+    const firstRun = tipPending(save, 'tactic') && livePending.number === 1;
+    return livePending.checkpointTick === 0 && !firstRun && fx ? bigMatch(save, fx) : null;
+  });
+  const [controller] = useState(() => {
+    const c = new MatchController(replayTo(args, pending.commands, pending.checkpointTick), pending.home, pending.away, pending.userSide);
+    if (walkOut) c.holdForWalkOut();
+    return c;
+  });
   const canvasRef = useRef<HTMLDivElement>(null);
   const [snap, setSnap] = useState<MatchSnapshot>(() => controller.snapshot);
   const [line, setLine] = useState<CommentaryLine | null>(null);
@@ -432,6 +445,16 @@ function LiveMatchInner({ pending: livePending }: { pending: PendingMatch }) {
           </Button>
         </div>
       </footer>
+
+      {hold === 'intro' && walkOut && (
+        <WalkOut
+          big={walkOut}
+          us={{ team: userTeam, crest: save.club.crest }}
+          them={{ team: oppTeam, crest: oppClub?.crest ?? 'round' }}
+          reduced={isReducedMotion()}
+          onKickOff={() => controller.resume()}
+        />
+      )}
 
       {hold === 'paused' && (
         <div className="live__overlay" role="dialog" aria-modal="true" aria-label="Paused">

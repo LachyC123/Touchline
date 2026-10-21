@@ -14,3 +14,9 @@ export async function startCareerSkippingTutorial(page: Page): Promise<void> {
 export function tab(page: Page, label: string) {
   return page.getByRole('button', { name: new RegExp(`^${label}( \\(\\d+ new\\))?$`) });
 }
+
+/** Big matches open with a walk-out held at minute 0; tap through it if it is showing. */
+export async function kickOffIfWalkOut(page: Page): Promise<void> {
+  const go = page.getByRole('button', { name: /^kick off$/i });
+  if (await go.isVisible().catch(() => false)) await go.click();
+}

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { startCareerSkippingTutorial, tab } from './helpers';
+import { startCareerSkippingTutorial, tab, kickOffIfWalkOut } from './helpers';
 
 test.describe.configure({ timeout: 150_000 });
 
@@ -50,6 +50,7 @@ test('cold install → story → first pack → lineup → guided match → upgr
 
   await page.getByRole('button', { name: /play match/i }).click();
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+  await kickOffIfWalkOut(page);
   // The guided first match runs at 2× and teaches Momentum, then prompts the first card.
   await expect(page.locator('.live__speed')).toHaveText('2×');
   const coach = page.locator('.live__coach');

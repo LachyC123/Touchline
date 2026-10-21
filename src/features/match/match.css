@@ -19,7 +19,7 @@
 .lobby__upgrades {
   display: grid;
   gap: var(--s-3);
-  margin-bottom: var(--s-5);
+  margin-top: var(--s-4);
 }
 
 .lobby__more {

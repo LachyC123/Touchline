@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { startCareerSkippingTutorial, tab } from './helpers';
+import { startCareerSkippingTutorial, tab, kickOffIfWalkOut } from './helpers';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -23,6 +23,7 @@ async function playAndSkip(page: Page) {
   await page.goto('/#/match');
   await page.getByRole('button', { name: /play match/i }).click();
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+  await kickOffIfWalkOut(page);
   await page.getByRole('button', { name: /skip to ft/i }).click();
   await page.getByRole('button', { name: /simulate the rest/i }).click();
   await expect(page.locator('.result__hero')).toBeVisible({ timeout: 20_000 });
@@ -54,6 +55,7 @@ test('match: manager card, skip to full time, rewards paid exactly once across r
   await page.goto('/#/match');
   await page.getByRole('button', { name: /play match/i }).click();
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+  await kickOffIfWalkOut(page);
   await page.waitForTimeout(1500);
   // Play the first manager card in hand (Quick Pass, 2 Momentum; the bar starts at 4).
   await page.getByRole('button', { name: 'Pause', exact: true }).click(); // freeze Momentum regen while we check it
@@ -87,6 +89,7 @@ test('match: manager card, skip to full time, rewards paid exactly once across r
     await replays.first().click();
     await expect(page.locator('.replay__tag')).toBeVisible();
     await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+    await kickOffIfWalkOut(page);
     await expect(page.getByText(/does not match/i)).toHaveCount(0);
     await page.getByRole('button', { name: /close replay/i }).click();
     await expect(page.locator('.result__hero')).toBeVisible();
@@ -101,6 +104,7 @@ test('a reload mid-match resumes the same match at the same minute', async ({ pa
   await page.goto('/#/match');
   await page.getByRole('button', { name: /play match/i }).click();
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+  await kickOffIfWalkOut(page);
   // Wait for real match progress (rendering speed varies by device): checkpoints every 3 s of play.
   const clock = page.locator('.scoreboard__clock');
   await expect.poll(async () => Number((await clock.innerText()).replace(/\D/g, '')), { timeout: 60_000 }).toBeGreaterThanOrEqual(5);

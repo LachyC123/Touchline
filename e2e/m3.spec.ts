@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { startCareerSkippingTutorial } from './helpers';
+import { startCareerSkippingTutorial, kickOffIfWalkOut } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', (err) => {
@@ -11,6 +11,7 @@ async function playAndSkip(page: Page) {
   await page.goto('/#/match');
   await page.getByRole('button', { name: /play match/i }).click();
   await expect(page.locator('.live__pitch canvas')).toBeVisible({ timeout: 20_000 });
+  await kickOffIfWalkOut(page);
   await page.getByRole('button', { name: /skip to ft/i }).click();
   await page.getByRole('button', { name: /simulate the rest/i }).click();
   await expect(page.locator('.result__hero')).toBeVisible({ timeout: 20_000 });
@@ -79,7 +80,18 @@ test('cup: after three league rounds the County Cup tie comes first, then shows 
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/county cup · first round/i);
   await expect(page.locator('.fixture--cup')).toBeVisible();
   await expect(page.locator('.lobby__buildup .storyline').first()).toBeVisible();
-  await playAndSkip(page);
+  // A cup tie opens with a walk-out, held at minute 0 until kick-off.
+  await page.getByRole('button', { name: /play match/i }).click();
+  await expect(page.locator('.walkout')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.walkout__title')).toContainText(/county cup/i);
+  await expect(page.locator('.walkout__seven li')).toHaveCount(7);
+  await expect(page.locator('.scoreboard__clock')).toHaveText("0'");
+  await page.getByRole('button', { name: /^kick off$/i }).click();
+  await expect(page.locator('.walkout')).toHaveCount(0);
+  await expect.poll(async () => Number((await page.locator('.scoreboard__clock').innerText()).replace(/\D/g, '')), { timeout: 20_000 }).toBeGreaterThan(0);
+  await page.getByRole('button', { name: /skip to ft/i }).click();
+  await page.getByRole('button', { name: /simulate the rest/i }).click();
+  await expect(page.locator('.result__hero')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.result__comp')).toContainText(/county cup · first round/i);
   // Through or out, the banner says which; a level tie was settled on penalties.
   await expect(page.locator('.result__sealed')).toContainText(/into the quarter-final|out of the cup/i);
