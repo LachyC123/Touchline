@@ -16,6 +16,7 @@ import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import { fixtureStorylines } from '../../domain/league/stories';
 import { CUP_NAME, cupRoundName } from '../../domain/cup/cup';
 import { TrophyCabinet } from './TrophyCabinet';
+import { DressingRoomPanel } from '../dressing/DressingRoomPanel';
 import './club.css';
 
 export function ClubScreen() {
@@ -127,6 +128,7 @@ export function ClubScreen() {
           </small>
         </span>
       </button>
+      <DressingRoomPanel />
       {last && <p className="club__latest">Latest: {last.storyHeadline}</p>}
       {waiting.length > 0 && step !== 'pack' && (
         <button type="button" className="club__levelup club__packs" onClick={() => navigate(waiting.length === 1 ? { name: 'pack', id: (waiting[0] as (typeof waiting)[number]).id } : { name: 'scout' })}>

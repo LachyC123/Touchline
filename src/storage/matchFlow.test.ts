@@ -66,7 +66,7 @@ describe('save migration', () => {
     const { matchNumber: _a, pendingMatch: _b, matchRecords: _c, pendingUpgrades: _d, packs: _e, onboarding: _f, tipsSeen: _g, cardsUnlocked: _h, deck: _i, newCards: _j, league: _k, seasons: _l, ...rest } = v2;
     const v1 = { ...rest, schemaVersion: 1, contentVersion: 'content-1', packInventory: {}, tutorialStep: 'start' };
     const migrated = migrateSave(v1);
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.deck).toEqual(['QUICK_PASS', 'PRESS', 'GO_WIDE', 'PARK_BUS']);
     expect(migrated.matchNumber).toBe(0);
     expect(migrated.pendingMatch).toBeNull();

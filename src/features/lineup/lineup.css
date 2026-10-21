@@ -303,3 +303,34 @@
     opacity: 0;
   }
 }
+
+.pitchboard__card {
+  position: relative;
+}
+
+.pitchboard__mood {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+}
+
+.pitchboard__tag {
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pitchboard__tag.is-away {
+  background: var(--orange);
+  color: var(--ink);
+}
+
+.pitchboard__tag.is-promised {
+  background: var(--royal);
+  color: var(--cream);
+}

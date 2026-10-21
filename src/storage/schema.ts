@@ -24,7 +24,7 @@ import {
 } from '../domain/players/types';
 import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
 import { MILESTONE_KINDS } from '../domain/players/milestones';
-import { ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
+import { EVENT_KINDS, ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
 import { CARD_IDS, DECK_MAX, DECK_MIN } from '../game/simulation/cards';
 import { SUBS } from '../game/simulation/constants';
 import { CUP_ROUNDS } from '../domain/cup/cup';
@@ -191,6 +191,25 @@ const seasonSummarySchema = z.object({
   cup: z.object({ reached: z.number().int().min(0).max(9), won: z.boolean() }).optional(),
 });
 
+const dressingRoomSchema = z.object({
+  events: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        kind: z.enum(EVENT_KINDS),
+        playerId: z.string().max(80).optional(),
+        atMatch: z.number().int().min(0),
+        status: z.enum(['open', 'resolved', 'news']),
+        choiceId: z.string().max(40).optional(),
+        outcome: z.string().max(240).optional(),
+      }),
+    )
+    .max(40),
+  promises: z.array(z.object({ id: z.string().uuid(), playerId: z.string().max(80), starts: z.number().int().min(1).max(10), got: z.number().int().min(0).max(10), byMatch: z.number().int().min(0) })).max(20),
+  away: z.array(z.object({ playerId: z.string().max(80), untilMatch: z.number().int().min(0), reason: z.string().max(80) })).max(20),
+  lastEventMatch: z.number().int().min(0),
+});
+
 const cupSchema = z.object({
   season: z.number().int().min(1).max(999),
   rounds: z
@@ -286,6 +305,7 @@ const matchRecordSchema = z.object({
     .array(z.object({ playerId: z.string().max(80), name: z.string().max(80), kind: z.enum(MILESTONE_KINDS), text: z.string().max(200) }))
     .max(40)
     .optional(),
+  morale: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), delta: z.number().int().min(-100).max(100), reasons: z.array(z.string().max(40)).max(8) })).max(12).optional(),
 });
 
 const ownedPackSchema = z.object({
@@ -335,6 +355,7 @@ export const clubSaveSchema = z
     newCards: z.array(cardId).max(CARD_IDS.length),
     league: leagueSchema,
     cup: cupSchema.nullable(),
+    dressingRoom: dressingRoomSchema,
     seasons: z.array(seasonSummarySchema).max(999),
     matchNumber: z.number().int().min(0).max(100_000),
     pendingMatch: pendingMatchSchema.nullable(),
@@ -359,6 +380,7 @@ export const clubSaveSchema = z
       if (!slots.includes(key)) ctx.addIssue({ code: 'custom', message: `lineup slot ${key} is not in formation ${save.formationId}` });
     }
     if (save.league.round > save.league.rounds.length) ctx.addIssue({ code: 'custom', message: 'league round is past the end of the season' });
+    if (save.dressingRoom.events.filter((e) => e.status === 'open').length > 1) ctx.addIssue({ code: 'custom', message: 'only one dressing-room request can be open' });
     if (save.cup) {
       if (save.cup.rounds.length < Math.min(save.cup.round + 1, CUP_ROUNDS.length) || save.cup.round > CUP_ROUNDS.length) ctx.addIssue({ code: 'custom', message: 'cup rounds do not match its progress' });
       for (let r = 0; r < save.cup.round; r++) if (save.cup.rounds[r]?.some((t) => !t.winner)) ctx.addIssue({ code: 'custom', message: `cup round ${r} has an undecided tie` });

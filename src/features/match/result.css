@@ -684,3 +684,73 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
+
+.result__room {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+.result__room-news {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--navy-600);
+  color: var(--cream);
+  font-weight: 700;
+  text-align: left;
+}
+
+.result__room-news.is-open {
+  background: var(--royal);
+  box-shadow: 0 4px 0 var(--royal-dark);
+}
+
+.result__room-news.is-good {
+  box-shadow: inset 4px 0 0 var(--lime);
+}
+
+.result__room-news.is-bad {
+  box-shadow: inset 4px 0 0 var(--orange);
+}
+
+.result__room-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result__room-list li {
+  display: grid;
+  grid-template-columns: 22px auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+
+.result__room-name {
+  font-weight: 800;
+}
+
+.result__room-why {
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result__room-list b {
+  font-family: var(--font-display);
+  font-weight: 900;
+}
+
+.result__room-list b.is-up {
+  color: var(--lime);
+}
+
+.result__room-list b.is-down {
+  color: var(--orange);
+}

@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { MoraleMeter } from '../../components/players/MoraleMeter';
+import { awayFor } from '../../domain/club/dressingRoom';
 import { playSfx } from '../../audio/sfx';
 import { useGame, useSave } from '../../app/GameContext';
 import { goBack, navigate } from '../../app/router';
@@ -58,7 +60,9 @@ export function LineupScreen() {
     .filter((p): p is Footballer => Boolean(p) && !starters.has(p!.id))
     .sort((a, b) => overall(b) - overall(a));
   const warnings = useMemo(() => fitWarnings(save.lineup, save.formationId, save.footballers), [save]);
-  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds);
+  const away = awayFor(save);
+  const promised = new Set(save.dressingRoom.promises.map((p) => p.playerId));
+  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, away);
   const power = squadPower(save);
 
   const place = async (slotId: string, playerId: string) => {
@@ -232,8 +236,12 @@ export function LineupScreen() {
                 <>
                   <span className="pitchboard__card">
                     <FootballerCard player={p} kit={save.club.kit} variant="mini" />
+                    <span className="pitchboard__mood">
+                      <MoraleMeter morale={p.morale} compact />
+                    </span>
                   </span>
                   <span className="pitchboard__name">{p.lastName}</span>
+                  {away.has(p.id) && <span className="pitchboard__tag is-away">Away</span>}
                   {warn ? (
                     <span className="pitchboard__warn" title={`Out of position: −${warn} rating`}>
                       <Icon name="info" size={12} />−{warn}
@@ -274,8 +282,12 @@ export function LineupScreen() {
               >
                 <span className="pitchboard__card">
                   <FootballerCard player={p} kit={save.club.kit} variant="mini" />
+                  <span className="pitchboard__mood">
+                    <MoraleMeter morale={p.morale} compact />
+                  </span>
                 </span>
                 <span className="pitchboard__name">{p.lastName}</span>
+                {away.has(p.id) ? <span className="pitchboard__tag is-away">Away</span> : promised.has(p.id) ? <span className="pitchboard__tag is-promised">Promised</span> : null}
               </button>
             );
           })}

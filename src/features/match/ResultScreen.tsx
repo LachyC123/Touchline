@@ -11,6 +11,8 @@ import { fatesSealedIn, roundHeadline, type Fate } from '../../domain/league/sto
 import { Trophy } from '../../components/league/Trophy';
 import { CUP_NAME, CUP_ROUNDS, cupRoundName } from '../../domain/cup/cup';
 import { ShootoutReveal } from './ShootoutReveal';
+import { MoraleMeter } from '../../components/players/MoraleMeter';
+import { eventHeadline } from '../../domain/club/dressingRoom';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
@@ -137,6 +139,8 @@ export function ResultScreen({ id }: { id: string }) {
   const posAt = (rounds: number) => leagueTable({ rounds: save.league.rounds, results: save.league.results.filter((r) => r.round < rounds) }, nameFn).findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const posAfter = sameSeason ? posAt((record.round ?? 0) + 1) : 0;
   const posBefore = sameSeason && (record.round ?? 0) > 0 ? posAt(record.round ?? 0) : null;
+  // Dressing-room fallout from this match: news and any new knock on the door.
+  const roomNews = fresh ? save.dressingRoom.events.filter((e) => e.atMatch === record.number) : [];
   const headline = sameSeason ? roundHeadline(save.league, record.round ?? 0, save.club.name) : null;
   const seasonEnded = !save.pendingMatch && seasonOver(save) && sameSeason;
   const gains = [...record.gains].filter((g) => save.footballers[g.playerId]).sort((a, b) => b.xp - a.xp);
@@ -294,6 +298,37 @@ export function ResultScreen({ id }: { id: string }) {
               );
             })}
           </ul>
+        </section>
+      )}
+
+      {(record.morale?.length || roomNews.length > 0) && (
+        <section className="result__room panel" aria-labelledby="room-title">
+          <h2 id="room-title" className="eyebrow">
+            Dressing room
+          </h2>
+          {roomNews.map((e) => (
+            <button key={e.id} type="button" className={`result__room-news ${e.status === 'open' ? 'is-open' : e.kind === 'promiseBroken' ? 'is-bad' : 'is-good'}`} onClick={() => navigate({ name: 'event', id: e.id })}>
+              {e.status === 'open' ? `${eventHeadline(e, e.playerId ? save.footballers[e.playerId] : undefined)} — hear ${e.playerId ? 'him' : 'them'} out` : e.outcome}
+            </button>
+          ))}
+          {record.morale && record.morale.length > 0 && (
+            <ul className="result__room-list">
+              {record.morale.map((m) => {
+                const p = save.footballers[m.playerId];
+                return (
+                  <li key={m.playerId}>
+                    {p && <MoraleMeter morale={p.morale} compact />}
+                    <span className="result__room-name">{p?.lastName ?? m.name}</span>
+                    <span className="result__room-why">{m.reasons.join(', ')}</span>
+                    <b className={m.delta > 0 ? 'is-up' : 'is-down'}>
+                      {m.delta > 0 ? '▲' : '▼'}
+                      {Math.abs(m.delta)}
+                    </b>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
       )}
 

@@ -1,4 +1,5 @@
 import { advanceOnboarding, applyClubIdentity, type ClubIdentityChoice, type OnboardingEvent } from '../domain/club/onboarding';
+import { applyChoice } from '../domain/club/dressingRoom';
 import { createCareer } from '../domain/club/newCareer';
 import { deckProblem } from '../domain/club/manager';
 import type { CardId } from '../game/simulation/cards';
@@ -365,4 +366,21 @@ export async function beginNextSeason(db?: TouchlineDB): Promise<{ summary: Seas
   summary ??= r.save.seasons.find((x) => x.season === finishing);
   if (!summary) throw new Error('Season summary missing.');
   return { summary, applied: r.applied };
+}
+
+/**
+ * Answers a dressing-room request exactly once (claim = the event id): a double tap or a reload
+ * mid-request returns the same outcome without applying it twice.
+ */
+export async function resolveEvent(eventId: string, choiceId: string, db?: TouchlineDB): Promise<{ outcome: string; applied: boolean }> {
+  let outcome = '';
+  const r = await mutateSave(
+    (s) => {
+      outcome = applyChoice(s, eventId, choiceId);
+    },
+    { claimId: `event:${eventId}` },
+    db,
+  );
+  outcome ||= r.save.dressingRoom.events.find((e) => e.id === eventId)?.outcome ?? '';
+  return { outcome, applied: r.applied };
 }

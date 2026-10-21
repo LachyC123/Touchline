@@ -18,7 +18,8 @@ export type Route =
   | { name: 'setup' }
   | { name: 'cards' }
   | { name: 'league' }
-  | { name: 'season' };
+  | { name: 'season' }
+  | { name: 'event'; id: string };
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -57,13 +58,15 @@ export function parseHash(hash: string): Route {
       return { name: 'league' };
     case 'season':
       return { name: 'season' };
+    case 'event':
+      return parts[1] ? { name: 'event', id: decodeURIComponent(parts[1]) } : { name: 'club' };
     default:
       return { name: 'title' };
   }
 }
 
 export function routeToHash(route: Route): string {
-  if (route.name === 'player' || route.name === 'result' || route.name === 'pack') return `#/${route.name}/${encodeURIComponent(route.id)}`;
+  if (route.name === 'player' || route.name === 'result' || route.name === 'pack' || route.name === 'event') return `#/${route.name}/${encodeURIComponent(route.id)}`;
   if (route.name === 'intro') return route.replay ? '#/intro/replay' : '#/intro';
   if (route.name === 'replay') return `#/replay/${encodeURIComponent(route.id)}/${route.goal}`;
   return route.name === 'title' ? '#/' : `#/${route.name}`;

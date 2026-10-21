@@ -28,6 +28,7 @@ import {
   setDeck as repoSetDeck,
   markCardsSeen as repoMarkCardsSeen,
   beginNextSeason as repoBeginNextSeason,
+  resolveEvent as repoResolveEvent,
   saveSettings,
   startNewCareer,
   toggleFavourite,
@@ -60,6 +61,7 @@ interface GameApi {
   setDeck: (deck: CardId[]) => Promise<void>;
   markCardsSeen: () => Promise<void>;
   beginNextSeason: () => Promise<SeasonSummary>;
+  resolveEvent: (eventId: string, choiceId: string) => Promise<string>;
 }
 
 const GameContext = createContext<GameApi | null>(null);
@@ -134,6 +136,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setDeck: async (deck) => void (await repoSetDeck(deck)),
       markCardsSeen: async () => void (await repoMarkCardsSeen()),
       beginNextSeason: async () => (await repoBeginNextSeason()).summary,
+      resolveEvent: async (eventId, choiceId) => (await repoResolveEvent(eventId, choiceId)).outcome,
     }),
     [saveState, settings, updateSettings, exportSave],
   );

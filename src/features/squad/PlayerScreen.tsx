@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import { MoraleMeter } from '../../components/players/MoraleMeter';
+import { awayFor } from '../../domain/club/dressingRoom';
+import { describeEffect } from '../../domain/players/morale';
 import { useGame, useSave } from '../../app/GameContext';
 import { goBack, navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
@@ -52,6 +55,8 @@ export function PlayerScreen({ id }: { id: string }) {
   }
 
   const m = toCardModel(player);
+  const promise = save.dressingRoom.promises.find((x) => x.playerId === player.id);
+  const awayWhy = awayFor(save).get(player.id);
   const need = xpToNext(player.level);
   const starterSlot = Object.entries(save.lineup).find(([, pid]) => pid === player.id)?.[0];
 
@@ -101,6 +106,14 @@ export function PlayerScreen({ id }: { id: string }) {
           </div>
           <p className="player__xp-note">Earn XP by playing matches. Each level lets you choose a training focus.</p>
         </div>
+      </section>
+
+      <section className="player__mood panel" aria-label="Mood">
+        <MoraleMeter morale={player.morale} />
+        <p className="player__mood-note">
+          On the pitch: {describeEffect(player.morale)}.{promise ? ` You promised him a start (by match ${promise.byMatch}).` : ''}
+          {awayWhy ? ` Away: ${awayWhy}.` : ''}
+        </p>
       </section>
 
       {openUpgrades

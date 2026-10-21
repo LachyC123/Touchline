@@ -1,4 +1,5 @@
 import { SCHEMA_VERSION, type ClubSave } from '../domain/save/types';
+import { emptyDressingRoom } from '../domain/club/dressingRoom';
 import { cardsUnlockedAt, managerLevel } from '../domain/club/manager';
 import { newLeague } from '../domain/league/league';
 import { DEFAULT_DECK } from '../game/simulation/cards';
@@ -51,6 +52,8 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
   },
   // v5 → v6: the County Cup. A season already under way has no cup; it starts next season.
   5: (raw) => ({ ...raw, contentVersion: 'content-6', cup: null }),
+  // v6 → v7: the dressing room. Morale already exists on every footballer; it starts empty.
+  6: (raw) => ({ ...raw, contentVersion: 'content-7', dressingRoom: emptyDressingRoom() }),
 };
 
 export function migrateSave(input: unknown): ClubSave {

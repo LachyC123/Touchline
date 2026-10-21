@@ -18,6 +18,7 @@ import { CoachMark } from '../../components/ui/CoachMark';
 import { ManagerCard } from '../../components/manager/ManagerCard';
 import { AI_DECKS, CARD_DEFS, HAND_SIZE } from '../../game/simulation/cards';
 import { UpgradeQueue } from './UpgradeQueue';
+import { awayFor, eventHeadline, openEvent } from '../../domain/club/dressingRoom';
 import { FormDots } from '../../components/league/FormDots';
 import { Storylines } from '../../components/league/Storylines';
 import { clubForm, fixtureStorylines } from '../../domain/league/stories';
@@ -73,7 +74,9 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
   const theirPower = squadAverage(theirSquad);
   const ourPower = squadPower(save);
   const danger = [...theirSquad].sort((a, b) => overall(b) - overall(a))[0];
-  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds);
+  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, awayFor(save));
+  const request = openEvent(save);
+  const requester = request?.playerId ? save.footballers[request.playerId] : undefined;
   const last = save.matchRecords[0];
   // Keep the pickers that were open when the screen loaded so each confirmation stays visible.
   const [upgrades] = useState(() => save.pendingUpgrades);
@@ -114,6 +117,12 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
         <p className="lobby__standing">
           You are <b>{ordinal(ourPos)}</b> · {club.shortName} are <b>{ordinal(theirPos)}</b>
         </p>
+      )}
+
+      {request && !pending && (
+        <button type="button" className="lobby__request" onClick={() => navigate({ name: 'event', id: request.id })}>
+          <Icon name="megaphone" size={18} /> {eventHeadline(request, requester)} — hear {requester ? 'him' : 'them'} out
+        </button>
       )}
 
       {pending && (

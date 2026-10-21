@@ -5,6 +5,7 @@ import { autoLineup } from './lineup';
 import type { Footballer, Position, Tier } from '../players/types';
 import { DEFAULT_DECK } from '../../game/simulation/cards';
 import { newCup } from '../cup/cup';
+import { emptyDressingRoom } from './dressingRoom';
 import { newLeague } from '../league/league';
 import { grantPack } from '../packs/packs';
 import { cardsUnlockedAt } from './manager';
@@ -106,6 +107,7 @@ export function createCareer(careerSeed: string, nowIso: string, identity: ClubI
     newCards: [],
     league: newLeague(careerSeed, 1, 0),
     cup: newCup(careerSeed, 1),
+    dressingRoom: emptyDressingRoom(),
     seasons: [],
     matchNumber: 0,
     pendingMatch: null,

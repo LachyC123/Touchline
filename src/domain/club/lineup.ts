@@ -39,7 +39,7 @@ export function autoLineup(players: readonly Footballer[], formation: FormationI
 }
 
 /** Problems with a lineup, in plain language (empty = valid). */
-export function lineupProblems(lineup: Lineup, formation: FormationId, footballers: Record<string, Footballer>, squadIds: readonly string[]): string[] {
+export function lineupProblems(lineup: Lineup, formation: FormationId, footballers: Record<string, Footballer>, squadIds: readonly string[], away: ReadonlyMap<string, string> = new Map()): string[] {
   const problems: string[] = [];
   const slots = FORMATION_DEFS[formation].slots;
   const ids = Object.values(lineup);
@@ -48,6 +48,10 @@ export function lineupProblems(lineup: Lineup, formation: FormationId, footballe
   if (new Set(ids).size !== ids.length) problems.push('A player cannot start in two positions.');
   for (const id of ids) {
     if (!squadIds.includes(id) || !footballers[id]) problems.push('A starter is no longer at the club.');
+  }
+  for (const id of ids) {
+    const why = away.get(id);
+    if (why) problems.push(`${footballers[id]?.lastName ?? 'A starter'} is away (${why.toLowerCase()}). Pick someone else.`);
   }
   const gk = lineup.GK ? footballers[lineup.GK] : undefined;
   if (!gk || gk.primaryPosition !== 'GK') problems.push('A goalkeeper must start in goal.');

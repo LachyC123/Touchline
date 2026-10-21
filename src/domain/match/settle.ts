@@ -13,6 +13,7 @@ import { catchUpCup, completeCupRound, cupHeadline, CUP_NAME, CUP_PRIZES, CUP_RO
 import { penaltyShootout, type ShootoutResult } from '../cup/shootout';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
+import { awayFor, dressingRoomAfterMatch } from '../club/dressingRoom';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
 import { xpToNext } from '../players/progression';
 import { overall } from '../players/rating';
@@ -38,7 +39,7 @@ export const CLUB_XP = { match: 30, win: 15, draw: 8 } as const;
 
 /** Freeze both lineups and the seed at kick-off. Throws if the lineup is not valid. */
 export function prepareMatch(save: ClubSave): PendingMatch {
-  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds);
+  const problems = lineupProblems(save.lineup, save.formationId, save.footballers, save.squadIds, awayFor(save));
   if (problems.length) throw new Error(problems[0]);
   const fx = userFixture(save);
   if (!fx) throw new Error('The season is over — start the next one from the league table.');
@@ -71,10 +72,11 @@ export function prepareMatch(save: ClubSave): PendingMatch {
 }
 
 /** The substitutes for kick-off: everyone not starting, best first (up to the bench size). */
-export function benchFor(save: Pick<ClubSave, 'squadIds' | 'lineup' | 'footballers'>): Footballer[] {
+export function benchFor(save: Pick<ClubSave, 'squadIds' | 'lineup' | 'footballers' | 'dressingRoom' | 'matchNumber'>): Footballer[] {
   const starting = new Set(Object.values(save.lineup));
+  const away = awayFor(save);
   return save.squadIds
-    .filter((id) => !starting.has(id))
+    .filter((id) => !starting.has(id) && !away.has(id))
     .flatMap((id) => (save.footballers[id] ? [save.footballers[id]] : []))
     .sort((a, b) => overall(b) - overall(a) || a.id.localeCompare(b.id))
     .slice(0, SUBS.bench);
@@ -363,5 +365,14 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
   draft.matchNumber = pending.number;
   draft.pendingMatch = null;
   draft.onboarding = advanceOnboarding(draft.onboarding, 'firstMatchSettled');
-  return record;
+
+  // The dressing room reacts: morale, promises, and perhaps a knock on the door.
+  const goalsBy = new Map<string, number>();
+  for (const g of myGoals) goalsBy.set(g.scorerId, (goalsBy.get(g.scorerId) ?? 0) + 1);
+  const outcome = gf > ga ? 'win' : gf === ga ? 'draw' : 'loss';
+  const swings = dressingRoomAfterMatch(draft, { started: starters, cameOn: new Set(subRole.keys()), goals: goalsBy, potmId: result.playerOfMatchId, result: outcome });
+  const morale = swings.slice(0, 6).map((c) => ({ ...c, name: draft.footballers[c.playerId] ? `${draft.footballers[c.playerId]!.firstName} ${draft.footballers[c.playerId]!.lastName}` : nameOf(c.playerId) }));
+  const withMorale: MatchRecord = { ...record, ...(morale.length ? { morale } : {}) };
+  draft.matchRecords[0] = withMorale;
+  return withMorale;
 }

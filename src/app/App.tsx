@@ -13,6 +13,7 @@ import { ResultScreen } from '../features/match/ResultScreen';
 import { DeckScreen } from '../features/cards/DeckScreen';
 import { LeagueScreen } from '../features/league/LeagueScreen';
 import { SeasonScreen } from '../features/league/SeasonScreen';
+import { EventScreen } from '../features/dressing/EventScreen';
 import { ClubSetup } from '../features/onboarding/ClubSetup';
 import { IntroScreen } from '../features/onboarding/IntroScreen';
 import { PackScreen } from '../features/scout/PackScreen';
@@ -150,6 +151,7 @@ function Screens() {
       {route.name === 'cards' && <DeckScreen />}
       {route.name === 'league' && <LeagueScreen />}
       {route.name === 'season' && <SeasonScreen />}
+      {route.name === 'event' && <EventScreen id={route.id} />}
       {route.name === 'lab' && (
         <Suspense fallback={null}>
           <CardLab />

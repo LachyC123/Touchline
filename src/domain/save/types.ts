@@ -6,8 +6,8 @@ import type { MilestoneKind } from '../players/milestones';
 import type { ShootoutResult } from '../cup/shootout';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
-export const SCHEMA_VERSION = 6;
-export const CONTENT_VERSION = 'content-6';
+export const SCHEMA_VERSION = 7;
+export const CONTENT_VERSION = 'content-7';
 export { ENGINE_VERSION } from '../../game/simulation/constants';
 
 export type { FormationId };
@@ -108,6 +108,8 @@ export interface MatchRecord {
   competition?: Competition;
   cupRound?: number;
   shootout?: ShootoutResult;
+  /** Morale swings worth showing (largest first). */
+  morale?: { playerId: string; name: string; delta: number; reasons: string[] }[];
   /** Career landmarks reached in this match (debuts excluded). */
   milestones?: RecordMilestone[];
   storyHeadline: string;
@@ -202,6 +204,42 @@ export interface CupState {
   round: number;
 }
 
+export const EVENT_KINDS = ['playingTime', 'homesick', 'flatSquad', 'interview', 'promiseKept', 'promiseBroken'] as const;
+export type EventKind = (typeof EVENT_KINDS)[number];
+
+/** Something in the dressing room: a request with choices, or news of how one played out. */
+export interface ClubEvent {
+  id: string;
+  kind: EventKind;
+  playerId?: string;
+  /** The match after which it happened (matchNumber at the time). */
+  atMatch: number;
+  status: 'open' | 'resolved' | 'news';
+  choiceId?: string;
+  /** What happened, in a line (after a choice, or for news). */
+  outcome?: string;
+}
+
+/** "You'll start one of the next two": checked after every match until kept or broken. */
+export interface PlayerPromise {
+  id: string;
+  playerId: string;
+  starts: number;
+  /** Starts so far since the promise. */
+  got: number;
+  /** Last match number by which it must be kept. */
+  byMatch: number;
+}
+
+export interface DressingRoom {
+  /** Newest first. */
+  events: ClubEvent[];
+  promises: PlayerPromise[];
+  /** Players excused until (and including) a match number. */
+  away: { playerId: string; untilMatch: number; reason: string }[];
+  lastEventMatch: number;
+}
+
 export interface SeasonSummary {
   season: number;
   division: number;
@@ -263,6 +301,7 @@ export interface ClubSave {
   /** Unlocked cards the player has not looked at yet. */
   newCards: CardId[];
   league: LeagueState;
+  dressingRoom: DressingRoom;
   /** This season's County Cup (null for a season that started before the cup existed). */
   cup: CupState | null;
   /** Finished seasons, oldest first. */

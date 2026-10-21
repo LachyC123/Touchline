@@ -304,3 +304,19 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+
+.lobby__request {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: var(--s-3);
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--royal);
+  color: var(--cream);
+  font-weight: 800;
+  text-align: left;
+  box-shadow: 0 4px 0 var(--royal-dark);
+}

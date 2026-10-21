@@ -1,10 +1,14 @@
 import { FORMATION_DEFS, type FormationId } from '../../domain/formations';
 import { overallAt } from '../../domain/players/rating';
+import { moraleEffect } from '../../domain/players/morale';
 import type { Footballer } from '../../domain/players/types';
 import type { AiStyle, FootballEvent, LineupPlayer, SimAttributes, TeamLineup, TeamSide } from './types';
 
+/** The attributes he takes onto the pitch: his own, nudged by his morale (see players/morale). */
 export function simAttributes(p: Footballer): SimAttributes {
-  const a = p.attributes;
+  const mood = moraleEffect(p.morale);
+  const a = { ...p.attributes };
+  for (const [k, v] of Object.entries(mood) as [keyof typeof a, number][]) a[k] = Math.max(1, Math.min(99, a[k] + v));
   return {
     pace: a.pace,
     acceleration: a.acceleration,

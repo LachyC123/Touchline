@@ -1,0 +1,65 @@
+.mood {
+  display: grid;
+  gap: 4px;
+}
+
+.mood__row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mood__bar {
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+.mood__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--mood);
+  transition: width 900ms var(--ease-spring);
+}
+
+.mood,
+.mood-chip {
+  --mood: var(--cream-3);
+}
+
+.mood--low {
+  --mood: var(--danger);
+}
+
+.mood--unsettled {
+  --mood: var(--orange);
+}
+
+.mood--content {
+  --mood: var(--cream-3);
+}
+
+.mood--happy {
+  --mood: var(--pitch-light);
+}
+
+.mood--buzzing {
+  --mood: var(--lime);
+}
+
+.mood-chip {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.mood__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

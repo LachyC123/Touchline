@@ -178,7 +178,7 @@ describe('migration v2 → v3', () => {
     const { packs: _p, onboarding: _o, tipsSeen: _t, cardsUnlocked: _c, deck: _d, newCards: _n, league: _l, seasons: _s, ...rest } = v3;
     const v2 = { ...rest, schemaVersion: 2, contentVersion: 'content-2', packInventory: {}, tutorialStep: 'start' };
     const migrated = migrateSave(v2);
-    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.onboarding).toBe('done');
     expect(migrated.packs).toEqual([]);
     expect(migrated.footballers).toEqual(v3.footballers);
