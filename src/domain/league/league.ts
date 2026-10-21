@@ -4,8 +4,9 @@ import type { MatchResult } from '../../game/simulation/types';
 import { grantClubXp } from '../club/manager';
 import { opponentLineup } from '../club/opponents';
 import { awardSeasonHonours } from './honours';
+import { cupFinished, cupWinner, newCup, userCupTie } from '../cup/cup';
 import { createRng } from '../rng';
-import { PLAYER_CLUB_ID, type ClubSave, type LeagueFixture, type LeagueResult, type LeagueState, type SeasonSummary } from '../save/types';
+import { PLAYER_CLUB_ID, type ClubSave, type Competition, type CupState, type LeagueFixture, type LeagueResult, type LeagueState, type SeasonSummary } from '../save/types';
 
 export const ROUNDS_PER_SEASON = 14;
 /** Squad strength added per season played (opponents improve over time too). */
@@ -66,20 +67,41 @@ export function seasonComplete(league: LeagueState): boolean {
   return league.round >= league.rounds.length;
 }
 
+/** Every league fixture and every cup round of the season has been played. */
+export function seasonOver(save: Pick<ClubSave, 'league'> & Partial<Pick<ClubSave, 'cup'>>): boolean {
+  return seasonComplete(save.league) && cupFinished(save.cup ?? null);
+}
+
+/** How far the club went in this season's cup. */
+export function cupRun(cup: CupState | null): SeasonSummary['cup'] | undefined {
+  if (!cup) return undefined;
+  let reached = 0;
+  cup.rounds.forEach((ties, r) => {
+    if (ties.some((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID)) reached = r;
+  });
+  return { reached, won: cupWinner(cup) === PLAYER_CLUB_ID };
+}
+
 export interface UserFixture {
   club: ClubDef;
   home: boolean;
+  /** League round (for a cup tie: the league round it is played before). */
   round: number;
   /** Strength step for the opposition squad. */
   lap: number;
+  competition: Competition;
+  /** Cup round index, for cup ties. */
+  cupRound?: number;
 }
 
 export function strengthLap(season: number): number {
   return Math.min(MAX_SEASON_STRENGTH_STEPS, Math.max(0, season - 1));
 }
 
-/** The player's next league fixture, or null once the season is complete. */
-export function userFixture(save: Pick<ClubSave, 'league' | 'season'>): UserFixture | null {
+/** The player's next fixture (a due cup tie comes first), or null once the season is complete. */
+export function userFixture(save: Pick<ClubSave, 'league' | 'season'> & Partial<Pick<ClubSave, 'cup'>>): UserFixture | null {
+  const tie = userCupTie({ league: save.league, season: save.season, cup: save.cup ?? null });
+  if (tie) return { club: tie.club, home: tie.home, round: save.league.round, lap: tie.lap, competition: 'cup', cupRound: tie.cupRound };
   const round = save.league.rounds[save.league.round];
   if (!round) return null;
   const f = round.find((x) => x.home === PLAYER_CLUB_ID || x.away === PLAYER_CLUB_ID);
@@ -87,7 +109,7 @@ export function userFixture(save: Pick<ClubSave, 'league' | 'season'>): UserFixt
   const home = f.home === PLAYER_CLUB_ID;
   const club = CLUB_BY_ID[home ? f.away : f.home];
   if (!club) throw new Error('Unknown club in the fixture list');
-  return { club, home, round: save.league.round, lap: strengthLap(save.season) };
+  return { club, home, round: save.league.round, lap: strengthLap(save.season), competition: 'league' };
 }
 
 function scorersOf(result: MatchResult, homeId: string, awayId: string, names: Map<string, string>): LeagueResult['scorers'] {
@@ -179,7 +201,7 @@ export const SEASON_PRIZES: readonly number[] = [600, 450, 350, 300, 250, 200, 1
 export const SEASON_CLUB_XP: readonly number[] = [160, 130, 110, 100, 90, 80, 70, 60];
 
 /** Final position, what it means and the prize, for a complete season (no mutation). */
-export function seasonOutcome(save: Pick<ClubSave, 'league' | 'club' | 'season'>): Omit<SeasonSummary, 'topScorer'> & { topScorer?: SeasonSummary['topScorer']; nextDivision: number } {
+export function seasonOutcome(save: Pick<ClubSave, 'league' | 'club' | 'season'> & Partial<Pick<ClubSave, 'cup'>>): Omit<SeasonSummary, 'topScorer'> & { topScorer?: SeasonSummary['topScorer']; nextDivision: number } {
   const div = divisionOf(save.league.division);
   const table = leagueTable(save.league, (id) => clubName(id, save.club.name));
   const idx = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID);
@@ -211,6 +233,7 @@ export function seasonOutcome(save: Pick<ClubSave, 'league' | 'club' | 'season'>
     points: row.points,
     outcome,
     prizeCoins: SEASON_PRIZES[idx] ?? 100,
+    ...(cupRun(save.cup ?? null) ? { cup: cupRun(save.cup ?? null) } : {}),
     ...(ours ? { topScorer: { name: ours.name, goals: ours.goals } } : {}),
     nextDivision,
   };
@@ -218,7 +241,7 @@ export function seasonOutcome(save: Pick<ClubSave, 'league' | 'club' | 'season'>
 
 /** Closes the season on a draft: summary, prize, promotion/relegation, a fresh schedule. */
 export function startNextSeason(draft: ClubSave): SeasonSummary {
-  if (!seasonComplete(draft.league)) throw new Error('The season is not finished yet.');
+  if (!seasonOver(draft)) throw new Error('The season is not finished yet.');
   if (draft.pendingMatch) throw new Error('Finish the current match first.');
   const { nextDivision, ...summary } = seasonOutcome(draft);
   const idx = summary.position - 1;
@@ -230,6 +253,7 @@ export function startNextSeason(draft: ClubSave): SeasonSummary {
   grantClubXp(draft, SEASON_CLUB_XP[idx] ?? 50);
   draft.season++;
   draft.league = newLeague(draft.careerSeed, draft.season, division);
+  draft.cup = newCup(draft.careerSeed, draft.season);
   return summary;
 }
 

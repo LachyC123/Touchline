@@ -20,7 +20,8 @@ import { AI_DECKS, CARD_DEFS, HAND_SIZE } from '../../game/simulation/cards';
 import { UpgradeQueue } from './UpgradeQueue';
 import { FormDots } from '../../components/league/FormDots';
 import { Storylines } from '../../components/league/Storylines';
-import { clubForm, preMatchStorylines } from '../../domain/league/stories';
+import { clubForm, fixtureStorylines } from '../../domain/league/stories';
+import { CUP_NAME, CUP_ROUNDS, cupRoundName } from '../../domain/cup/cup';
 import './match.css';
 
 export function MatchLobby() {
@@ -28,7 +29,7 @@ export function MatchLobby() {
   const pm = save.pendingMatch;
   const fx = userFixture(save);
   const pendingClub = pm ? CLUB_BY_ID[pm.opponentId] : undefined;
-  const fixture: UserFixture | null = pm && pendingClub ? { club: pendingClub, home: pm.userSide === 'home', round: pm.round ?? save.league.round, lap: strengthLap(save.season) } : fx;
+  const fixture: UserFixture | null = pm && pendingClub ? { club: pendingClub, home: pm.userSide === 'home', round: pm.round ?? save.league.round, lap: strengthLap(save.season), competition: pm.competition ?? 'league', ...(pm.cupRound !== undefined ? { cupRound: pm.cupRound } : {}) } : fx;
   if (!fixture) return <SeasonComplete />;
   return <LobbyInner fixture={fixture} />;
 }
@@ -77,7 +78,9 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
   // Keep the pickers that were open when the screen loaded so each confirmation stays visible.
   const [upgrades] = useState(() => save.pendingUpgrades);
   const maxPower = Math.max(ourPower, theirPower, 1);
-  const storylines = preMatchStorylines(save, fixture);
+  const storylines = fixtureStorylines(save, fixture);
+  const cup = fixture.competition === 'cup';
+  const cupFinal = cup && fixture.cupRound === CUP_ROUNDS.length - 1;
   const ourForm = clubForm(save.league, PLAYER_CLUB_ID);
   const theirForm = clubForm(save.league, club.id);
   const inForm = Object.values(save.lineup)
@@ -100,16 +103,14 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
     <main className="screen lobby">
       <header className="screen-head">
         <h1>
-          <small>
-            Round {fixture.round + 1} of {save.league.rounds.length} · {division.name.replace('County League ', '')}
-          </small>
-          Matchday
+          <small>{cup ? `${CUP_NAME} · ${cupRoundName(fixture.cupRound ?? 0)}` : `Round ${fixture.round + 1} of ${save.league.rounds.length} · ${division.name.replace('County League ', '')}`}</small>
+          {cup ? (cupFinal ? 'Cup final' : 'Cup tie') : 'Matchday'}
         </h1>
         <Button variant="ghost" size="sm" icon="sort" onClick={() => navigate({ name: 'league' })}>
           Table
         </Button>
       </header>
-      {save.league.results.length > 0 && (
+      {!cup && save.league.results.length > 0 && (
         <p className="lobby__standing">
           You are <b>{ordinal(ourPos)}</b> · {club.shortName} are <b>{ordinal(theirPos)}</b>
         </p>
@@ -134,9 +135,10 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
       )}
 
       {!pending && (
-        <section className="fixture" aria-labelledby="fixture-title">
+        <section className={`fixture ${cup ? 'fixture--cup' : ''}`} aria-labelledby="fixture-title">
           <div className="fixture__ticket">
-            <span className="fixture__venue">{fixture.home ? `Home · ${save.club.stadiumName}` : `Away · ${club.stadiumName}`}</span>
+            {cup && <span className="fixture__cup">{cupFinal ? 'Final' : 'Knockout'}</span>}
+            <span className="fixture__venue">{cupFinal ? 'Neutral · The County Ground' : fixture.home ? `Home · ${save.club.stadiumName}` : `Away · ${club.stadiumName}`}</span>
             {club.rival && (
               <span className="fixture__rival">
                 <Icon name="bolt" size={14} /> Rivals
@@ -153,7 +155,7 @@ function LobbyInner({ fixture }: { fixture: UserFixture }) {
             <div className="fixture__team">
               <Crest club={{ ...club, kit: club.kit }} size={64} />
               <span>{club.shortName}</span>
-              {save.league.results.length > 0 && <FormDots form={theirForm} label={club.name} />}
+              {save.league.results.length > 0 && theirForm.length > 0 && <FormDots form={theirForm} label={club.name} />}
             </div>
           </div>
           <h2 id="fixture-title" className="fixture__name">

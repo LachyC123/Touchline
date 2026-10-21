@@ -26,6 +26,7 @@ import { FORMATION_DEFS, FORMATION_IDS } from '../domain/formations';
 import { MILESTONE_KINDS } from '../domain/players/milestones';
 import { ONBOARDING_STEPS, PACK_KINDS, SCHEMA_VERSION, TIP_IDS } from '../domain/save/types';
 import { CARD_IDS, DECK_MAX, DECK_MIN } from '../game/simulation/cards';
+import { CUP_ROUNDS } from '../domain/cup/cup';
 
 /**
  * Runtime validation for everything persisted or imported. Mirrors the TypeScript domain
@@ -185,6 +186,29 @@ const seasonSummarySchema = z.object({
   outcome: z.enum(['promoted', 'relegated', 'champions', 'stayed']),
   prizeCoins: safeCount,
   topScorer: z.object({ name: z.string().max(90), goals: safeCount }).optional(),
+  cup: z.object({ reached: z.number().int().min(0).max(9), won: z.boolean() }).optional(),
+});
+
+const cupSchema = z.object({
+  season: z.number().int().min(1).max(999),
+  rounds: z
+    .array(
+      z
+        .array(
+          z.object({
+            home: clubRef,
+            away: clubRef,
+            hg: z.number().int().min(0).max(99).optional(),
+            ag: z.number().int().min(0).max(99).optional(),
+            pens: z.object({ home: safeCount, away: safeCount }).optional(),
+            winner: clubRef.optional(),
+            scorers: z.array(z.object({ playerId: z.string().max(80), name: z.string().max(90), clubId: clubRef })).max(40).optional(),
+          }),
+        )
+        .max(16),
+    )
+    .max(8),
+  round: z.number().int().min(0).max(8),
 });
 
 const pendingMatchSchema = z.object({
@@ -200,10 +224,8 @@ const pendingMatchSchema = z.object({
   checkpointTick: z.number().int().min(0).max(100_000),
   season: z.number().int().min(1).max(999).optional(),
   round: z.number().int().min(0).max(40).optional(),
-  milestones: z
-    .array(z.object({ playerId: z.string().max(80), name: z.string().max(80), kind: z.enum(MILESTONE_KINDS), text: z.string().max(200) }))
-    .max(40)
-    .optional(),
+  competition: z.enum(['league', 'cup']).optional(),
+  cupRound: z.number().int().min(0).max(9).optional(),
 });
 
 const matchRecordSchema = z.object({
@@ -248,6 +270,16 @@ const matchRecordSchema = z.object({
   unlockedCards: z.array(cardId).max(CARD_IDS.length).optional(),
   season: z.number().int().min(1).max(999).optional(),
   round: z.number().int().min(0).max(40).optional(),
+  competition: z.enum(['league', 'cup']).optional(),
+  cupRound: z.number().int().min(0).max(9).optional(),
+  shootout: z
+    .object({
+      home: safeCount,
+      away: safeCount,
+      winner: side,
+      kicks: z.array(z.object({ side, takerId: z.string().max(80), takerName: z.string().max(90), keeperName: z.string().max(90), scored: z.boolean() })).max(80),
+    })
+    .optional(),
   milestones: z
     .array(z.object({ playerId: z.string().max(80), name: z.string().max(80), kind: z.enum(MILESTONE_KINDS), text: z.string().max(200) }))
     .max(40)
@@ -300,6 +332,7 @@ export const clubSaveSchema = z
     deck: z.array(cardId).min(DECK_MIN).max(DECK_MAX),
     newCards: z.array(cardId).max(CARD_IDS.length),
     league: leagueSchema,
+    cup: cupSchema.nullable(),
     seasons: z.array(seasonSummarySchema).max(999),
     matchNumber: z.number().int().min(0).max(100_000),
     pendingMatch: pendingMatchSchema.nullable(),
@@ -324,6 +357,10 @@ export const clubSaveSchema = z
       if (!slots.includes(key)) ctx.addIssue({ code: 'custom', message: `lineup slot ${key} is not in formation ${save.formationId}` });
     }
     if (save.league.round > save.league.rounds.length) ctx.addIssue({ code: 'custom', message: 'league round is past the end of the season' });
+    if (save.cup) {
+      if (save.cup.rounds.length < Math.min(save.cup.round + 1, CUP_ROUNDS.length) || save.cup.round > CUP_ROUNDS.length) ctx.addIssue({ code: 'custom', message: 'cup rounds do not match its progress' });
+      for (let r = 0; r < save.cup.round; r++) if (save.cup.rounds[r]?.some((t) => !t.winner)) ctx.addIssue({ code: 'custom', message: `cup round ${r} has an undecided tie` });
+    }
     if (new Set(save.deck).size !== save.deck.length) ctx.addIssue({ code: 'custom', message: 'a card is in the deck twice' });
     for (const c of save.deck) if (!save.cardsUnlocked.includes(c)) ctx.addIssue({ code: 'custom', message: `deck card ${c} is not unlocked` });
     for (const pack of save.packs) {

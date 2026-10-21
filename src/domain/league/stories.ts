@@ -1,6 +1,7 @@
 import { CLUB_BY_ID, type DivisionDef } from '../../data/clubs';
 import { PLAYER_CLUB_ID, type ClubSave, type LeagueResult, type LeagueState } from '../save/types';
 import { upcomingMilestones } from '../players/milestones';
+import { CUP_NAME, CUP_ROUNDS, cupRoundName, divisionIndexOf } from '../cup/cup';
 import { clubName, divisionOf, leagueTable, ordinal, topScorers, type TableRow, type UserFixture } from './league';
 
 /**
@@ -160,7 +161,7 @@ export function roundSealed(league: Pick<LeagueState, 'rounds' | 'results' | 'di
 
 // ── Pre-match storylines ───────────────────────────────────────────────────────────────────
 
-export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer' | 'milestone' | 'hotStreak';
+export type StoryKind = 'finalDay' | 'opener' | 'clinch' | 'survive' | 'summit' | 'leapfrog' | 'chase' | 'scrap' | 'derby' | 'revenge' | 'meeting' | 'ourRun' | 'theirRun' | 'ourScorer' | 'theirScorer' | 'milestone' | 'hotStreak' | 'cupRound' | 'cupFinal' | 'giantKilling' | 'bananaSkin' | 'knockout';
 
 export interface Storyline {
   kind: StoryKind;
@@ -331,4 +332,35 @@ export function seasonStory(save: Pick<ClubSave, 'league' | 'club'>, fate: Fate 
     sealedRound: fate ? roundSealed(save.league, fate) : null,
     homeRecord: { won: home.filter((r) => r.res === 'W').length, drawn: home.filter((r) => r.res === 'D').length, lost: home.filter((r) => r.res === 'L').length },
   };
+}
+
+// ── Cup ties ───────────────────────────────────────────────────────────────────────────────
+
+/** Build-up for a County Cup tie: what the round is worth, who they are, and the last meeting. */
+export function cupStorylines(save: Pick<ClubSave, 'league' | 'matchRecords' | 'club' | 'season'> & Partial<Pick<ClubSave, 'footballers' | 'lineup'>>, fixture: Pick<UserFixture, 'club' | 'cupRound'>, limit = 3): Storyline[] {
+  const out: Storyline[] = [];
+  const add = (kind: StoryKind, tone: Storyline['tone'], text: string, weight: number) => out.push({ kind, tone, text, weight });
+  const k = fixture.cupRound ?? 0;
+  const final = k === CUP_ROUNDS.length - 1;
+  const them = fixture.club.name;
+  if (final) add('cupFinal', 'hype', `${CUP_NAME} final at the County Ground. Win and the cup is yours.`, 100);
+  else if (k > 0) add('cupRound', 'hype', `Win and you're in the ${cupRoundName(k + 1).toLowerCase()}.`, 80);
+  else add('knockout', 'info', 'Knockout football: level after 90 minutes means penalties.', 70);
+  const ours = save.league.division;
+  const theirs = divisionIndexOf(fixture.club.id);
+  if (theirs > ours) add('giantKilling', 'hype', `Giant-killing chance: ${them} play in ${divisionOf(theirs).name}.`, 88);
+  else if (theirs < 0) add('bananaSkin', 'warn', `Banana skin: ${them} are non-league part-timers with nothing to lose.`, 78);
+  else if (theirs < ours) add('bananaSkin', 'warn', `Banana skin: ${them} are from the division below and would love to knock you out.`, 76);
+  else add('meeting', 'info', `A league rival in the cup: you meet ${them} in ${divisionOf(ours).name} too.`, 45);
+  const last = headToHead(save, fixture.club.id)[0];
+  if (last && last.gf < last.ga) add('revenge', 'hype', `They beat you ${last.ga}–${last.gf} last time. Revenge is on the menu.`, 65);
+  const starters = Object.values(save.lineup ?? {}).flatMap((id) => (save.footballers?.[id] ? [save.footballers[id]] : []));
+  const next = upcomingMilestones(starters)[0];
+  if (next) add('milestone', 'hype', next.text, next.weight + 20);
+  return out.sort((a, b) => b.weight - a.weight).slice(0, limit);
+}
+
+/** The right build-up for whichever competition the fixture is in. */
+export function fixtureStorylines(save: Parameters<typeof preMatchStorylines>[0], fixture: UserFixture, limit = 3): Storyline[] {
+  return fixture.competition === 'cup' ? cupStorylines(save, fixture, limit) : preMatchStorylines(save, fixture, limit);
 }

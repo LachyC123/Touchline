@@ -674,3 +674,13 @@
   background: var(--lime);
   box-shadow: 0 2px 0 var(--lime-dark);
 }
+
+.result__comp {
+  margin-bottom: 6px;
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-sm);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}

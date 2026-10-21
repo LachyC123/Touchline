@@ -391,3 +391,27 @@
   padding-left: 1.1em;
   font-weight: 600;
 }
+
+.league__cup {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.league__cup-status b {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lf__pens {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.league__round .is-winner {
+  font-weight: 800;
+}

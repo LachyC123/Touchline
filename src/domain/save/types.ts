@@ -3,10 +3,11 @@ import type { FormationId } from '../formations';
 import type { Footballer, Tier } from '../players/types';
 import type { CardId } from '../../game/simulation/cards';
 import type { MilestoneKind } from '../players/milestones';
+import type { ShootoutResult } from '../cup/shootout';
 import type { MatchCommand, TeamLineup, TeamSide } from '../../game/simulation/types';
 
-export const SCHEMA_VERSION = 5;
-export const CONTENT_VERSION = 'content-5';
+export const SCHEMA_VERSION = 6;
+export const CONTENT_VERSION = 'content-6';
 export { ENGINE_VERSION } from '../../game/simulation/constants';
 
 export type { FormationId };
@@ -28,6 +29,9 @@ export interface PendingMatch {
   /** League season and round this fixture belongs to. */
   season?: number;
   round?: number;
+  /** Absent = league. */
+  competition?: Competition;
+  cupRound?: number;
 }
 
 export interface ScorerLine {
@@ -101,6 +105,9 @@ export interface MatchRecord {
   /** League season and round this match belonged to. */
   season?: number;
   round?: number;
+  competition?: Competition;
+  cupRound?: number;
+  shootout?: ShootoutResult;
   /** Career landmarks reached in this match (debuts excluded). */
   milestones?: RecordMilestone[];
   storyHeadline: string;
@@ -174,6 +181,27 @@ export interface LeagueState {
   results: LeagueResult[];
 }
 
+export type Competition = 'league' | 'cup';
+
+export interface CupTie {
+  home: string;
+  away: string;
+  hg?: number;
+  ag?: number;
+  /** Shootout score when the tie was level after 90 minutes. */
+  pens?: { home: number; away: number };
+  winner?: string;
+  scorers?: LeagueScorer[];
+}
+
+export interface CupState {
+  season: number;
+  /** Rounds are drawn one at a time from the previous round's winners. */
+  rounds: CupTie[][];
+  /** Index of the next round to be played (rounds.length of the format when finished). */
+  round: number;
+}
+
 export interface SeasonSummary {
   season: number;
   division: number;
@@ -188,6 +216,8 @@ export interface SeasonSummary {
   points: number;
   outcome: 'promoted' | 'relegated' | 'champions' | 'stayed';
   prizeCoins: number;
+  /** How far the club went in the County Cup (round index reached; won = lifted it). */
+  cup?: { reached: number; won: boolean };
   topScorer?: { name: string; goals: number };
 }
 
@@ -233,6 +263,8 @@ export interface ClubSave {
   /** Unlocked cards the player has not looked at yet. */
   newCards: CardId[];
   league: LeagueState;
+  /** This season's County Cup (null for a season that started before the cup existed). */
+  cup: CupState | null;
   /** Finished seasons, oldest first. */
   seasons: SeasonSummary[];
   /** Completed matches (also the index of the next fixture). */

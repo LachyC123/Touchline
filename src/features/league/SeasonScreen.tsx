@@ -7,11 +7,12 @@ import { Crest } from '../../components/club/Crest';
 import { Button } from '../../components/ui/Button';
 import { Confetti } from '../../components/ui/Confetti';
 import { useToast } from '../../components/ui/Toast';
-import { clubName, divisionOf, leagueTable, ordinal, SEASON_CLUB_XP, seasonComplete, seasonOutcome } from '../../domain/league/league';
+import { clubName, divisionOf, leagueTable, ordinal, SEASON_CLUB_XP, seasonOver, seasonOutcome } from '../../domain/league/league';
 import { PLAYER_CLUB_ID, type SeasonSummary } from '../../domain/save/types';
 import { crestOf } from './crestOf';
 import { Trophy } from '../../components/league/Trophy';
 import { seasonStory } from '../../domain/league/stories';
+import { CUP_NAME, cupRoundName } from '../../domain/cup/cup';
 import './league.css';
 
 const HEADLINE: Record<SeasonSummary['outcome'], string> = {
@@ -31,7 +32,7 @@ export function SeasonScreen() {
   const toast = useToast();
   const reduced = useReducedMotion();
   const [busy, setBusy] = useState(false);
-  const complete = seasonComplete(save.league) && !save.pendingMatch;
+  const complete = seasonOver(save) && !save.pendingMatch;
 
   if (!complete) {
     return (
@@ -65,6 +66,7 @@ export function SeasonScreen() {
     story.bestWin ? `Best win: ${story.bestWin.gf}–${story.bestWin.ga} ${story.bestWin.home ? 'at home to' : 'away at'} ${story.bestWin.opponentName}.` : null,
     story.longestWinRun >= 2 ? `Longest winning run: ${story.longestWinRun} games.` : null,
     `At home: ${story.homeRecord.won}W ${story.homeRecord.drawn}D ${story.homeRecord.lost}L.`,
+    o.cup ? (o.cup.won ? `${CUP_NAME}: winners!` : `${CUP_NAME}: out in the ${cupRoundName(o.cup.reached).toLowerCase()}.`) : null,
   ].filter((l): l is string => Boolean(l));
 
   const start = async () => {

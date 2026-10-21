@@ -49,6 +49,8 @@ const MIGRATIONS: Record<number, (raw: RawSave) => RawSave> = {
     const season = typeof raw.season === 'number' ? raw.season : 1;
     return { ...raw, contentVersion: 'content-5', league: newLeague(seed, season, 0), seasons: [] };
   },
+  // v5 → v6: the County Cup. A season already under way has no cup; it starts next season.
+  5: (raw) => ({ ...raw, contentVersion: 'content-6', cup: null }),
 };
 
 export function migrateSave(input: unknown): ClubSave {

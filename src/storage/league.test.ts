@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CLUBS, DIVISION_ONE_CLUBS } from '../data/clubs';
+import { CLUBS, CUP_GUEST_CLUBS, DIVISION_ONE_CLUBS } from '../data/clubs';
+import { CUP_AFTER_LEAGUE_ROUNDS, cupFinished, cupWinner, eliminatedIn } from '../domain/cup/cup';
 import { colourDistance, KIT_CLASH_DISTANCE } from '../domain/club/onboarding';
 import { createCareer } from '../domain/club/newCareer';
-import { leagueTable, newLeague, ROUNDS_PER_SEASON, scheduleSeason, seasonComplete, seasonOutcome, simulateOtherFixtures } from '../domain/league/league';
+import { leagueTable, newLeague, ROUNDS_PER_SEASON, scheduleSeason, seasonComplete, seasonOutcome, seasonOver, simulateOtherFixtures, startNextSeason } from '../domain/league/league';
 import { prepareMatch } from '../domain/match/settle';
 import { seasonAppearances } from '../domain/league/honours';
 import { PLAYER_CLUB_ID } from '../domain/save/types';
@@ -65,7 +66,7 @@ describe('fixture list', () => {
   });
 
   it('every club kit reads against the pitch', () => {
-    for (const c of [...CLUBS, ...DIVISION_ONE_CLUBS]) expect(colourDistance(c.kit.primary, '#1E8D70')).toBeGreaterThan(KIT_CLASH_DISTANCE);
+    for (const c of [...CLUBS, ...DIVISION_ONE_CLUBS, ...CUP_GUEST_CLUBS]) expect(colourDistance(c.kit.primary, '#1E8D70')).toBeGreaterThan(KIT_CLASH_DISTANCE);
   });
 });
 
@@ -73,13 +74,29 @@ describe('a full season', () => {
   it('plays 14 rounds, keeps a table that adds up, then closes exactly once', async () => {
     await startNewCareer('season-run', db);
     await onboardingEvent('skip', db);
-    for (let m = 0; m < ROUNDS_PER_SEASON; m++) {
+    // League rounds in order, with County Cup ties slotted in while we are still in the cup.
+    let leagueGames = 0;
+    let cupGames = 0;
+    for (let guard = 0; guard < 30; guard++) {
+      const now = (await loadSave(db))!;
+      if (seasonOver(now)) break;
       const pm = await kickOff(db);
-      expect(pm.round).toBe(m);
+      if (pm.competition === 'cup') {
+        expect(pm.cupRound).toBe(cupGames);
+        expect(now.league.round).toBe(CUP_AFTER_LEAGUE_ROUNDS[cupGames]);
+        cupGames++;
+      } else {
+        expect(pm.round).toBe(leagueGames);
+        leagueGames++;
+      }
       await settleMatchOnce(pm.matchId, db);
     }
+    expect(leagueGames).toBe(ROUNDS_PER_SEASON);
     let s = (await loadSave(db))!;
     expect(seasonComplete(s.league)).toBe(true);
+    expect(cupFinished(s.cup)).toBe(true);
+    expect(cupGames).toBe(Math.min(4, (eliminatedIn(s.cup) ?? 3) + 1));
+    expect(cupWinner(s.cup)).toBeTruthy();
     expect(s.league.results).toHaveLength(ROUNDS_PER_SEASON * 4);
     const table = leagueTable(s.league, (id) => id);
     expect(table).toHaveLength(8);
@@ -94,7 +111,7 @@ describe('a full season', () => {
     expect(table.reduce((sum, r) => sum + r.points, 0)).toBe(3 * (s.league.results.length - draws) + 2 * draws);
     // Our results in the table match our match records.
     const ours = table.find((r) => r.clubId === PLAYER_CLUB_ID)!;
-    const recordGoals = s.matchRecords.filter((r) => r.season === 1).reduce((sum, r) => sum + r.score[r.userSide], 0);
+    const recordGoals = s.matchRecords.filter((r) => r.season === 1 && r.competition !== 'cup').reduce((sum, r) => sum + r.score[r.userSide], 0);
     expect(ours.gf).toBe(recordGoals);
     expect(() => prepareMatch(s)).toThrow(/season is over/i);
 
@@ -130,6 +147,7 @@ describe('a full season', () => {
     await mutateSave((s) => {
       s.league.results = s.league.rounds.flatMap((round, ri) => round.map((f) => ({ round: ri, home: f.home, away: f.away, hg: f.home === PLAYER_CLUB_ID ? 3 : 1, ag: f.away === PLAYER_CLUB_ID ? 3 : 1, scorers: [] })));
       s.league.round = s.league.rounds.length;
+      s.cup = null; // a season faked without its cup
     }, {}, db);
     const { summary } = await beginNextSeason(db);
     expect(summary.position).toBe(1);
@@ -139,6 +157,7 @@ describe('a full season', () => {
     await mutateSave((s) => {
       s.league.results = s.league.rounds.flatMap((round, ri) => round.map((f) => ({ round: ri, home: f.home, away: f.away, hg: f.away === PLAYER_CLUB_ID ? 2 : 0, ag: f.home === PLAYER_CLUB_ID ? 2 : 0, scorers: [] })));
       s.league.round = s.league.rounds.length;
+      s.cup = null; // a season faked without its cup
     }, {}, db);
     const second = await beginNextSeason(db);
     expect(second.summary.outcome).toBe('relegated');
@@ -147,13 +166,30 @@ describe('a full season', () => {
 
   it('a v4 save migrates into a fresh Division Two season', () => {
     const v5 = createCareer('league-mig', 'x');
-    const { league: _l, seasons: _s, ...rest } = v5;
+    const { league: _l, seasons: _s, cup: _c, ...rest } = v5;
     const v4 = { ...rest, schemaVersion: 4, contentVersion: 'content-4', season: 2 };
     const m = migrateSave(v4);
-    expect(m.schemaVersion).toBe(5);
+    expect(m.schemaVersion).toBe(6);
+    expect(m.cup).toBeNull();
     expect(m.league.division).toBe(0);
     expect(m.league.round).toBe(0);
     expect(m.league.rounds).toEqual(scheduleSeason('league-mig', 2, 0));
     expect(m.seasons).toEqual([]);
+  });
+
+  it('a v5 save keeps its season and gets the cup from next season', async () => {
+    const v6 = createCareer('cup-mig', 'x');
+    const { cup: _c, ...rest } = v6;
+    const m = migrateSave({ ...rest, schemaVersion: 5, contentVersion: 'content-5' });
+    expect(m.schemaVersion).toBe(6);
+    expect(m.cup).toBeNull();
+    expect(m.league).toEqual(v6.league);
+    // The season closes without a cup and the next one has one.
+    m.league.results = m.league.rounds.flatMap((round, ri) => round.map((f) => ({ round: ri, home: f.home, away: f.away, hg: 1, ag: 1, scorers: [] })));
+    m.league.round = m.league.rounds.length;
+    expect(seasonOver(m)).toBe(true);
+    const summary = startNextSeason(m);
+    expect(summary.cup).toBeUndefined();
+    expect(m.cup?.season).toBe(2);
   });
 });

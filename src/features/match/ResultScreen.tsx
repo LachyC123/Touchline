@@ -5,10 +5,12 @@ import { useSave } from '../../app/GameContext';
 import { CoachMark } from '../../components/ui/CoachMark';
 import { tipPending } from '../../domain/club/onboarding';
 import { PACK_DEFS } from '../../domain/packs/packs';
-import { PLAYER_CLUB_ID, type MatchMoment, type RecordMilestone } from '../../domain/save/types';
-import { clubName, divisionOf, leagueTable, ordinal, seasonComplete } from '../../domain/league/league';
+import { PLAYER_CLUB_ID, type CupState, type MatchMoment, type RecordMilestone } from '../../domain/save/types';
+import { clubName, divisionOf, leagueTable, ordinal, seasonOver } from '../../domain/league/league';
 import { fatesSealedIn, roundHeadline, type Fate } from '../../domain/league/stories';
 import { Trophy } from '../../components/league/Trophy';
+import { CUP_NAME, CUP_ROUNDS, cupRoundName } from '../../domain/cup/cup';
+import { ShootoutReveal } from './ShootoutReveal';
 import { navigate } from '../../app/router';
 import { FootballerCard } from '../../components/cards/FootballerCard';
 import { Crest } from '../../components/club/Crest';
@@ -21,6 +23,13 @@ import { CLUB_BY_ID } from '../../data/clubs';
 import { xpToNext } from '../../domain/players/progression';
 import { UpgradeQueue } from './UpgradeQueue';
 import './result.css';
+
+/** Who we drew in the next cup round (the draw is made as soon as a round finishes). */
+function nextCupOpponent(save: { cup: CupState | null; club: { name: string } }, round: number): string {
+  const tie = save.cup?.rounds[round + 1]?.find((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID);
+  if (!tie) return 'the next opponents';
+  return clubName(tie.home === PLAYER_CLUB_ID ? tie.away : tie.home, save.club.name);
+}
 
 const FATE_ORDER: Fate[] = ['champions', 'promoted', 'safe', 'relegated'];
 
@@ -81,13 +90,17 @@ export function ResultScreen({ id }: { id: string }) {
 
   const sameSeason = record?.season !== undefined && record.season === save.season && record.round !== undefined;
   const fate = sealedFate(save.league, record?.round, sameSeason);
+  // Cup: our tie in this season's draw (only while that cup is the current one).
+  const cupTie = record?.competition === 'cup' && save.cup && save.cup.season === record.season ? save.cup.rounds[record.cupRound ?? 0]?.find((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID) : undefined;
+  const cupThrough = cupTie?.winner === PLAYER_CLUB_ID;
+  const cupWon = cupThrough && record?.cupRound === CUP_ROUNDS.length - 1;
   useEffect(() => {
     if (!record || !fresh) return;
     const ours = record.score[record.userSide];
     const theirs = record.score[record.userSide === 'home' ? 'away' : 'home'];
-    if (ours > theirs || fate === 'champions' || fate === 'promoted') playSfx('cheer');
-    else if (ours === theirs || fate === 'safe') playSfx('chime');
-  }, [record, fresh, fate]);
+    if (ours > theirs || fate === 'champions' || fate === 'promoted' || cupWon) playSfx('cheer');
+    else if ((ours === theirs && !record.shootout) || fate === 'safe') playSfx('chime');
+  }, [record, fresh, fate, cupWon]);
 
   if (!record) {
     return (
@@ -107,7 +120,9 @@ export function ResultScreen({ id }: { id: string }) {
   const them = us === 'home' ? 'away' : 'home';
   const gf = record.score[us];
   const ga = record.score[them];
-  const verdict = gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat';
+  const outcome = gf > ga ? 'win' : gf === ga ? 'draw' : 'defeat';
+  const verdict = record.shootout ? (record.shootout.winner === us ? 'Won on penalties' : 'Lost on penalties') : gf > ga ? 'Win' : gf === ga ? 'Draw' : 'Defeat';
+  const isCup = record.competition === 'cup';
   const homeName = us === 'home' ? save.club.shortName : (opp?.shortName ?? 'OPP');
   const awayName = us === 'home' ? (opp?.shortName ?? 'OPP') : save.club.shortName;
   const homeCrest = us === 'home' ? save.club : opp;
@@ -122,7 +137,7 @@ export function ResultScreen({ id }: { id: string }) {
   const posAfter = sameSeason ? posAt((record.round ?? 0) + 1) : 0;
   const posBefore = sameSeason && (record.round ?? 0) > 0 ? posAt(record.round ?? 0) : null;
   const headline = sameSeason ? roundHeadline(save.league, record.round ?? 0, save.club.name) : null;
-  const seasonOver = !save.pendingMatch && seasonComplete(save.league) && sameSeason;
+  const seasonEnded = !save.pendingMatch && seasonOver(save) && sameSeason;
   const gains = [...record.gains].filter((g) => save.footballers[g.playerId]).sort((a, b) => b.xp - a.xp);
   const stats: [string, number | string, number | string, number, number][] = [
     ['Possession', `${record.stats.possession.home}%`, `${record.stats.possession.away}%`, record.stats.possession.home, record.stats.possession.away],
@@ -134,9 +149,10 @@ export function ResultScreen({ id }: { id: string }) {
   ];
 
   return (
-    <main className={`screen result result--${verdict.toLowerCase()}`}>
+    <main className={`screen result result--${outcome}`}>
       <section className="result__hero" aria-label={`Full time: ${verdict} ${gf}–${ga} against ${record.opponentName}`}>
-        {fresh && !reduced && (gf > ga || fate === 'champions' || fate === 'promoted') && <Confetti count={26} colours={[save.club.kit.primary, save.club.kit.secondary, '#CBF238', '#F4C653']} />}
+        {fresh && !reduced && (gf > ga || fate === 'champions' || fate === 'promoted' || cupThrough) && <Confetti count={26} colours={[save.club.kit.primary, save.club.kit.secondary, '#CBF238', '#F4C653']} />}
+        {isCup && <p className="result__comp">{`${CUP_NAME} · ${cupRoundName(record.cupRound ?? 0)}`}</p>}
         <p className="result__ft">Full time · {verdict}</p>
         <div className="result__score">
           <div className="result__team">
@@ -171,6 +187,24 @@ export function ResultScreen({ id }: { id: string }) {
           </ul>
         )}
       </section>
+
+      {record.shootout && <ShootoutReveal shootout={record.shootout} us={us} names={{ home: homeName, away: awayName }} animate={fresh && !reduced} />}
+
+      {cupTie && (
+        <section className={`result__sealed result__sealed--${cupWon ? 'champions' : cupThrough ? 'safe' : 'relegated'}`} role="status">
+          {cupWon && <Trophy kind="jug" ribbon={save.club.kit.primary} trim={save.club.kit.secondary} size={84} />}
+          <div>
+            <p className="result__sealed-title">{cupWon ? 'Cup winners!' : cupThrough ? `Into the ${cupRoundName((record.cupRound ?? 0) + 1).toLowerCase()}!` : 'Out of the cup'}</p>
+            <p className="result__sealed-line">
+              {cupWon
+                ? `The ${CUP_NAME} is yours. It goes straight into the trophy cabinet.`
+                : cupThrough
+                  ? `Drawn against ${nextCupOpponent(save, record.cupRound ?? 0)} — after a few more league games.`
+                  : `Knocked out in the ${cupRoundName(record.cupRound ?? 0).toLowerCase()} by ${record.opponentName}.`}
+            </p>
+          </div>
+        </section>
+      )}
 
       {fate && (
         <section className={`result__sealed result__sealed--${fate}`} role="status">
@@ -376,7 +410,7 @@ export function ResultScreen({ id }: { id: string }) {
         <Button variant="ghost" icon="club" onClick={() => navigate({ name: 'club' })}>
           Club
         </Button>
-        {seasonOver ? (
+        {seasonEnded ? (
           <Button variant="primary" size="lg" icon="star" onClick={() => navigate({ name: 'season' })}>
             Final day
           </Button>

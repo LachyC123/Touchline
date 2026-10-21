@@ -50,7 +50,11 @@ test('league: a whole season ends on the final day and season 2 starts once', as
   test.skip(info.project.name !== 'phone-390', 'one viewport is enough for the long season run');
   test.setTimeout(420_000);
   await startCareerSkippingTutorial(page);
-  for (let round = 0; round < 14; round++) await playAndSkip(page);
+  // 14 league rounds plus however many County Cup ties we survive.
+  for (let match = 0; match < 18; match++) {
+    await playAndSkip(page);
+    if (await page.getByRole('button', { name: /final day/i }).count()) break;
+  }
   await page.getByRole('button', { name: /final day/i }).click();
   await expect(page.locator('.season__title')).toBeVisible();
   await expect(page.locator('.season__table li')).toHaveCount(4);
@@ -63,4 +67,34 @@ test('league: a whole season ends on the final day and season 2 starts once', as
   await expect(page.locator('.club__league')).toContainText(/season 2/i);
   await page.goto('/#/league');
   await expect(page.locator('.league__history li')).toHaveCount(1);
+});
+
+test('cup: after three league rounds the County Cup tie comes first, then shows in the bracket', async ({ page }) => {
+  test.setTimeout(180_000);
+  await startCareerSkippingTutorial(page);
+  for (let round = 0; round < 3; round++) await playAndSkip(page);
+  await page.goto('/#/club');
+  await expect(page.locator('.club__next')).toContainText(/county cup · first round/i);
+  await page.goto('/#/match');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/county cup · first round/i);
+  await expect(page.locator('.fixture--cup')).toBeVisible();
+  await expect(page.locator('.lobby__buildup .storyline').first()).toBeVisible();
+  await playAndSkip(page);
+  await expect(page.locator('.result__comp')).toContainText(/county cup · first round/i);
+  // Through or out, the banner says which; a level tie was settled on penalties.
+  await expect(page.locator('.result__sealed')).toContainText(/into the quarter-final|out of the cup/i);
+  const verdict = await page.locator('.result__ft').innerText();
+  if (/penalties/i.test(verdict)) await expect(page.locator('.shootout')).toBeVisible();
+  await expect(page.locator('.result__league')).toHaveCount(0);
+  await page.reload();
+  await page.goto('/#/league');
+  await page.getByRole('tab', { name: 'Cup' }).click();
+  const first = page.locator('.league__cup .league__round').first();
+  await expect(first.locator('li')).toHaveCount(8);
+  const scores = await first.locator('.lf__score').allInnerTexts();
+  expect(scores.every((x) => /\d–\d/.test(x))).toBe(true);
+  await expect(page.locator('.league__cup .league__round').nth(1).locator('li')).toHaveCount(4);
+  // Back to the league: round 4 is next.
+  await page.goto('/#/match');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/round 4 of 14/i);
 });

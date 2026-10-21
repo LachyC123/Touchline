@@ -439,3 +439,16 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+.club__next.is-cup {
+  background:
+    radial-gradient(ellipse 60% 80% at 100% 50%, rgb(255 255 255 / 0.35), transparent 70%),
+    var(--gold);
+  box-shadow:
+    0 5px 0 var(--gold-dark),
+    2px 12px 24px rgb(0 0 0 / 0.3);
+}
+
+.club__next.is-cup .club__next-go {
+  color: var(--gold);
+}

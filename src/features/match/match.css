@@ -276,3 +276,31 @@
 .fixture__team .form-dots {
   margin-top: 2px;
 }
+
+.fixture--cup {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgb(255 255 255 / 0.22), transparent 70%),
+    repeating-conic-gradient(from 0deg at 50% 38%, rgb(255 255 255 / 0.05) 0 8deg, transparent 8deg 20deg),
+    linear-gradient(180deg, #2c3f6b, var(--navy-800));
+  box-shadow:
+    inset 0 0 0 3px var(--gold),
+    0 5px 0 var(--gold-dark);
+}
+
+.fixture--cup .fixture__vs {
+  color: var(--gold);
+}
+
+.fixture__cup {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px 2px;
+  border-radius: var(--r-pill);
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

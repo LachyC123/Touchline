@@ -206,9 +206,25 @@ export interface DivisionDef {
   relegate: number;
 }
 
+/** County Cup guests from outside the league: the underdogs every cup needs. */
+export const CUP_GUEST_CLUBS: readonly ClubDef[] = [
+  {
+    id: 'rookfield',
+    name: 'Rookfield Athletic',
+    shortName: 'ROO',
+    stadiumName: 'The Rec',
+    kit: { primary: '#E6C229', secondary: '#1B2235', pattern: 'halves', cut: 'crew' },
+    crest: 'round',
+    formation: '3-2-1',
+    aiStyle: 'counter',
+    baseOvr: 43,
+    styleLine: 'Non-league part-timers: a plumber in goal and nothing to lose.',
+  },
+];
+
 export const DIVISIONS: readonly DivisionDef[] = [
   { index: 0, name: 'County League Division Two', clubs: CLUBS, promote: 2, relegate: 0 },
   { index: 1, name: 'County League Division One', clubs: DIVISION_ONE_CLUBS, promote: 0, relegate: 2 },
 ];
 
-export const CLUB_BY_ID: Readonly<Record<string, ClubDef>> = Object.fromEntries([...CLUBS, ...DIVISION_ONE_CLUBS].map((c) => [c.id, c]));
+export const CLUB_BY_ID: Readonly<Record<string, ClubDef>> = Object.fromEntries([...CLUBS, ...DIVISION_ONE_CLUBS, ...CUP_GUEST_CLUBS].map((c) => [c.id, c]));

@@ -7,9 +7,10 @@ import { IconButton } from '../../components/ui/Button';
 import { clubName, divisionOf, leagueTable, ordinal, topScorers } from '../../domain/league/league';
 import { PLAYER_CLUB_ID } from '../../domain/save/types';
 import { crestOf } from './crestOf';
+import { CupBracket } from './CupBracket';
 import './league.css';
 
-type Tab = 'table' | 'fixtures' | 'scorers';
+type Tab = 'table' | 'fixtures' | 'scorers' | 'cup';
 
 /**
  * The division: standings computed from every stored result (ours and the AI fixtures the
@@ -36,7 +37,7 @@ export function LeagueScreen() {
       </header>
 
       <div className="segmented league__tabs" role="tablist" aria-label="League views">
-        {(['table', 'fixtures', 'scorers'] as const).map((t) => (
+        {(save.cup ? (['table', 'fixtures', 'scorers', 'cup'] as const) : (['table', 'fixtures', 'scorers'] as const)).map((t) => (
           <button
             key={t}
             type="button"
@@ -48,7 +49,7 @@ export function LeagueScreen() {
               setTab(t);
             }}
           >
-            {t === 'table' ? 'Table' : t === 'fixtures' ? 'Fixtures' : 'Scorers'}
+            {t === 'table' ? 'Table' : t === 'fixtures' ? 'Fixtures' : t === 'scorers' ? 'Scorers' : 'Cup'}
           </button>
         ))}
       </div>
@@ -149,6 +150,8 @@ export function LeagueScreen() {
           )}
         </section>
       )}
+
+      {tab === 'cup' && save.cup && <CupBracket cup={save.cup} ownName={save.club.name} />}
 
       {save.seasons.length > 0 && (
         <section className="league__history panel" aria-labelledby="history-title">

@@ -11,9 +11,10 @@ import { Icon } from '../../components/icons/Icon';
 import { Button } from '../../components/ui/Button';
 import { squadPower } from '../../domain/club/newCareer';
 import { CLUB_BY_ID } from '../../data/clubs';
-import { clubName, divisionOf, leagueTable, ordinal, seasonComplete, userFixture } from '../../domain/league/league';
+import { clubName, divisionOf, leagueTable, ordinal, seasonOver, userFixture } from '../../domain/league/league';
 import { PLAYER_CLUB_ID } from '../../domain/save/types';
-import { preMatchStorylines } from '../../domain/league/stories';
+import { fixtureStorylines } from '../../domain/league/stories';
+import { CUP_NAME, cupRoundName } from '../../domain/cup/cup';
 import { TrophyCabinet } from './TrophyCabinet';
 import './club.css';
 
@@ -28,12 +29,13 @@ export function ClubScreen() {
   const anchorModel = anchor ? toCardModel(anchor) : null;
   const starters = Object.keys(save.lineup).length;
   const fixture = userFixture(save);
-  const over = !save.pendingMatch && seasonComplete(save.league);
+  const over = !save.pendingMatch && seasonOver(save);
   const table = leagueTable(save.league, (id) => clubName(id, save.club.name));
   const pos = table.findIndex((r) => r.clubId === PLAYER_CLUB_ID) + 1;
   const pendingOpp = save.pendingMatch ? CLUB_BY_ID[save.pendingMatch.opponentId] : undefined;
   const last = save.matchRecords[0];
-  const headline = fixture && !save.pendingMatch ? preMatchStorylines(save, fixture, 1)[0] : undefined;
+  const headline = fixture && !save.pendingMatch ? fixtureStorylines(save, fixture, 1)[0] : undefined;
+  const pendingCup = save.pendingMatch?.competition === 'cup';
 
   return (
     <main className="screen club">
@@ -87,13 +89,21 @@ export function ClubScreen() {
       )}
       <button
         type="button"
-        className={`club__next ${showNextTip ? 'coach-target' : ''}`}
+        className={`club__next ${showNextTip ? 'coach-target' : ''} ${fixture?.competition === 'cup' && !over ? 'is-cup' : ''}`}
         onClick={() => {
           if (showNextTip && step === 'done') void seeTip('next-match');
           navigate(over ? { name: 'season' } : { name: save.pendingMatch ? 'live' : 'match' });
         }}
       >
-        <span className="club__next-kicker">{save.pendingMatch ? 'Match in progress' : over ? 'Season complete' : `Round ${save.league.round + 1} of ${save.league.rounds.length}`}</span>
+        <span className="club__next-kicker">
+          {save.pendingMatch
+            ? `${pendingCup ? `${CUP_NAME} · ` : ''}Match in progress`
+            : over
+              ? 'Season complete'
+              : fixture?.competition === 'cup'
+                ? `${CUP_NAME} · ${cupRoundName(fixture.cupRound ?? 0)}`
+                : `Round ${save.league.round + 1} of ${save.league.rounds.length}`}
+        </span>
         <span className="club__next-vs">
           {over ? `You finished ${ordinal(pos)}` : `vs ${save.pendingMatch ? (pendingOpp?.name ?? 'Opponents') : (fixture?.club.name ?? '')}`}
         </span>
@@ -150,7 +160,7 @@ export function ClubScreen() {
         </section>
       )}
 
-      <TrophyCabinet seasons={save.seasons} division={save.league.division} kit={save.club.kit} />
+      <TrophyCabinet seasons={save.seasons} division={save.league.division} kit={save.club.kit} cup={save.cup} />
 
       <section className="club__tiles">
         <button type="button" className="club__tile" onClick={() => navigate({ name: 'squad' })}>

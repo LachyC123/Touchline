@@ -8,6 +8,9 @@ import { grantClubXp } from '../club/manager';
 import { advanceOnboarding, colourDistance, KIT_CLASH_DISTANCE } from '../club/onboarding';
 import { opponentLineup } from '../club/opponents';
 import { simulateOtherFixtures, userLeagueResult, userFixture } from '../league/league';
+import { awardCupMedals } from '../league/honours';
+import { catchUpCup, completeCupRound, cupHeadline, CUP_NAME, CUP_PRIZES, CUP_ROUNDS, cupRoundName, settleTie } from '../cup/cup';
+import { penaltyShootout, type ShootoutResult } from '../cup/shootout';
 import { grantPack, SCOUT_PACK_EVERY } from '../packs/packs';
 import { lineupProblems } from '../club/lineup';
 import { matchMilestones, type MilestoneKind } from '../players/milestones';
@@ -61,7 +64,7 @@ export function prepareMatch(save: ClubSave): PendingMatch {
     commands: [],
     checkpointTick: 0,
     season: save.season,
-    round: fx.round,
+    ...(fx.competition === 'cup' ? { competition: 'cup' as const, cupRound: fx.cupRound ?? 0 } : { round: fx.round }),
   };
 }
 
@@ -257,18 +260,41 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
       rewards.lines.push({ label: `${p.lastName}’s debut: +${XP.recruitDebut} XP`, coins: 0 });
     }
   }
+  // Cup: penalties if level, our tie, the rest of the round, the next draw; prize money for progress.
+  const isCup = pending.competition === 'cup';
+  let shootout: ShootoutResult | null = null;
+  if (isCup) {
+    if (gf === ga) shootout = penaltyShootout(pending.seed, pending.home, pending.away);
+    const k = pending.cupRound ?? -1;
+    const tie = draft.cup?.rounds[k]?.find((t) => t.home === PLAYER_CLUB_ID || t.away === PLAYER_CLUB_ID);
+    if (draft.cup && pending.season === draft.season && k === draft.cup.round && tie && !tie.winner) {
+      const settled = settleTie(tie, result, pending.home, pending.away, shootout);
+      completeCupRound(draft, settled);
+      const through = settled.winner === PLAYER_CLUB_ID;
+      if (through && k < CUP_ROUNDS.length - 1) rewards.lines.push({ label: `Into the ${cupRoundName(k + 1).toLowerCase()}`, coins: CUP_PRIZES.progress[k] ?? 0 });
+      if (through && k === CUP_ROUNDS.length - 1) {
+        rewards.lines.push({ label: `${CUP_NAME} winners`, coins: CUP_PRIZES.winner });
+        rewards.clubXp += CUP_PRIZES.winnerClubXp;
+        awardCupMedals(draft, [...starters]);
+      }
+      rewards.coins = rewards.lines.reduce((sum, l) => sum + l.coins, 0);
+      storyHeadline = cupHeadline(settled, k, draft.club.name, oppName, shootout, side, draft.league.division) ?? storyHeadline;
+    }
+  }
   draft.coins += rewards.coins;
   const unlockedCards = grantClubXp(draft, rewards.clubXp);
 
   // League: our result, the rest of the round (same engine, AI benches), then the next round.
   const leagueRound = pending.round ?? draft.league.round;
-  if (pending.season === draft.season && leagueRound === draft.league.round && draft.league.rounds[leagueRound]) {
+  if (!isCup && pending.season === draft.season && leagueRound === draft.league.round && draft.league.rounds[leagueRound]) {
     const names = new Map([...pending.home.players, ...pending.away.players].map((p) => [p.id, p.name] as const));
     const homeId = side === 'home' ? PLAYER_CLUB_ID : pending.opponentId;
     const awayId = side === 'home' ? pending.opponentId : PLAYER_CLUB_ID;
     draft.league.results.push(userLeagueResult(leagueRound, homeId, awayId, result, names));
     draft.league.results.push(...simulateOtherFixtures(draft.careerSeed, draft.season, draft.league, leagueRound));
     draft.league.round++;
+    // Cup rounds we are no longer in are played as the league reaches them.
+    catchUpCup(draft);
   }
 
   const pair = <T,>(h: T, a: T) => ({ home: h, away: a });
@@ -302,7 +328,8 @@ export function settleMatch(draft: ClubSave, pending: PendingMatch, result: Matc
     ...(milestones.length ? { milestones } : {}),
     ...(unlockedCards.length ? { unlockedCards } : {}),
     ...(pending.season !== undefined ? { season: pending.season } : {}),
-    ...(pending.round !== undefined ? { round: pending.round } : {}),
+    ...(pending.round !== undefined && !isCup ? { round: pending.round } : {}),
+    ...(isCup ? { competition: 'cup' as const, cupRound: pending.cupRound ?? 0, ...(shootout ? { shootout } : {}) } : {}),
     ...(pending.number % SCOUT_PACK_EVERY === 0 ? { packId: grantPack(draft, 'local-scout', `match:${pending.matchId}`).id } : {}),
     replay: { home: pending.home, away: pending.away },
   };

@@ -20,6 +20,11 @@ const ICON: Record<StoryKind, IconName> = {
   theirScorer: 'boot',
   milestone: 'starFilled',
   hotStreak: 'bolt',
+  cupRound: 'starFilled',
+  cupFinal: 'starFilled',
+  giantKilling: 'bolt',
+  bananaSkin: 'wall',
+  knockout: 'whistle',
 };
 
 /** "The build-up": short lines that say why the next match matters. */

@@ -188,3 +188,13 @@ The PRESS / QUICK PASS chips became the first two of eight **manager cards** (`s
 Paired-seed tests (`engine.test.ts`, "cards change behaviour") pin each card's intended effect: Go Wide → more crosses, Park the Bus → fewer shots conceded and taken, All-Out → more shots and lower stamina, Target Man → more headers, Hairdryer → fresher legs, Man-Mark → their most dangerous player sees less of the ball. The balance report has one row per card.
 
 Cards are **unlock-only** (no upgrades): manager level from club XP (LV2 at 80, LV3 200, LV4 360, LV5 560) unlocks Hairdryer, Target Man, All-Out Attack and Man-Mark. Save schema v4 stores `cardsUnlocked`, `deck` and `newCards`.
+
+## 14. Knockout ties and penalty shootouts
+
+A cup tie is an ordinary engine match (same lineups, commands, fixed timestep and replay); the engine has no extra time. When the 90 minutes end level, settlement runs `penaltyShootout(matchSeed, home, away)` (`src/domain/cup/shootout.ts`), a pure function on its own RNG stream (`shootout`):
+
+- Takers in order of finishing + composure (keeper last); each kick scores with `clamp(0.76 + (shot − stop) × 0.004, 0.55, 0.92)`, where `shot` is the taker's mean finishing/composure and `stop` the opposing keeper's mean reflexes/positioning.
+- Five each, home first, stopping as soon as one side cannot be caught; then sudden death in pairs.
+- The kicks are stored on the match record and the result screen replays exactly those kicks. Nothing on screen is invented.
+
+AI-vs-AI cup ties use the same match engine (both benches AI-managed) plus the same shootout, seeded from the career, season, cup round and clubs, so the bracket never changes once played.

@@ -5,8 +5,40 @@ import './league-bits.css';
  * Original vector silverware: a two-handled league cup for champions, and a promotion pennant
  * on a pole for going up. Ribbons take the club's kit colours.
  */
-export function Trophy({ kind, ribbon, trim, size = 132 }: { kind: 'cup' | 'pennant'; ribbon: string; trim: string; size?: number }) {
+export function Trophy({ kind, ribbon, trim, size = 132 }: { kind: 'cup' | 'pennant' | 'jug'; ribbon: string; trim: string; size?: number }) {
   const id = useId().replace(/:/g, '');
+  if (kind === 'jug') {
+    return (
+      <svg className="trophy trophy--jug" width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="County Cup">
+        <defs>
+          <linearGradient id={`${id}-silver`} x1="0" x2="1">
+            <stop offset="0" stopColor="#8E9AAE" />
+            <stop offset="0.35" stopColor="#FFFFFF" />
+            <stop offset="0.6" stopColor="#D5DCE8" />
+            <stop offset="1" stopColor="#7C889C" />
+          </linearGradient>
+        </defs>
+        <ellipse cx="60" cy="113" rx="30" ry="5" fill="rgb(0 0 0 / 0.3)" />
+        {/* big ear handles */}
+        <path d="M40 34 C18 30 16 62 42 66" fill="none" stroke="#1B2235" strokeWidth="9" strokeLinecap="round" />
+        <path d="M80 34 C102 30 104 62 78 66" fill="none" stroke="#1B2235" strokeWidth="9" strokeLinecap="round" />
+        <path d="M40 34 C18 30 16 62 42 66" fill="none" stroke={`url(#${id}-silver)`} strokeWidth="5" strokeLinecap="round" />
+        <path d="M80 34 C102 30 104 62 78 66" fill="none" stroke={`url(#${id}-silver)`} strokeWidth="5" strokeLinecap="round" />
+        {/* lid and finial */}
+        <circle cx="60" cy="9" r="5" fill={`url(#${id}-silver)`} stroke="#1B2235" strokeWidth="2.5" />
+        <path d="M44 22 C46 13 74 13 76 22 Z" fill={`url(#${id}-silver)`} stroke="#1B2235" strokeWidth="3" strokeLinejoin="round" />
+        {/* body */}
+        <path d="M40 22 H80 C82 48 76 70 60 76 C44 70 38 48 40 22 Z" fill={`url(#${id}-silver)`} stroke="#1B2235" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M54 76 H66 L65 88 H55 Z" fill={`url(#${id}-silver)`} stroke="#1B2235" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M42 88 H78 L82 106 H38 Z" fill="#23395D" stroke="#1B2235" strokeWidth="3" strokeLinejoin="round" />
+        {/* ribbons in club colours */}
+        <path d="M42 30 L30 64 L38 60 L40 70 L48 32 Z" fill={ribbon} stroke="#1B2235" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M78 30 L90 64 L82 60 L80 70 L72 32 Z" fill={trim} stroke="#1B2235" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M60 36 l3 6 6.6.9-4.8 4.6 1.2 6.6L60 51l-6 3.1 1.2-6.6-4.8-4.6 6.6-.9Z" fill="#F4C653" stroke="#1B2235" strokeWidth="2" strokeLinejoin="round" />
+        <path className="trophy__glint" d="M46 26 Q47 50 56 68" fill="none" stroke="rgb(255 255 255 / 0.85)" strokeWidth="4" strokeLinecap="round" />
+      </svg>
+    );
+  }
   if (kind === 'pennant') {
     return (
       <svg className="trophy trophy--pennant" width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="Promotion pennant">
